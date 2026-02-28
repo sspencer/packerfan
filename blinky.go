@@ -1,38 +1,45 @@
 package main
 
-type blinkyBehavior struct{}
+var (
+	blinkyStartTile = Vector{14, 11}
+	blinkyHouseTile = Vector{14, 14}
+	blinkyStartDir  = Left
+)
 
-func NewBlinky(g *Game) *Ghost {
+type blinkyAI struct{}
+
+func NewBlinky() *Ghost {
 	blinky := &Ghost{
 		Actor: Actor{
+			pos:     blinkyStartTile.ToPixel(),
+			dir:     blinkyStartDir,
 			isGhost: true,
 		},
 		state:    Scatter,
-		behavior: blinkyBehavior{},
+		behavior: blinkyAI{},
 	}
 
 	return blinky
 }
 
-func (blinkyBehavior) StartPos(g *Game) {
-	g.blinky.setTilePos(14, 11) // always starts outside house
+func (blinkyAI) StartPos(g *Game) {
+	g.blinky.pos = blinkyStartTile.ToPixel()
 	g.blinky.dir = Left
 }
 
-func (blinkyBehavior) HousePos(g *Game) {
-	g.blinky.setTilePos(14, 14) // in house
+func (blinkyAI) HousePos(g *Game) {
+	g.blinky.pos = blinkyHouseTile.ToPixel()
 }
 
-func (blinkyBehavior) ScatterTarget(g *Game) {
+func (blinkyAI) ScatterTarget(g *Game) {
 	// TODO check dots remaining for Elroy 1 / 2
-	g.blinky.setTileTarget(GameWidth-3, -3)
+	g.blinky.target = Vector{GameWidth - 3, -3}.ToPixel()
 }
 
-func (blinkyBehavior) ChaseTarget(g *Game) {
-	g.blinky.targetX = g.player.x
-	g.blinky.targetY = g.player.y
+func (blinkyAI) ChaseTarget(g *Game) {
+	g.blinky.target = g.player.pos
 }
 
-func (blinkyBehavior) Leave(*Game) bool {
+func (blinkyAI) Leave(*Game) bool {
 	return true
 }

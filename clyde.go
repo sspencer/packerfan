@@ -1,37 +1,37 @@
 package main
 
-type clydeBehavior struct{}
+type clydeAI struct{}
 
-func NewClyde(g *Game) *Ghost {
+func NewClyde() *Ghost {
 	return &Ghost{
 		Actor: Actor{
 			isGhost: true,
 		},
 		state:    InHouse,
-		behavior: clydeBehavior{},
+		behavior: clydeAI{},
 	}
 }
 
-func (clydeBehavior) StartPos(g *Game) {
+func (clydeAI) StartPos(g *Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (clydeBehavior) HousePos(*Game) {
+func (clydeAI) HousePos(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (clydeBehavior) ScatterTarget(*Game) {
+func (clydeAI) ScatterTarget(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (clydeBehavior) ChaseTarget(*Game) {
+func (clydeAI) ChaseTarget(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (clydeBehavior) Leave(*Game) bool {
+func (clydeAI) Leave(*Game) bool {
 	return false
 }

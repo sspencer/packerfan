@@ -47,10 +47,10 @@ func NewGame(pacman bool, zoom float32, font, texture rl.Texture2D, image *rl.Im
 		pacman:  pacman,
 	}
 
-	game.blinky = NewBlinky(game)
-	game.inky = NewInky(game)
-	game.pinky = NewPinky(game)
-	game.clyde = NewClyde(game)
+	game.blinky = NewBlinky()
+	game.inky = NewInky()
+	game.pinky = NewPinky()
+	game.clyde = NewClyde()
 
 	game.eventStack.Init()
 

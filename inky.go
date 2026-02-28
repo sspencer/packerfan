@@ -1,37 +1,37 @@
 package main
 
-type inkyBehavior struct{}
+type inkyAI struct{}
 
-func NewInky(g *Game) *Ghost {
+func NewInky() *Ghost {
 	return &Ghost{
 		Actor: Actor{
 			isGhost: true,
 		},
 		state:    InHouse,
-		behavior: inkyBehavior{},
+		behavior: inkyAI{},
 	}
 }
 
-func (inkyBehavior) StartPos(*Game) {
+func (inkyAI) StartPos(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (inkyBehavior) HousePos(*Game) {
+func (inkyAI) HousePos(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (inkyBehavior) ScatterTarget(*Game) {
+func (inkyAI) ScatterTarget(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (inkyBehavior) ChaseTarget(*Game) {
+func (inkyAI) ChaseTarget(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (inkyBehavior) Leave(*Game) bool {
+func (inkyAI) Leave(*Game) bool {
 	return false
 }

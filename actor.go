@@ -3,6 +3,7 @@ package main
 import rl "github.com/gen2brain/raylib-go/raylib"
 
 type Actor struct {
+	pos        Vector
 	x, y       int
 	dir        Direction
 	speedIndex int

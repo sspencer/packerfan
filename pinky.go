@@ -1,37 +1,37 @@
 package main
 
-type pinkyBehavior struct{}
+type pinkyAI struct{}
 
-func NewPinky(g *Game) *Ghost {
+func NewPinky() *Ghost {
 	return &Ghost{
 		Actor: Actor{
 			isGhost: true,
 		},
 		state:    InHouse,
-		behavior: pinkyBehavior{},
+		behavior: pinkyAI{},
 	}
 }
 
-func (p pinkyBehavior) StartPos(*Game) {
+func (p pinkyAI) StartPos(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p pinkyBehavior) HousePos(*Game) {
+func (p pinkyAI) HousePos(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p pinkyBehavior) ScatterTarget(*Game) {
+func (p pinkyAI) ScatterTarget(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p pinkyBehavior) ChaseTarget(*Game) {
+func (p pinkyAI) ChaseTarget(*Game) {
 	//TODO implement me
 	panic("implement me")
 }
 
-func (p pinkyBehavior) Leave(*Game) bool {
+func (p pinkyAI) Leave(*Game) bool {
 	return false
 }
