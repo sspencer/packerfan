@@ -12,7 +12,7 @@ const (
 	GameHeight   = 31
 	TopOffset    = 3
 	ScreenWidth  = GameWidth
-	ScreenHeight = GameHeight + 6
+	ScreenHeight = GameHeight + 5
 	Tile         = 8
 	Sprite       = 16
 	Half         = Tile / 2

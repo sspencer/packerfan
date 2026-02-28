@@ -24,6 +24,9 @@ func (g *Game) handleEvent(event Event) {
 	case PlayerAteDot:
 		g.maze[event.Y][event.X] = Empty
 		g.score += PelletScore
+		if g.score > g.highScore {
+			g.highScore = g.score
+		}
 		g.dotsEaten++
 		g.dotsRemaining--
 		g.player.dotPause += PelletPause
@@ -31,6 +34,9 @@ func (g *Game) handleEvent(event Event) {
 	case PlayerAtePowerUp:
 		g.maze[event.Y][event.X] = Empty
 		g.score += PowerScore
+		if g.score > g.highScore {
+			g.highScore = g.score
+		}
 		g.dotsEaten++
 		g.dotsRemaining--
 		g.player.dotPause += PowerPause

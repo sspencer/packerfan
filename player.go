@@ -27,6 +27,18 @@ func (g *Game) drawPlayer() {
 	g.drawActor(float32(p.x), float32(p.y), 456, sy, p.frameIndex)
 
 }
+func (g *Game) drawPlayerLives() {
+	x := float32(2) * Tile
+	y := float32(0)
+	for _ = range g.lives - 1 {
+		if g.pacman {
+			g.drawActor(x, y, 456, 992, 1)
+		} else {
+			g.drawActor(x, y, 456, 0, 1)
+		}
+		x += Sprite
+	}
+}
 
 func (g *Game) canPlayerMove(tx, ty int, dir Direction) bool {
 	nx := tx

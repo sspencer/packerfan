@@ -6,7 +6,7 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-func (g *Game) drawText(text string, x, y, pixelOffset int, color rl.Color) {
+func (g *Game) drawText(text string, x, y int, color rl.Color) {
 
 	str := []byte(strings.ToUpper(text))
 	var fx, fy int
@@ -47,7 +47,7 @@ func (g *Game) drawText(text string, x, y, pixelOffset int, color rl.Color) {
 		}
 
 		src := rl.NewRectangle(float32(fx*Tile), float32(fy*Tile), Tile, Tile)
-		dst := rl.NewRectangle(float32((x+i)*Tile), float32(y*Tile)+float32(pixelOffset), Tile, Tile)
+		dst := rl.NewRectangle(float32((x+i)*Tile), float32(y*Tile), Tile, Tile)
 		rl.DrawTexturePro(g.font, src, dst, rl.Vector2{}, 0, color)
 	}
 }

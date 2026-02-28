@@ -10,6 +10,7 @@ type Game struct {
 	zoom          float32
 	pacman        bool
 	paused        bool
+	lives         int
 	score         int
 	highScore     int
 	level         int
@@ -36,6 +37,7 @@ func NewGame(zoom float32, font, texture rl.Texture2D, image *rl.Image, shader r
 		shader:  shader,
 		zoom:    zoom,
 		level:   1,
+		lives:   3,
 		maze:    maze,
 		player:  NewPlayer(),
 		pacman:  false,
