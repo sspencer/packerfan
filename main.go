@@ -27,7 +27,9 @@ func main() {
 	debug.SetGCPercent(200)
 
 	var zoom int
-	flag.IntVar(&zoom, "zoom", 4, "zoom level")
+	var pacman bool
+	flag.IntVar(&zoom, "zoom", 3, "zoom level")
+	flag.BoolVar(&pacman, "pacman", false, "pacman mode")
 	flag.Parse()
 
 	zoom = max(1, min(zoom, 10))
@@ -47,7 +49,7 @@ func main() {
 	shader := chromaShader("assets/chroma_key.fs")
 	defer rl.UnloadShader(shader)
 
-	game := NewGame(float32(zoom), fontTexture, gameTexture, gameImage, shader)
+	game := NewGame(pacman, float32(zoom), fontTexture, gameTexture, gameImage, shader)
 	game.initMaze()
 	//fmt.Println(game.maze.String())
 

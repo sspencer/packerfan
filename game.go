@@ -24,7 +24,7 @@ type Game struct {
 	//ghosts      [4]*Ghost
 }
 
-func NewGame(zoom float32, font, texture rl.Texture2D, image *rl.Image, shader rl.Shader) *Game {
+func NewGame(pacman bool, zoom float32, font, texture rl.Texture2D, image *rl.Image, shader rl.Shader) *Game {
 	maze := make(Maze, GameHeight)
 	for i := range GameHeight {
 		maze[i] = make([]Cell, GameWidth)
@@ -40,7 +40,7 @@ func NewGame(zoom float32, font, texture rl.Texture2D, image *rl.Image, shader r
 		lives:   3,
 		maze:    maze,
 		player:  NewPlayer(),
-		pacman:  false,
+		pacman:  pacman,
 	}
 
 	game.spec = getLevelSpec(game.level) // eventually change pacman/mspacman spec
