@@ -19,6 +19,10 @@ type Game struct {
 	isFrightMode  bool
 	maze          Maze
 	player        *Player
+	blinky        *Ghost
+	clyde         *Ghost
+	inky          *Ghost
+	pinky         *Ghost
 	eventStack    EventStack
 	spec          LevelSpecTable
 	//ghosts      [4]*Ghost
@@ -30,7 +34,7 @@ func NewGame(pacman bool, zoom float32, font, texture rl.Texture2D, image *rl.Im
 		maze[i] = make([]Cell, GameWidth)
 	}
 
-	game := Game{
+	game := &Game{
 		font:    font,
 		texture: texture,
 		image:   image,
@@ -43,8 +47,12 @@ func NewGame(pacman bool, zoom float32, font, texture rl.Texture2D, image *rl.Im
 		pacman:  pacman,
 	}
 
-	game.spec = getLevelSpec(game.level) // eventually change pacman/mspacman spec
+	game.blinky = NewBlinky(game)
+	game.inky = NewInky(game)
+	game.pinky = NewPinky(game)
+	game.clyde = NewClyde(game)
+
 	game.eventStack.Init()
 
-	return &game
+	return game
 }

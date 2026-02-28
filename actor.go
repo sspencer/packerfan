@@ -101,3 +101,7 @@ func (a *Actor) update(speed uint32) bool {
 func isCentered(x, y int) bool {
 	return (x%Tile) == 0 && (y%Tile) == 0
 }
+
+func tileToPixel(x, y int) rl.Vector2 {
+	return rl.Vector2{float32(x) * Tile, float32(y) * Tile}
+}

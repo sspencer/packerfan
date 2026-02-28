@@ -51,6 +51,8 @@ func main() {
 
 	game := NewGame(pacman, float32(zoom), fontTexture, gameTexture, gameImage, shader)
 	game.initMaze()
+	game.initLevel()
+
 	//fmt.Println(game.maze.String())
 
 	for !rl.WindowShouldClose() {
