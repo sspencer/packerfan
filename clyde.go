@@ -14,11 +14,11 @@ func (ai clydeAI) ID() GhostID {
 func (ai clydeAI) Start(gm *Game, g *Ghost) {
 	g.state = InHouse
 	g.dir = Up
-	g.pos = Vector{16, 14}.ToPixel()
+	g.pos = Vector{16, 14}.ToPixel().Sub(Half, 0)
 }
 
 func (ai clydeAI) House(_ *Game, g *Ghost) {
-	g.target = Vector{16, 14}.ToPixel()
+	g.target = Vector{16, 14}.ToPixel().Sub(Half, 0)
 }
 
 func (ai clydeAI) Scatter(_ *Game, g *Ghost) {

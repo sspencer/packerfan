@@ -14,11 +14,11 @@ func (ai pinkyAI) ID() GhostID {
 func (ai pinkyAI) Start(gm *Game, g *Ghost) {
 	g.state = InHouse
 	g.dir = Down
-	g.pos = Vector{14, 14}.ToPixel()
+	g.pos = Vector{14, 14}.ToPixel().Sub(Half, 0)
 }
 
 func (ai pinkyAI) House(_ *Game, g *Ghost) {
-	g.target = Vector{14, 14}.ToPixel()
+	g.target = Vector{14, 14}.ToPixel().Sub(Half, 0)
 }
 
 func (ai pinkyAI) Scatter(_ *Game, g *Ghost) {

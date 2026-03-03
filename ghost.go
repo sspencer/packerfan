@@ -26,6 +26,48 @@ type Ghost struct {
 	behavior Behavior
 }
 
+func (g *Ghost) ID() GhostID {
+	if g.behavior != nil {
+		return g.behavior.ID()
+	}
+	return Blinky
+}
+
+func (g *Ghost) Chase(gm *Game) {
+	if g.behavior == nil {
+		return
+	}
+	g.behavior.Chase(gm, g)
+}
+
+func (g *Ghost) Scatter(gm *Game) {
+	if g.behavior == nil {
+		return
+	}
+	g.behavior.Scatter(gm, g)
+}
+
+func (g *Ghost) Leave(gm *Game) bool {
+	if g.behavior == nil {
+		return false
+	}
+	return g.behavior.Leave(gm, g)
+}
+
+func (g *Ghost) House(gm *Game) {
+	if g.behavior == nil {
+		return
+	}
+	g.behavior.House(gm, g)
+}
+
+func (g *Ghost) Start(gm *Game) {
+	if g.behavior == nil {
+		return
+	}
+	g.behavior.Start(gm, g)
+}
+
 func newGhost(gm *Game, ai Behavior) *Ghost {
 	g := &Ghost{
 		Actor: Actor{
@@ -62,7 +104,7 @@ func (gm *Game) drawGhost(g *Ghost) {
 		   return (Vector2){whites_x[dir], 64};
 		*/
 	} else {
-		sprite.y = []int{64, 80, 96, 112}[g.behavior.ID()] // blinky, inky, pinky, clyde
+		sprite.y = []int{64, 80, 96, 112}[g.ID()] // blinky, inky, pinky, clyde
 		sprite.x = []int{456, 488, 520, 552}[g.dir]
 	}
 
