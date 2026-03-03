@@ -2,6 +2,10 @@ package main
 
 func (g *Game) Update() {
 	g.updatePlayer(g.player)
+	g.updateGhost(g.blinky)
+	g.updateGhost(g.inky)
+	g.updateGhost(g.pinky)
+	g.updateGhost(g.clyde)
 	g.handleEvents()
 }
 

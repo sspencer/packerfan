@@ -25,8 +25,8 @@ func (g *Game) drawPlayer() {
 	}
 
 	g.drawActor(float32(p.x), float32(p.y), 456, sy, p.frameIndex)
-
 }
+
 func (g *Game) drawPlayerLives() {
 	x := float32(2) * Tile
 	y := float32(0)

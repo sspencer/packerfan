@@ -158,9 +158,5 @@ func (g *Game) getPlayerSpeed() uint32 {
 }
 
 func (g *Game) initLevel() {
-	g.blinky.StartPos(g)
-	g.inky.StartPos(g)
-	g.pinky.StartPos(g)
-	g.clyde.StartPos(g)
 	g.spec = getLevelSpec(g.level) // eventually change pacman/mspacman spec
 }

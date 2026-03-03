@@ -1,37 +1,34 @@
 package main
 
-type clydeAI struct{}
-
-func NewClyde() *Ghost {
-	return &Ghost{
-		Actor: Actor{
-			isGhost: true,
-		},
-		state:    InHouse,
-		behavior: clydeAI{},
-	}
+type clydeAI struct {
 }
 
-func (clydeAI) StartPos(g *Game) {
-	//TODO implement me
-	panic("implement me")
+func NewClyde(gm *Game) *Ghost {
+	return newGhost(gm, clydeAI{})
 }
 
-func (clydeAI) HousePos(*Game) {
-	//TODO implement me
-	panic("implement me")
+func (ai clydeAI) ID() GhostID {
+	return Clyde
 }
 
-func (clydeAI) ScatterTarget(*Game) {
-	//TODO implement me
-	panic("implement me")
+func (ai clydeAI) Start(gm *Game, g *Ghost) {
+	g.state = InHouse
+	g.dir = Up
+	g.pos = Vector{16, 14}.ToPixel()
 }
 
-func (clydeAI) ChaseTarget(*Game) {
-	//TODO implement me
-	panic("implement me")
+func (ai clydeAI) House(_ *Game, g *Ghost) {
+	g.target = Vector{16, 14}.ToPixel()
 }
 
-func (clydeAI) Leave(*Game) bool {
+func (ai clydeAI) Scatter(_ *Game, g *Ghost) {
+	g.target = Vector{0, GameHeight}.ToPixel()
+}
+
+func (ai clydeAI) Chase(gm *Game, g *Ghost) {
+	g.target = gm.player.pos
+}
+
+func (ai clydeAI) Leave(_ *Game, _ *Ghost) bool {
 	return false
 }

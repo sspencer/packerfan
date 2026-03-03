@@ -1,37 +1,34 @@
 package main
 
-type pinkyAI struct{}
-
-func NewPinky() *Ghost {
-	return &Ghost{
-		Actor: Actor{
-			isGhost: true,
-		},
-		state:    InHouse,
-		behavior: pinkyAI{},
-	}
+type pinkyAI struct {
 }
 
-func (p pinkyAI) StartPos(*Game) {
-	//TODO implement me
-	panic("implement me")
+func NewPinky(gm *Game) *Ghost {
+	return newGhost(gm, pinkyAI{})
 }
 
-func (p pinkyAI) HousePos(*Game) {
-	//TODO implement me
-	panic("implement me")
+func (ai pinkyAI) ID() GhostID {
+	return Pinky
 }
 
-func (p pinkyAI) ScatterTarget(*Game) {
-	//TODO implement me
-	panic("implement me")
+func (ai pinkyAI) Start(gm *Game, g *Ghost) {
+	g.state = InHouse
+	g.dir = Down
+	g.pos = Vector{14, 14}.ToPixel()
 }
 
-func (p pinkyAI) ChaseTarget(*Game) {
-	//TODO implement me
-	panic("implement me")
+func (ai pinkyAI) House(_ *Game, g *Ghost) {
+	g.target = Vector{14, 14}.ToPixel()
 }
 
-func (p pinkyAI) Leave(*Game) bool {
-	return false
+func (ai pinkyAI) Scatter(_ *Game, g *Ghost) {
+	g.target = Vector{2, -3}.ToPixel()
+}
+
+func (ai pinkyAI) Chase(gm *Game, g *Ghost) {
+	g.target = gm.player.pos
+}
+
+func (ai pinkyAI) Leave(_ *Game, _ *Ghost) bool {
+	return true
 }

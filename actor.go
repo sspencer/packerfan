@@ -14,24 +14,6 @@ type Actor struct {
 	isGhost    bool
 }
 
-func (g *Game) drawActor(x, y, sx, sy float32, frameIndex int) {
-	src := rl.Rectangle{
-		X:      sx + float32(frameIndex)*Sprite,
-		Y:      sy,
-		Width:  Sprite,
-		Height: Sprite,
-	}
-
-	dst := rl.Rectangle{
-		X:      x,
-		Y:      y,
-		Width:  Sprite,
-		Height: Sprite,
-	}
-
-	rl.DrawTexturePro(g.texture, src, dst, rl.Vector2{}, 0, rl.White)
-}
-
 func bitValue(n uint32, bit int) int {
 	if n&(1<<bit) == 0 {
 		return 0
