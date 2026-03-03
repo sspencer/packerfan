@@ -8,7 +8,16 @@ type Player struct {
 }
 
 func NewPlayer() *Player {
-	return &Player{Actor: Actor{x: 108, y: 184, dir: Left}, requested: Left}
+	p := &Player{
+		Actor: Actor{
+			ID:       Pacman,
+			StartDir: Left,
+			StartPos: Vector{108, 184},
+		},
+	}
+	p.ResetToStart()
+	p.requested = p.StartDir
+	return p
 }
 
 func (g *Game) drawPlayer() {

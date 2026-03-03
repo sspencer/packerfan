@@ -4,11 +4,12 @@ type clydeAI struct {
 }
 
 func NewClyde(gm *Game) *Ghost {
-	return newGhost(gm, GhostConfig{
-		ID:            Clyde,
+	return newGhost(gm, Actor{
+		ID:       Clyde,
+		StartDir: Up,
+		StartPos: Vector{16, 14}.ToPixel().Sub(Half, 0),
+	}, GhostConfig{
 		StartState:    InHouse,
-		StartDir:      Up,
-		StartPos:      Vector{16, 14}.ToPixel().Sub(Half, 0),
 		HouseTarget:   Vector{16, 14}.ToPixel().Sub(Half, 0),
 		ScatterTarget: Vector{0, GameHeight}.ToPixel(),
 		Brain:         clydeAI{},

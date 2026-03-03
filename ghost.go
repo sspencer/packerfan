@@ -1,24 +1,12 @@
 package main
 
-type GhostID int
-
-const (
-	Blinky GhostID = iota
-	Pinky
-	Inky
-	Clyde
-)
-
 type GhostBrain interface {
 	ChaseTarget(*Game, *Ghost) Vector
 	ShouldLeaveHouse(*Game, *Ghost) bool
 }
 
 type GhostConfig struct {
-	ID            GhostID
 	StartState    GhostState
-	StartDir      Direction
-	StartPos      Vector
 	HouseTarget   Vector
 	ScatterTarget Vector
 	Brain         GhostBrain
@@ -32,14 +20,9 @@ type Ghost struct {
 	config  GhostConfig
 }
 
-func (g *Ghost) ID() GhostID {
-	return g.config.ID
-}
-
 func (g *Ghost) Start(_ *Game) {
 	g.state = g.config.StartState
-	g.dir = g.config.StartDir
-	g.pos = g.config.StartPos
+	g.ResetToStart()
 }
 
 func (g *Ghost) Chase(gm *Game) {
@@ -64,15 +47,14 @@ func (g *Ghost) House(_ *Game) {
 	g.target = g.config.HouseTarget
 }
 
-func newGhost(gm *Game, config GhostConfig) *Ghost {
+func newGhost(gm *Game, actor Actor, config GhostConfig) *Ghost {
 	if config.Brain == nil {
 		panic("ghost brain is required")
 	}
+	actor.isGhost = true
 
 	g := &Ghost{
-		Actor: Actor{
-			isGhost: true,
-		},
+		Actor:  actor,
 		config: config,
 	}
 
@@ -104,7 +86,7 @@ func (gm *Game) drawGhost(g *Ghost) {
 		   return (Vector2){whites_x[dir], 64};
 		*/
 	} else {
-		sprite.y = []int{64, 80, 96, 112}[g.ID()] // blinky, inky, pinky, clyde
+		sprite.y = []int{64, 80, 96, 112}[int(g.Actor.ID)] // blinky, inky, pinky, clyde
 		sprite.x = []int{456, 488, 520, 552}[g.dir]
 	}
 

@@ -4,11 +4,12 @@ type blinkyAI struct {
 }
 
 func NewBlinky(gm *Game) *Ghost {
-	return newGhost(gm, GhostConfig{
-		ID:            Blinky,
+	return newGhost(gm, Actor{
+		ID:       Blinky,
+		StartDir: Left,
+		StartPos: Vector{14, 11}.ToPixel().Sub(Half, 0),
+	}, GhostConfig{
 		StartState:    Scatter,
-		StartDir:      Left,
-		StartPos:      Vector{14, 11}.ToPixel().Sub(Half, 0),
 		HouseTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
 		ScatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
 		Brain:         blinkyAI{},

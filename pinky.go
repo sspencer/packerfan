@@ -4,11 +4,12 @@ type pinkyAI struct {
 }
 
 func NewPinky(gm *Game) *Ghost {
-	return newGhost(gm, GhostConfig{
-		ID:            Pinky,
+	return newGhost(gm, Actor{
+		ID:       Pinky,
+		StartDir: Down,
+		StartPos: Vector{14, 14}.ToPixel().Sub(Half, 0),
+	}, GhostConfig{
 		StartState:    InHouse,
-		StartDir:      Down,
-		StartPos:      Vector{14, 14}.ToPixel().Sub(Half, 0),
 		HouseTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
 		ScatterTarget: Vector{2, -3}.ToPixel(),
 		Brain:         pinkyAI{},

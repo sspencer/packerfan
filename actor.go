@@ -2,7 +2,20 @@ package main
 
 import rl "github.com/gen2brain/raylib-go/raylib"
 
+type ActorID int
+
+const (
+	Blinky ActorID = iota
+	Pinky
+	Inky
+	Clyde
+	Pacman
+)
+
 type Actor struct {
+	ID         ActorID
+	StartDir   Direction
+	StartPos   Vector
 	pos        Vector
 	x, y       int
 	dir        Direction
@@ -12,6 +25,13 @@ type Actor struct {
 	dotPause   int
 	isEaten    bool
 	isGhost    bool
+}
+
+func (a *Actor) ResetToStart() {
+	a.dir = a.StartDir
+	a.pos = a.StartPos
+	a.x = a.StartPos.x
+	a.y = a.StartPos.y
 }
 
 func bitValue(n uint32, bit int) int {
