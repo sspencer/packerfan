@@ -4,31 +4,21 @@ type inkyAI struct {
 }
 
 func NewInky(gm *Game) *Ghost {
-	return newGhost(gm, inkyAI{})
+	return newGhost(gm, GhostConfig{
+		ID:            Inky,
+		StartState:    InHouse,
+		StartDir:      Up,
+		StartPos:      Vector{12, 14}.ToPixel().Sub(Half, 0),
+		HouseTarget:   Vector{12, 14}.ToPixel().Sub(Half, 0),
+		ScatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
+		Brain:         inkyAI{},
+	})
 }
 
-func (ai inkyAI) ID() GhostID {
-	return Inky
+func (ai inkyAI) ChaseTarget(gm *Game, _ *Ghost) Vector {
+	return gm.player.pos
 }
 
-func (ai inkyAI) Start(gm *Game, g *Ghost) {
-	g.state = InHouse
-	g.dir = Up
-	g.pos = Vector{12, 14}.ToPixel().Sub(Half, 0)
-}
-
-func (ai inkyAI) House(_ *Game, g *Ghost) {
-	g.target = Vector{12, 14}.ToPixel().Sub(Half, 0)
-}
-
-func (ai inkyAI) Scatter(_ *Game, g *Ghost) {
-	g.target = Vector{GameWidth - 3, -3}.ToPixel()
-}
-
-func (ai inkyAI) Chase(gm *Game, g *Ghost) {
-	g.target = gm.player.pos
-}
-
-func (ai inkyAI) Leave(_ *Game, _ *Ghost) bool {
+func (ai inkyAI) ShouldLeaveHouse(_ *Game, _ *Ghost) bool {
 	return false
 }

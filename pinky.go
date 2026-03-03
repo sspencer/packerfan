@@ -4,31 +4,21 @@ type pinkyAI struct {
 }
 
 func NewPinky(gm *Game) *Ghost {
-	return newGhost(gm, pinkyAI{})
+	return newGhost(gm, GhostConfig{
+		ID:            Pinky,
+		StartState:    InHouse,
+		StartDir:      Down,
+		StartPos:      Vector{14, 14}.ToPixel().Sub(Half, 0),
+		HouseTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
+		ScatterTarget: Vector{2, -3}.ToPixel(),
+		Brain:         pinkyAI{},
+	})
 }
 
-func (ai pinkyAI) ID() GhostID {
-	return Pinky
+func (ai pinkyAI) ChaseTarget(gm *Game, _ *Ghost) Vector {
+	return gm.player.pos
 }
 
-func (ai pinkyAI) Start(gm *Game, g *Ghost) {
-	g.state = InHouse
-	g.dir = Down
-	g.pos = Vector{14, 14}.ToPixel().Sub(Half, 0)
-}
-
-func (ai pinkyAI) House(_ *Game, g *Ghost) {
-	g.target = Vector{14, 14}.ToPixel().Sub(Half, 0)
-}
-
-func (ai pinkyAI) Scatter(_ *Game, g *Ghost) {
-	g.target = Vector{2, -3}.ToPixel()
-}
-
-func (ai pinkyAI) Chase(gm *Game, g *Ghost) {
-	g.target = gm.player.pos
-}
-
-func (ai pinkyAI) Leave(_ *Game, _ *Ghost) bool {
+func (ai pinkyAI) ShouldLeaveHouse(_ *Game, _ *Ghost) bool {
 	return true
 }

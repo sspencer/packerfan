@@ -9,74 +9,74 @@ const (
 	Clyde
 )
 
-type Behavior interface {
-	ID() GhostID
-	Chase(*Game, *Ghost)
-	Scatter(*Game, *Ghost)
-	Leave(*Game, *Ghost) bool
-	House(*Game, *Ghost)
-	Start(*Game, *Ghost)
+type GhostBrain interface {
+	ChaseTarget(*Game, *Ghost) Vector
+	ShouldLeaveHouse(*Game, *Ghost) bool
+}
+
+type GhostConfig struct {
+	ID            GhostID
+	StartState    GhostState
+	StartDir      Direction
+	StartPos      Vector
+	HouseTarget   Vector
+	ScatterTarget Vector
+	Brain         GhostBrain
 }
 
 type Ghost struct {
 	Actor
-	target   Vector
-	state    GhostState
-	reverse  bool
-	behavior Behavior
+	target  Vector
+	state   GhostState
+	reverse bool
+	config  GhostConfig
 }
 
 func (g *Ghost) ID() GhostID {
-	if g.behavior != nil {
-		return g.behavior.ID()
-	}
-	return Blinky
+	return g.config.ID
+}
+
+func (g *Ghost) Start(_ *Game) {
+	g.state = g.config.StartState
+	g.dir = g.config.StartDir
+	g.pos = g.config.StartPos
 }
 
 func (g *Ghost) Chase(gm *Game) {
-	if g.behavior == nil {
+	if g.config.Brain == nil {
 		return
 	}
-	g.behavior.Chase(gm, g)
+	g.target = g.config.Brain.ChaseTarget(gm, g)
 }
 
-func (g *Ghost) Scatter(gm *Game) {
-	if g.behavior == nil {
-		return
-	}
-	g.behavior.Scatter(gm, g)
+func (g *Ghost) Scatter(_ *Game) {
+	g.target = g.config.ScatterTarget
 }
 
 func (g *Ghost) Leave(gm *Game) bool {
-	if g.behavior == nil {
+	if g.config.Brain == nil {
 		return false
 	}
-	return g.behavior.Leave(gm, g)
+	return g.config.Brain.ShouldLeaveHouse(gm, g)
 }
 
-func (g *Ghost) House(gm *Game) {
-	if g.behavior == nil {
-		return
+func (g *Ghost) House(_ *Game) {
+	g.target = g.config.HouseTarget
+}
+
+func newGhost(gm *Game, config GhostConfig) *Ghost {
+	if config.Brain == nil {
+		panic("ghost brain is required")
 	}
-	g.behavior.House(gm, g)
-}
 
-func (g *Ghost) Start(gm *Game) {
-	if g.behavior == nil {
-		return
-	}
-	g.behavior.Start(gm, g)
-}
-
-func newGhost(gm *Game, ai Behavior) *Ghost {
 	g := &Ghost{
 		Actor: Actor{
 			isGhost: true,
 		},
-		behavior: ai,
+		config: config,
 	}
 
-	ai.Start(gm, g)
+	g.Start(gm)
 
 	return g
 }

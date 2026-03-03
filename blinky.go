@@ -4,32 +4,21 @@ type blinkyAI struct {
 }
 
 func NewBlinky(gm *Game) *Ghost {
-	return newGhost(gm, blinkyAI{})
+	return newGhost(gm, GhostConfig{
+		ID:            Blinky,
+		StartState:    Scatter,
+		StartDir:      Left,
+		StartPos:      Vector{14, 11}.ToPixel().Sub(Half, 0),
+		HouseTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
+		ScatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
+		Brain:         blinkyAI{},
+	})
 }
 
-func (ai blinkyAI) ID() GhostID {
-	return Blinky
+func (ai blinkyAI) ChaseTarget(gm *Game, _ *Ghost) Vector {
+	return gm.player.pos
 }
 
-func (ai blinkyAI) Start(gm *Game, g *Ghost) {
-	g.state = Scatter
-	g.dir = Left
-	g.pos = Vector{14, 11}.ToPixel().Sub(Half, 0)
-}
-
-func (ai blinkyAI) House(_ *Game, g *Ghost) {
-	g.target = Vector{14, 14}.ToPixel().Sub(Half, 0)
-}
-
-func (ai blinkyAI) Scatter(_ *Game, g *Ghost) {
-	// TODO check dots remaining for Elroy 1 / 2
-	g.target = Vector{GameWidth - 3, -3}.ToPixel()
-}
-
-func (ai blinkyAI) Chase(gm *Game, g *Ghost) {
-	g.target = gm.player.pos
-}
-
-func (ai blinkyAI) Leave(_ *Game, _ *Ghost) bool {
+func (ai blinkyAI) ShouldLeaveHouse(_ *Game, _ *Ghost) bool {
 	return true
 }
