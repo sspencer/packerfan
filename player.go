@@ -24,28 +24,28 @@ func (g *Game) drawPlayer() {
 	// r l u d -- graphic
 	// u d l r -- dir
 	p := g.player
-	var sy float32
+	sprite := Vector{456, 0}
+
 	if g.pacman {
-		sprites := []float32{992, 1008, 1024, 1040}
-		sy = sprites[p.dir]
+		sprite.y = []int{992, 1008, 1024, 1040}[p.dir]
 	} else {
-		sprites := []float32{0, 16, 32, 48}
-		sy = sprites[p.dir]
+		sprite.y = []int{0, 16, 32, 48}[p.dir]
 	}
 
-	g.drawActor(float32(p.x), float32(p.y), 456, sy, p.frameIndex)
+	g.drawActor(p.pos, sprite, p.frameIndex)
 }
 
 func (g *Game) drawPlayerLives() {
-	x := float32(2) * Tile
-	y := float32(0)
+	pos := Vector{2 * Tile, 0}
+	sprite := Vector{456, 0}
 	for _ = range g.lives - 1 {
 		if g.pacman {
-			g.drawActor(x, y, 456, 992, 1)
+			sprite.y = 992
 		} else {
-			g.drawActor(x, y, 456, 0, 1)
+			sprite.y = 0
 		}
-		x += Sprite
+		g.drawActor(pos, sprite, 1)
+		pos.x += Sprite
 	}
 }
 
@@ -126,10 +126,10 @@ func (g *Game) updatePlayer(p *Player) {
 
 	const threshold = 3
 
-	tx := p.x / Tile
-	ty := p.y / Tile
-	ox := p.x % Tile
-	oy := p.y % Tile
+	tx := p.pos.x / Tile
+	ty := p.pos.y / Tile
+	ox := p.pos.x % Tile
+	oy := p.pos.y % Tile
 
 	// direction change
 	if requestedDir || p.requested != p.dir {
@@ -195,8 +195,8 @@ func (g *Game) updatePlayer(p *Player) {
 	}
 
 	// Eat dots/powerups using center-aligned tile coordinates
-	ctx := (p.x + Half) / Tile
-	cty := (p.y + Half) / Tile
+	ctx := (p.pos.x + Half) / Tile
+	cty := (p.pos.y + Half) / Tile
 	if ctx >= 0 && ctx < GameWidth && cty >= 0 && cty < GameHeight {
 		tile := g.maze[cty][ctx]
 		if tile == Dot {
@@ -207,12 +207,12 @@ func (g *Game) updatePlayer(p *Player) {
 	}
 
 	// tunnel warp
-	if p.x < 0 {
-		p.x += GameWidth * Tile
+	if p.pos.x < 0 {
+		p.pos.x += GameWidth * Tile
 	}
 
-	if p.x >= GameWidth*Tile {
-		p.x -= GameWidth * Tile
+	if p.pos.x >= GameWidth*Tile {
+		p.pos.x -= GameWidth * Tile
 	}
 
 }

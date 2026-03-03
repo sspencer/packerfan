@@ -45,7 +45,7 @@ func (g *Game) Draw() {
 	rl.EndMode2D()
 }
 
-func (g *Game) drawActor2(pos, sprite Vector, frameIndex int) {
+func (g *Game) drawActor(pos, sprite Vector, frameIndex int) {
 	src := rl.Rectangle{
 		X:      float32(sprite.x) + float32(frameIndex)*Sprite,
 		Y:      float32(sprite.y),
@@ -56,24 +56,6 @@ func (g *Game) drawActor2(pos, sprite Vector, frameIndex int) {
 	dst := rl.Rectangle{
 		X:      float32(pos.x),
 		Y:      float32(pos.y),
-		Width:  Sprite,
-		Height: Sprite,
-	}
-
-	rl.DrawTexturePro(g.texture, src, dst, rl.Vector2{}, 0, rl.White)
-}
-
-func (g *Game) drawActor(x, y, sx, sy float32, frameIndex int) {
-	src := rl.Rectangle{
-		X:      sx + float32(frameIndex)*Sprite,
-		Y:      sy,
-		Width:  Sprite,
-		Height: Sprite,
-	}
-
-	dst := rl.Rectangle{
-		X:      x,
-		Y:      y,
 		Width:  Sprite,
 		Height: Sprite,
 	}

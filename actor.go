@@ -17,7 +17,6 @@ type Actor struct {
 	StartDir   Direction
 	StartPos   Vector
 	pos        Vector
-	x, y       int
 	dir        Direction
 	speedIndex int
 	frameCount int
@@ -30,8 +29,6 @@ type Actor struct {
 func (a *Actor) ResetToStart() {
 	a.dir = a.StartDir
 	a.pos = a.StartPos
-	a.x = a.StartPos.x
-	a.y = a.StartPos.y
 }
 
 func bitValue(n uint32, bit int) int {
@@ -58,16 +55,16 @@ func (a *Actor) update(speed uint32) bool {
 	for range move {
 		switch a.dir {
 		case Up:
-			a.y -= 1
+			a.pos.y -= 1
 			break
 		case Right:
-			a.x += 1
+			a.pos.x += 1
 			break
 		case Down:
-			a.y += 1
+			a.pos.y += 1
 			break
 		case Left:
-			a.x -= 1
+			a.pos.x -= 1
 			break
 		default:
 			break
@@ -76,23 +73,23 @@ func (a *Actor) update(speed uint32) bool {
 		// cornering / snapping for player
 		if !a.isGhost {
 			if a.dir == Up || a.dir == Down {
-				targetX := (a.x + Half) / Tile * Tile
-				if a.x < targetX {
-					a.x++
-				} else if a.x > targetX {
-					a.x--
+				targetX := (a.pos.x + Half) / Tile * Tile
+				if a.pos.x < targetX {
+					a.pos.x++
+				} else if a.pos.x > targetX {
+					a.pos.x--
 				}
 			} else if a.dir == Left || a.dir == Right {
-				targetY := (a.y + Half) / Tile * Tile
-				if a.y < targetY {
-					a.y++
-				} else if a.y > targetY {
-					a.y--
+				targetY := (a.pos.y + Half) / Tile * Tile
+				if a.pos.y < targetY {
+					a.pos.y++
+				} else if a.pos.y > targetY {
+					a.pos.y--
 				}
 			}
 		}
 
-		if move > 1 && isCentered(a.x, a.y) {
+		if move > 1 && isCentered(a.pos.x, a.pos.y) {
 			return true
 		}
 	}
