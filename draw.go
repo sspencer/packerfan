@@ -45,7 +45,7 @@ func (g *Game) Draw() {
 	rl.EndMode2D()
 }
 
-func (g *Game) drawActor(pos, sprite Vector, frameIndex int) {
+func (g *Game) drawSprite(pos, sprite Vector, frameIndex int) {
 	src := rl.Rectangle{
 		X:      float32(sprite.x) + float32(frameIndex)*Sprite,
 		Y:      float32(sprite.y),

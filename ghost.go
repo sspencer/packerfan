@@ -90,7 +90,7 @@ func (gm *Game) drawGhost(g *Ghost) {
 		sprite.x = []int{456, 488, 520, 552}[g.dir]
 	}
 
-	gm.drawActor(g.pos, sprite, g.frameIndex)
+	gm.drawSprite(g.pos, sprite, g.frameIndex)
 }
 
 func (g *Ghost) updateFrame() {

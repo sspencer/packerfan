@@ -32,7 +32,7 @@ func (g *Game) drawPlayer() {
 		sprite.y = []int{0, 16, 32, 48}[p.dir]
 	}
 
-	g.drawActor(p.pos, sprite, p.frameIndex)
+	g.drawSprite(p.pos, sprite, p.frameIndex)
 }
 
 func (g *Game) drawPlayerLives() {
@@ -44,7 +44,7 @@ func (g *Game) drawPlayerLives() {
 		} else {
 			sprite.y = 0
 		}
-		g.drawActor(pos, sprite, 1)
+		g.drawSprite(pos, sprite, 1)
 		pos.x += Sprite
 	}
 }
