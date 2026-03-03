@@ -38,7 +38,7 @@ func (g *Game) drawPlayer() {
 func (g *Game) drawPlayerLives() {
 	pos := Vector{2 * Tile, 0}
 	sprite := Vector{456, 0}
-	for _ = range g.lives - 1 {
+	for range g.lives - 1 {
 		if g.pacman {
 			sprite.y = 992
 		} else {
