@@ -40,5 +40,6 @@ assets/*.png
 pacman
 tasks/
 notes/
+pacfan
 
 .DS_Store

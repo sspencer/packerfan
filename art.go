@@ -1,6 +1,14 @@
 package main
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"embed"
+	"fmt"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
+)
+
+//go:embed assets
+var assetsFS embed.FS
 
 type Art struct {
 	font    rl.Texture2D
@@ -10,8 +18,8 @@ type Art struct {
 }
 
 func NewArt() *Art {
-	fontTexture := rl.LoadTexture("assets/text.png")
-	gameTexture := rl.LoadTexture("assets/game.png")
+	fontTexture := loadTexture("assets/text.png")
+	gameTexture := loadTexture("assets/game.png")
 	gameImage := rl.LoadImageFromTexture(gameTexture)
 	shader := loadShader("assets/chroma_key.fs")
 
@@ -30,8 +38,17 @@ func (a *Art) unload() {
 	rl.UnloadShader(a.shader)
 }
 
-func loadShader(fn string) rl.Shader {
-	shader := rl.LoadShader("", fn) // Empty string for vertex shader (use default)
+func loadTexture(path string) rl.Texture2D {
+	data := mustReadAsset(path)
+	img := rl.LoadImageFromMemory(".png", data, int32(len(data)))
+	texture := rl.LoadTextureFromImage(img)
+	rl.UnloadImage(img)
+	return texture
+}
+
+func loadShader(path string) rl.Shader {
+	fragmentShaderCode := mustReadAsset(path)
+	shader := rl.LoadShaderFromMemory("", string(fragmentShaderCode)) // Empty string for vertex shader (use default)
 	// Set shader uniforms
 	keyColor := []float32{0.0, 0.0, 0.0} // Black (normalized RGB: 0.0 to 1.0)
 	threshold := []float32{0.05}         // Tolerance for slight color variations
@@ -41,4 +58,12 @@ func loadShader(fn string) rl.Shader {
 	rl.SetShaderValue(shader, keyColorLoc, keyColor, rl.ShaderUniformVec3)
 	rl.SetShaderValue(shader, thresholdLoc, threshold, rl.ShaderUniformFloat)
 	return shader
+}
+
+func mustReadAsset(path string) []byte {
+	data, err := assetsFS.ReadFile(path)
+	if err != nil {
+		panic(fmt.Sprintf("failed to read embedded asset %s: %v", path, err))
+	}
+	return data
 }
