@@ -13,7 +13,7 @@ func NewArt() *Art {
 	fontTexture := rl.LoadTexture("assets/text.png")
 	gameTexture := rl.LoadTexture("assets/game.png")
 	gameImage := rl.LoadImageFromTexture(gameTexture)
-	shader := chromaShader("assets/chroma_key.fs")
+	shader := loadShader("assets/chroma_key.fs")
 
 	return &Art{
 		font:    fontTexture,
@@ -30,7 +30,7 @@ func (a *Art) unload() {
 	rl.UnloadShader(a.shader)
 }
 
-func chromaShader(fn string) rl.Shader {
+func loadShader(fn string) rl.Shader {
 	shader := rl.LoadShader("", fn) // Empty string for vertex shader (use default)
 	// Set shader uniforms
 	keyColor := []float32{0.0, 0.0, 0.0} // Black (normalized RGB: 0.0 to 1.0)
