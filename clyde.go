@@ -3,8 +3,8 @@ package main
 type clydeAI struct {
 }
 
-func NewClyde(gm *Game) *Ghost {
-	return newGhost(gm, Actor{
+func NewClyde() *Ghost {
+	return newGhost(Actor{
 		ID:       Clyde,
 		StartDir: Up,
 		StartPos: Vector{16, 14}.ToPixel().Sub(Half, 0),
@@ -16,10 +16,10 @@ func NewClyde(gm *Game) *Ghost {
 	})
 }
 
-func (ai clydeAI) ChaseTarget(gm *Game, _ *Ghost) Vector {
-	return gm.player.pos
+func (ai clydeAI) ChaseTarget(_ *Ghost) Vector {
+	return player.pos
 }
 
-func (ai clydeAI) ShouldLeaveHouse(_ *Game, _ *Ghost) bool {
+func (ai clydeAI) ShouldLeaveHouse(_ *Ghost) bool {
 	return false
 }

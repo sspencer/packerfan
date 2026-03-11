@@ -2,6 +2,34 @@ package main
 
 import rl "github.com/gen2brain/raylib-go/raylib"
 
+type Art struct {
+	font    rl.Texture2D
+	texture rl.Texture2D
+	image   *rl.Image
+	shader  rl.Shader
+}
+
+func NewArt() *Art {
+	fontTexture := rl.LoadTexture("assets/text.png")
+	gameTexture := rl.LoadTexture("assets/game.png")
+	gameImage := rl.LoadImageFromTexture(gameTexture)
+	shader := chromaShader("assets/chroma_key.fs")
+
+	return &Art{
+		font:    fontTexture,
+		texture: gameTexture,
+		image:   gameImage,
+		shader:  shader,
+	}
+}
+
+func (a *Art) unload() {
+	rl.UnloadTexture(a.font)
+	rl.UnloadTexture(a.texture)
+	rl.UnloadImage(a.image)
+	rl.UnloadShader(a.shader)
+}
+
 func chromaShader(fn string) rl.Shader {
 	shader := rl.LoadShader("", fn) // Empty string for vertex shader (use default)
 	// Set shader uniforms

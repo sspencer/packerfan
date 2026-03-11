@@ -1,48 +1,53 @@
 package main
 
-func (g *Game) Update() {
-	g.updatePlayer(g.player)
-	g.updateGhost(g.blinky)
-	g.updateGhost(g.inky)
-	g.updateGhost(g.pinky)
-	g.updateGhost(g.clyde)
-	g.handleEvents()
+func updateGame() {
+	game.update()
+	if game.paused {
+		return
+	}
+
+	player.update()
+	blinky.update()
+	inky.update()
+	pinky.update()
+	clyde.update()
+	handleEvents()
 }
 
-func (g *Game) handleEvents() {
+func handleEvents() {
 	for {
-		event, ok := g.eventStack.Pop()
+		event, ok := eventStack.Pop()
 		if !ok {
 			return
 		}
-		g.handleEvent(event)
+		handleEvent(event)
 	}
 }
 
-func (g *Game) handleEvent(event Event) {
+func handleEvent(event Event) {
 	if event.X < 0 || event.X >= GameWidth || event.Y < 0 || event.Y >= GameHeight {
 		return
 	}
 
 	switch event.Type {
 	case PlayerAteDot:
-		g.maze[event.Y][event.X] = Empty
-		g.score += PelletScore
-		if g.score > g.highScore {
-			g.highScore = g.score
+		maze.setCell(event.X, event.Y, Empty)
+		game.score += PelletScore
+		if game.score > game.highScore {
+			game.highScore = game.score
 		}
-		g.dotsEaten++
-		g.dotsRemaining--
-		g.player.dotPause += PelletPause
+		game.dotsEaten++
+		game.dotsRemaining--
+		player.dotPause += PelletPause
 
 	case PlayerAtePowerUp:
-		g.maze[event.Y][event.X] = Empty
-		g.score += PowerScore
-		if g.score > g.highScore {
-			g.highScore = g.score
+		maze.setCell(event.X, event.Y, Empty)
+		game.score += PowerScore
+		if game.score > game.highScore {
+			game.highScore = game.score
 		}
-		g.dotsEaten++
-		g.dotsRemaining--
-		g.player.dotPause += PowerPause
+		game.dotsEaten++
+		game.dotsRemaining--
+		player.dotPause += PowerPause
 	}
 }

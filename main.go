@@ -22,6 +22,18 @@ const (
 	PowerPause   = 3
 )
 
+var (
+	art        *Art
+	game       *Game
+	maze       *Maze
+	player     *Player
+	blinky     *Ghost
+	inky       *Ghost
+	pinky      *Ghost
+	clyde      *Ghost
+	eventStack *EventStack
+)
+
 func main() {
 	// less GC
 	debug.SetGCPercent(200)
@@ -40,26 +52,28 @@ func main() {
 
 	rl.SetTargetFPS(61) // arcade game was clocked to 60.606061
 
-	fontTexture := rl.LoadTexture("assets/text.png")
-	defer rl.UnloadTexture(fontTexture)
-	gameTexture := rl.LoadTexture("assets/game.png")
-	defer rl.UnloadTexture(gameTexture)
-	gameImage := rl.LoadImageFromTexture(gameTexture)
-	defer rl.UnloadImage(gameImage)
-	shader := chromaShader("assets/chroma_key.fs")
-	defer rl.UnloadShader(shader)
+	art = NewArt()
 
-	game := NewGame(pacman, float32(zoom), fontTexture, gameTexture, gameImage, shader)
-	game.initMaze()
-	game.initLevel()
+	game = NewGame(pacman, float32(zoom))
+	maze = NewMaze(pacman)
+	eventStack = NewEventStack()
+	game.setLevel(1)
+	maze.setLevel(1)
+	player = NewPlayer()
+	blinky = NewBlinky()
+	inky = NewInky()
+	pinky = NewPinky()
+	clyde = NewClyde()
 
-	//fmt.Println(game.maze.String())
+	//fmt.Println(maze.String())
 
 	for !rl.WindowShouldClose() {
-		game.Update()
+		updateGame()
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
-		game.Draw()
+		drawGame()
 		rl.EndDrawing()
 	}
+
+	art.unload()
 }

@@ -23,15 +23,16 @@ type LevelSpecTable struct {
 	GhostSpeed        uint32
 	GhostTunnelSpeed  uint32
 	GhostFrightSpeed  uint32
-	Elroy1DotsLeft    uint8
+	Elroy1DotsLeft    int
 	Elroy1Speed       uint32
-	Elroy2DotsLeft    uint8
+	Elroy2DotsLeft    int
 	Elroy2Speed       uint32
 	FrightenedFrames  int
 	FrightenedFlashes int
 }
 
 const (
+	Speed20  uint32 = 0x00008888
 	Speed40  uint32 = 0x0000AAAA
 	Speed45  uint32 = 0x0000B555
 	Speed50  uint32 = 0x0000B6B6
@@ -149,14 +150,7 @@ func getLevelSpec(level int) LevelSpecTable {
 	return pacmanLevelTable[level-1]
 }
 
-func (g *Game) getPlayerSpeed() uint32 {
-	if g.isFrightMode {
-		return g.spec.PacmanFrightSpeed
-	}
-
-	return g.spec.PacmanSpeed
-}
-
-func (g *Game) initLevel() {
-	g.spec = getLevelSpec(g.level) // eventually change pacman/mspacman spec
+func (g *Game) setLevel(level int) {
+	g.level = level
+	g.spec = getLevelSpec(level) // eventually change pacman/mspacman spec
 }

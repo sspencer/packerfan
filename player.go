@@ -20,36 +20,35 @@ func NewPlayer() *Player {
 	return p
 }
 
-func (g *Game) drawPlayer() {
+func (p *Player) draw() {
 	// r l u d -- graphic
 	// u d l r -- dir
-	p := g.player
 	sprite := Vector{456, 0}
 
-	if g.pacman {
+	if game.pacman {
 		sprite.y = []int{992, 1008, 1024, 1040}[p.dir]
 	} else {
 		sprite.y = []int{0, 16, 32, 48}[p.dir]
 	}
 
-	g.drawSprite(p.pos, sprite, p.frameIndex)
+	drawSprite(p.pos, sprite, p.frameIndex)
 }
 
-func (g *Game) drawPlayerLives() {
+func (p *Player) drawLives() {
 	pos := Vector{2 * Tile, 0}
 	sprite := Vector{456, 0}
-	for range g.lives - 1 {
-		if g.pacman {
+	for range game.lives - 1 {
+		if game.pacman {
 			sprite.y = 992
 		} else {
 			sprite.y = 0
 		}
-		g.drawSprite(pos, sprite, 1)
+		drawSprite(pos, sprite, 1)
 		pos.x += Sprite
 	}
 }
 
-func (g *Game) canPlayerMove(tx, ty int, dir Direction) bool {
+func canPlayerMove(tx, ty int, dir Direction) bool {
 	nx := tx
 	ny := ty
 
@@ -76,7 +75,7 @@ func (g *Game) canPlayerMove(tx, ty int, dir Direction) bool {
 		return false
 	}
 
-	tile := g.maze[ny][nx]
+	tile := maze.getCell(nx, ny)
 
 	return tile != Wall && tile != Door
 }
@@ -106,7 +105,7 @@ func (p *Player) updateFrame() {
 	}
 }
 
-func (g *Game) updatePlayer(p *Player) {
+func (p *Player) update() {
 	p.updateFrame()
 
 	requestedDir := false
@@ -147,7 +146,7 @@ func (g *Game) updatePlayer(p *Player) {
 						targetTy++
 					}
 
-					if g.canPlayerMove(tx, targetTy, p.requested) {
+					if canPlayerMove(tx, targetTy, p.requested) {
 						p.dir = p.requested
 					}
 				}
@@ -158,7 +157,7 @@ func (g *Game) updatePlayer(p *Player) {
 						targetTx++
 					}
 
-					if g.canPlayerMove(targetTx, ty, p.requested) {
+					if canPlayerMove(targetTx, ty, p.requested) {
 						p.dir = p.requested
 					}
 				}
@@ -176,7 +175,7 @@ func (g *Game) updatePlayer(p *Player) {
 			if ox > Half {
 				targetTx++
 			}
-			canMove = g.canPlayerMove(targetTx, ty, p.dir)
+			canMove = canPlayerMove(targetTx, ty, p.dir)
 		}
 	} else {
 		if ox != 0 {
@@ -186,23 +185,23 @@ func (g *Game) updatePlayer(p *Player) {
 			if oy > Half {
 				targetTy++
 			}
-			canMove = g.canPlayerMove(tx, targetTy, p.dir)
+			canMove = canPlayerMove(tx, targetTy, p.dir)
 		}
 	}
 
 	if canMove {
-		p.update(g.getPlayerSpeed())
+		p.moveActor(p.getSpeed())
 	}
 
 	// Eat dots/powerups using center-aligned tile coordinates
 	ctx := (p.pos.x + Half) / Tile
 	cty := (p.pos.y + Half) / Tile
 	if ctx >= 0 && ctx < GameWidth && cty >= 0 && cty < GameHeight {
-		tile := g.maze[cty][ctx]
+		tile := maze.getCell(ctx, cty)
 		if tile == Dot {
-			g.eventStack.Push(Event{Type: PlayerAteDot, ID: 0, X: ctx, Y: cty})
+			eventStack.Push(Event{Type: PlayerAteDot, ID: 0, X: ctx, Y: cty})
 		} else if tile == Power {
-			g.eventStack.Push(Event{Type: PlayerAtePowerUp, ID: 0, X: ctx, Y: cty})
+			eventStack.Push(Event{Type: PlayerAtePowerUp, ID: 0, X: ctx, Y: cty})
 		}
 	}
 
@@ -215,4 +214,13 @@ func (g *Game) updatePlayer(p *Player) {
 		p.pos.x -= GameWidth * Tile
 	}
 
+}
+
+func (p *Player) getSpeed() uint32 {
+	s := game.spec
+	if game.isFrightMode {
+		return s.PacmanFrightSpeed
+	}
+
+	return s.PacmanSpeed
 }

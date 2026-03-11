@@ -40,7 +40,7 @@ func bitIsSet(value uint32, n int) bool {
 	return ((value >> n) & 1) != 0
 }
 
-func (a *Actor) update(speed uint32) bool {
+func (a *Actor) moveActor(speed uint32) bool {
 	const SpeedSize = 16
 	if a.dotPause > 0 {
 		a.dotPause--

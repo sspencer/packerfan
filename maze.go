@@ -9,7 +9,13 @@ import (
 
 type Cell byte
 
-type Maze [][]Cell
+type Cells [][]Cell
+
+type Maze struct {
+	grid   Cells
+	level  int
+	pacman bool
+}
 
 const (
 	Empty Cell = iota
@@ -46,18 +52,18 @@ func (c Cell) String() string {
 	}
 }
 
-func (m Maze) String() string {
+func (m *Maze) String() string {
 	sb := strings.Builder{}
 	sb.WriteString("  │")
-	for x := 0; x < len(m[0]); x++ {
+	for x := 0; x < len(m.grid[0]); x++ {
 		sb.WriteString(fmt.Sprintf("%2d│", x))
 	}
 	sb.WriteString("\n")
 
-	for y := range m {
+	for y := range m.grid {
 		sb.WriteString(fmt.Sprintf("%2d│", y))
-		for x := 0; x < len(m[y]); x++ {
-			sb.WriteString(m[y][x].String())
+		for x := 0; x < len(m.grid[y]); x++ {
+			sb.WriteString(m.grid[y][x].String())
 		}
 		sb.WriteString("\n")
 	}
@@ -65,14 +71,27 @@ func (m Maze) String() string {
 	return sb.String()
 }
 
-func (g *Game) computeMask(startX, startY int32) uint64 {
+func NewMaze(pacman bool) *Maze {
+	cells := make(Cells, GameHeight)
+	for i := range GameHeight {
+		cells[i] = make([]Cell, GameWidth)
+	}
+
+	return &Maze{
+		grid:   cells,
+		pacman: pacman,
+		level:  1,
+	}
+}
+
+func (m *Maze) computeMask(startX, startY int32) uint64 {
 	var result uint64
 
 	// Read each pixel in the specified area
 	for y := startY; y < startY+Tile; y++ {
 		for x := startX; x < startX+Tile; x++ {
 			result <<= 1
-			color := rl.GetImageColor(*g.image, x, y)
+			color := rl.GetImageColor(*art.image, x, y)
 			if color.R > 0 || color.G > 0 || color.B > 0 {
 				result |= 1
 			}
@@ -82,24 +101,24 @@ func (g *Game) computeMask(startX, startY int32) uint64 {
 	return result
 }
 
-func (g *Game) getMazeIndex(level int) int {
-	if g.pacman {
+func (m *Maze) getIndex() int {
+	if m.pacman {
 		return 4
 	}
 
-	if level <= 2 {
+	if m.level <= 2 {
 		return 0 // Levels 1-2: Maze 1 (index 0)
 	}
 
-	if level <= 5 {
+	if m.level <= 5 {
 		return 1 // Levels 3-5: Maze 2 (index 1)
 	}
 
-	if level <= 9 {
+	if m.level <= 9 {
 		return 2 // Levels 6-9: Maze 3 (index 2)
 	}
 
-	if level <= 13 {
+	if m.level <= 13 {
 		return 3 // Levels 10-13: Maze 4 (index 3)
 	}
 
@@ -108,7 +127,7 @@ func (g *Game) getMazeIndex(level int) int {
 	// Level 18-21: Maze 4 (index 3)
 	// Level 22-25: Maze 3 (index 2)
 	// ...
-	cycle := (level - 14) / 4
+	cycle := (m.level - 14) / 4
 	if cycle%2 == 0 {
 		return 2
 	}
@@ -116,61 +135,70 @@ func (g *Game) getMazeIndex(level int) int {
 	return 3
 }
 
-func (g *Game) setTunnels(x1, x2, y int) {
+func (m *Maze) setTunnels(x1, x2, y int) {
 	for x := 0; x <= x1; x++ {
-		g.maze[y][x] = Tunnel
+		m.grid[y][x] = Tunnel
 	}
 
 	for x := x2; x < GameWidth; x++ {
-		g.maze[y][x] = Tunnel
+		m.grid[y][x] = Tunnel
 	}
 }
 
-func (g *Game) initMaze() {
-	maze := g.getMazeIndex(g.level)
-	offset := maze * GameHeight * Tile
-	g.dotsEaten = 0
-	g.dotsRemaining = 0
+func (m *Maze) setCell(x, y int, c Cell) {
+	m.grid[y][x] = c
+}
+
+func (m *Maze) getCell(x, y int) Cell {
+	return m.grid[y][x]
+}
+
+func (m *Maze) setLevel(level int) {
+	m.level = level
+	mazeIndex := m.getIndex()
+	offset := mazeIndex * GameHeight * Tile
+	game.dotsEaten = 0
+	game.dotsRemaining = 0
 
 	for y := range GameHeight {
 		for x := range GameWidth {
-			mask := g.computeMask(int32(x*Tile), int32(y*Tile+offset))
+			mask := m.computeMask(int32(x*Tile), int32(y*Tile+offset))
 			switch mask {
 			case EmptyMask:
-				g.maze[y][x] = Empty
+				m.grid[y][x] = Empty
 			case DotMask:
-				g.maze[y][x] = Dot
-				g.dotsRemaining++
+				m.grid[y][x] = Dot
+				game.dotsRemaining++
 			case PowerMask:
-				g.dotsRemaining++
-				g.maze[y][x] = Power
+				game.dotsRemaining++
+				m.grid[y][x] = Power
 			case DoorMask:
-				g.maze[y][x] = Door
+				m.grid[y][x] = Door
 			default:
-				g.maze[y][x] = Wall
+				m.grid[y][x] = Wall
 			}
 		}
 	}
 
-	switch maze {
+	switch mazeIndex {
 	case 0:
-		g.setTunnels(1, 26, 8)
-		g.setTunnels(1, 26, 17)
+		m.setTunnels(1, 26, 8)
+		m.setTunnels(1, 26, 17)
 	case 1:
-		g.setTunnels(4, 23, 1)
-		g.setTunnels(1, 26, 23)
+		m.setTunnels(4, 23, 1)
+		m.setTunnels(1, 26, 23)
 	case 2:
-		g.setTunnels(0, 27, 9)
+		m.setTunnels(0, 27, 9)
 	case 3:
-		g.setTunnels(1, 26, 13)
-		g.setTunnels(1, 26, 16)
+		m.setTunnels(1, 26, 13)
+		m.setTunnels(1, 26, 16)
 	default:
-		g.setTunnels(4, 23, 14)
+		m.setTunnels(4, 23, 14)
 	}
 }
 
-func (g *Game) isGhostWall(x, y int) bool {
-	if g.getMazeIndex(g.level) == 4 {
+func (m *Maze) isGhostWall(x, y int) bool {
+	if m.getIndex() == 4 {
 		// only pacman has ghost walls
 		return (y == 10 || y == 22) && (x == 12 || x == 15)
 	}
@@ -178,37 +206,37 @@ func (g *Game) isGhostWall(x, y int) bool {
 	return false
 }
 
-func (g *Game) drawMaze() {
+func (m *Maze) draw() {
 	const mazeW = float32(GameWidth) * Tile
 	const mazeH = float32(GameHeight) * Tile
-	mazeNum := g.getMazeIndex(g.level)
+	index := m.getIndex()
 	src := rl.Rectangle{
 		X:      GameWidth*Tile + Half,
-		Y:      float32(mazeNum) * GameHeight * Tile,
+		Y:      float32(index) * GameHeight * Tile,
 		Width:  mazeW,
 		Height: mazeH,
 	}
 	dst := rl.NewRectangle(0, 0, mazeW, mazeH)
-	rl.DrawTexturePro(g.texture, src, dst, rl.Vector2{}, 0, rl.White)
+	rl.DrawTexturePro(art.texture, src, dst, rl.Vector2{}, 0, rl.White)
 
 	dots := []float32{1, 36, 63, 94, 125}
 	powerUps := []float32{2, 35, 65, 96, 127}
 
-	dotV := rl.Rectangle{X: 1, Y: dots[mazeNum]}
-	powerV := rl.Rectangle{X: 1, Y: powerUps[mazeNum]}
+	dotV := rl.Rectangle{X: 1, Y: dots[index]}
+	powerV := rl.Rectangle{X: 1, Y: powerUps[index]}
 
 	dotSrc := rl.Rectangle{X: dotV.X * Tile, Y: dotV.Y * Tile, Width: Tile, Height: Tile}
 	powerSrc := rl.Rectangle{X: powerV.X * Tile, Y: powerV.Y * Tile, Width: Tile, Height: Tile}
 
 	for y := range GameHeight {
 		for x := range GameWidth {
-			tile := g.maze[y][x]
+			tile := m.grid[y][x]
 			if tile == Dot {
 				rec := rl.Rectangle{X: float32(x) * Tile, Y: float32(y) * Tile, Width: Tile, Height: Tile}
-				rl.DrawTexturePro(g.texture, dotSrc, rec, rl.Vector2{}, 0, rl.White)
+				rl.DrawTexturePro(art.texture, dotSrc, rec, rl.Vector2{}, 0, rl.White)
 			} else if tile == Power {
 				rec := rl.Rectangle{X: float32(x) * Tile, Y: float32(y) * Tile, Width: Tile, Height: Tile}
-				rl.DrawTexturePro(g.texture, powerSrc, rec, rl.Vector2{}, 0, rl.White)
+				rl.DrawTexturePro(art.texture, powerSrc, rec, rl.Vector2{}, 0, rl.White)
 			}
 		}
 	}

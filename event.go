@@ -22,8 +22,10 @@ type EventStack struct {
 	top    int
 }
 
-func (s *EventStack) Init() {
-	s.top = 0
+func NewEventStack() *EventStack {
+	return &EventStack{
+		top: 0,
+	}
 }
 
 func (s *EventStack) Push(event Event) bool {

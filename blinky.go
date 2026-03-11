@@ -3,8 +3,8 @@ package main
 type blinkyAI struct {
 }
 
-func NewBlinky(gm *Game) *Ghost {
-	return newGhost(gm, Actor{
+func NewBlinky() *Ghost {
+	return newGhost(Actor{
 		ID:       Blinky,
 		StartDir: Left,
 		StartPos: Vector{14, 11}.ToPixel().Sub(Half, 0),
@@ -16,10 +16,10 @@ func NewBlinky(gm *Game) *Ghost {
 	})
 }
 
-func (ai blinkyAI) ChaseTarget(gm *Game, _ *Ghost) Vector {
-	return gm.player.pos
+func (ai blinkyAI) ChaseTarget(_ *Ghost) Vector {
+	return player.pos
 }
 
-func (ai blinkyAI) ShouldLeaveHouse(_ *Game, _ *Ghost) bool {
+func (ai blinkyAI) ShouldLeaveHouse(_ *Ghost) bool {
 	return true
 }

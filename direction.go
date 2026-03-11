@@ -15,3 +15,31 @@ func (d Direction) IsOpposite(other Direction) bool {
 		(d == Up && other == Down) ||
 		(d == Down && other == Up)
 }
+
+func (d Direction) String() string {
+	switch d {
+	case Right:
+		return "Right"
+	case Left:
+		return "Left"
+	case Up:
+		return "Up"
+	case Down:
+		return "Down"
+	default:
+		return "Unknown"
+	}
+}
+
+func (d Direction) Opposite() Direction {
+	switch d {
+	case Right:
+		return Left
+	case Left:
+		return Right
+	case Up:
+		return Down
+	default:
+		return Up
+	}
+}

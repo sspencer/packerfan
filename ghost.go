@@ -1,8 +1,8 @@
 package main
 
 type GhostBrain interface {
-	ChaseTarget(*Game, *Ghost) Vector
-	ShouldLeaveHouse(*Game, *Ghost) bool
+	ChaseTarget(*Ghost) Vector
+	ShouldLeaveHouse(*Ghost) bool
 }
 
 type GhostConfig struct {
@@ -20,34 +20,34 @@ type Ghost struct {
 	config  GhostConfig
 }
 
-func (g *Ghost) Start(_ *Game) {
+func (g *Ghost) Start() {
 	g.state = g.config.StartState
 	g.ResetToStart()
 }
 
-func (g *Ghost) Chase(gm *Game) {
+func (g *Ghost) Chase() {
 	if g.config.Brain == nil {
 		return
 	}
-	g.target = g.config.Brain.ChaseTarget(gm, g)
+	g.target = g.config.Brain.ChaseTarget(g)
 }
 
-func (g *Ghost) Scatter(_ *Game) {
+func (g *Ghost) Scatter() {
 	g.target = g.config.ScatterTarget
 }
 
-func (g *Ghost) Leave(gm *Game) bool {
+func (g *Ghost) Leave() bool {
 	if g.config.Brain == nil {
 		return false
 	}
-	return g.config.Brain.ShouldLeaveHouse(gm, g)
+	return g.config.Brain.ShouldLeaveHouse(g)
 }
 
-func (g *Ghost) House(_ *Game) {
+func (g *Ghost) House() {
 	g.target = g.config.HouseTarget
 }
 
-func newGhost(gm *Game, actor Actor, config GhostConfig) *Ghost {
+func newGhost(actor Actor, config GhostConfig) *Ghost {
 	if config.Brain == nil {
 		panic("ghost brain is required")
 	}
@@ -58,12 +58,12 @@ func newGhost(gm *Game, actor Actor, config GhostConfig) *Ghost {
 		config: config,
 	}
 
-	g.Start(gm)
+	g.Start()
 
 	return g
 }
 
-func (gm *Game) drawGhost(g *Ghost) {
+func (g *Ghost) draw() {
 	// r l u d -- graphic
 	// u d l r -- dir
 	var sprite Vector
@@ -90,9 +90,12 @@ func (gm *Game) drawGhost(g *Ghost) {
 		sprite.x = []int{456, 488, 520, 552}[g.dir]
 	}
 
-	gm.drawSprite(g.pos, sprite, g.frameIndex)
+	drawSprite(g.pos, sprite, g.frameIndex)
 }
 
+func (g *Ghost) chooseDirection() {
+
+}
 func (g *Ghost) updateFrame() {
 	const framesPerState = 15
 	const cycleLength = 2 * framesPerState // 30 frames for full cycle
@@ -108,6 +111,83 @@ func (g *Ghost) updateFrame() {
 	}
 }
 
-func (gm *Game) updateGhost(g *Ghost) {
+func (g *Ghost) update() {
 	g.updateFrame()
+	if g.state == InHouse {
+		if g.Leave() {
+			g.state = LeavingHouse
+		} else {
+			const bounce1 = 14*Tile + Half
+			const bounce2 = 14*Tile - Half
+			moved := g.moveActor(g.getSpeed())
+
+			if moved && (g.pos.y == bounce1 || g.pos.y == bounce2) {
+				g.dir = g.dir.Opposite()
+			}
+
+			return
+		}
+
+		if g.state == LeavingHouse {
+			const (
+				houseX = 108
+				houseY = 88
+			)
+
+			if g.pos.x == houseX && g.pos.y <= houseY {
+				g.pos.y = houseY // just in case ghost moves 2 pixels and misses target
+				g.state = game.ghostState
+				if g.state == Scatter {
+					g.Scatter()
+				} else {
+					g.Chase()
+				}
+
+				g.chooseDirection()
+				return
+			}
+
+			// still in house - move to horizontal center then start ascending
+			if g.pos.x < houseX {
+				g.dir = Right
+			} else if g.pos.x > houseX {
+				g.dir = Left
+			} else {
+				g.dir = Up
+			}
+
+			g.moveActor(g.getSpeed())
+			return
+		}
+
+	}
+}
+
+func (g *Ghost) getSpeed() uint32 {
+	s := game.spec
+	tile := g.pos.ToTile()
+
+	if maze.getCell(tile.x, tile.y) == Tunnel || g.state == InHouse || g.state == LeavingHouse || g.state == EnteringHouse {
+		return s.GhostTunnelSpeed
+	}
+
+	//if g.state == Eaten {
+	//	return Speed80
+	//}
+
+	if g.state == Frightened {
+		return s.GhostFrightSpeed
+	}
+
+	if g.ID == Blinky {
+		if game.dotsRemaining <= s.Elroy2DotsLeft {
+			return s.Elroy2Speed
+		}
+
+		if game.dotsRemaining <= s.Elroy1DotsLeft {
+			return s.Elroy1Speed
+		}
+	}
+
+	return s.GhostSpeed
 }

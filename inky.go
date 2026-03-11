@@ -3,8 +3,8 @@ package main
 type inkyAI struct {
 }
 
-func NewInky(gm *Game) *Ghost {
-	return newGhost(gm, Actor{
+func NewInky() *Ghost {
+	return newGhost(Actor{
 		ID:       Inky,
 		StartDir: Up,
 		StartPos: Vector{12, 14}.ToPixel().Sub(Half, 0),
@@ -16,10 +16,10 @@ func NewInky(gm *Game) *Ghost {
 	})
 }
 
-func (ai inkyAI) ChaseTarget(gm *Game, _ *Ghost) Vector {
-	return gm.player.pos
+func (ai inkyAI) ChaseTarget(_ *Ghost) Vector {
+	return player.pos
 }
 
-func (ai inkyAI) ShouldLeaveHouse(_ *Game, _ *Ghost) bool {
+func (ai inkyAI) ShouldLeaveHouse(_ *Ghost) bool {
 	return false
 }
