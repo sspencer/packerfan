@@ -1,5 +1,6 @@
 package main
 
+//go:generate stringer -type=BonusSymbol
 type BonusSymbol int
 
 const (
@@ -55,18 +56,6 @@ const (
 func secondsToFrames(x float64) int {
 	return int(x * 60.606061)
 }
-
-type GhostState int
-
-const (
-	Scatter GhostState = iota
-	Chase
-	Frightened
-	Eaten
-	EnteringHouse
-	InHouse
-	LeavingHouse
-)
 
 type GhostModePhase struct {
 	State          GhostState

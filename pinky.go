@@ -21,5 +21,5 @@ func (ai pinkyAI) ChaseTarget(_ *Ghost) Vector {
 }
 
 func (ai pinkyAI) ShouldLeaveHouse(_ *Ghost) bool {
-	return true
+	return false /* TODO change to true */
 }

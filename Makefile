@@ -12,6 +12,7 @@ GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 GOFMT=$(GOCMD) fmt
 GOVET=$(GOCMD) vet
+GOGENERATE=$(GOCMD) generate
 
 # Build the project
 build:
@@ -25,6 +26,10 @@ run: build
 clean:
 	$(GOCLEAN)
 	rm -f $(BINARY_NAME)
+
+# Generate code
+generate:
+	$(GOGENERATE) ./...
 
 # Run tests
 test:
@@ -49,12 +54,13 @@ check: fmt vet test
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  build   - Build the binary"
-	@echo "  run     - Build and run the binary"
-	@echo "  clean   - Remove build artifacts"
-	@echo "  test    - Run tests"
-	@echo "  fmt     - Format code"
-	@echo "  vet     - Run go vet"
-	@echo "  deps    - Download and tidy dependencies"
-	@echo "  check   - Run fmt, vet, and test"
-	@echo "  help    - Show this help message"
+	@echo "  build    - Build the binary"
+	@echo "  run      - Build and run the binary"
+	@echo "  clean    - Remove build artifacts"
+	@echo "  test     - Run tests"
+	@echo "  fmt      - Format code"
+	@echo "  vet      - Run go vet"
+	@echo "  deps     - Download and tidy dependencies"
+	@echo "  check    - Run fmt, vet, and test"
+	@echo "  generate - Run go code generator"
+	@echo "  help     - Show this help message"

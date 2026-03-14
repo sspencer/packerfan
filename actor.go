@@ -1,5 +1,6 @@
 package main
 
+//go:generate stringer -type=ActorID
 type ActorID int
 
 const (

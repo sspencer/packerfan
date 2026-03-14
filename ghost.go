@@ -1,5 +1,20 @@
 package main
 
+import "fmt"
+
+//go:generate stringer -type=GhostState
+type GhostState int
+
+const (
+	Scatter GhostState = iota
+	Chase
+	Frightened
+	Eaten
+	EnteringHouse
+	InHouse
+	LeavingHouse
+)
+
 type GhostBrain interface {
 	ChaseTarget(*Ghost) Vector
 	ShouldLeaveHouse(*Ghost) bool
@@ -96,6 +111,7 @@ func (g *Ghost) draw() {
 func (g *Ghost) chooseDirection() {
 
 }
+
 func (g *Ghost) updateFrame() {
 	const framesPerState = 15
 	const cycleLength = 2 * framesPerState // 30 frames for full cycle
@@ -113,54 +129,65 @@ func (g *Ghost) updateFrame() {
 
 func (g *Ghost) update() {
 	g.updateFrame()
-	if g.state == InHouse {
-		if g.Leave() {
-			g.state = LeavingHouse
-		} else {
-			const bounce1 = 14*Tile + Half
-			const bounce2 = 14*Tile - Half
-			moved := g.moveActor(g.getSpeed())
-
-			if moved && (g.pos.y == bounce1 || g.pos.y == bounce2) {
-				g.dir = g.dir.Opposite()
-			}
-
-			return
-		}
-
-		if g.state == LeavingHouse {
-			const (
-				houseX = 108
-				houseY = 88
-			)
-
-			if g.pos.x == houseX && g.pos.y <= houseY {
-				g.pos.y = houseY // just in case ghost moves 2 pixels and misses target
-				g.state = game.ghostState
-				if g.state == Scatter {
-					g.Scatter()
-				} else {
-					g.Chase()
-				}
-
-				g.chooseDirection()
-				return
-			}
-
-			// still in house - move to horizontal center then start ascending
-			if g.pos.x < houseX {
-				g.dir = Right
-			} else if g.pos.x > houseX {
-				g.dir = Left
-			} else {
-				g.dir = Up
-			}
-
-			g.moveActor(g.getSpeed())
-			return
-		}
-
+	switch g.state {
+	case InHouse:
+		g.updateInHouse()
+	case LeavingHouse:
+		g.updateLeavingHouse()
+	case Scatter:
+		g.updateScatter()
+	default:
+		fmt.Printf("unhandled %q state for ghost %s\n", g.state.String(), g.ID.String())
 	}
+}
+
+func (g *Ghost) updateScatter() {
+	g.moveActor(g.getSpeed())
+}
+
+func (g *Ghost) updateInHouse() {
+	if g.Leave() {
+		g.state = LeavingHouse
+	} else {
+		const bounce1 = 14*Tile + Half
+		const bounce2 = 14*Tile - Half
+		moved := g.moveActor(g.getSpeed())
+
+		if moved && (g.pos.y == bounce1 || g.pos.y == bounce2) {
+			g.dir = g.dir.Opposite()
+		}
+	}
+}
+
+func (g *Ghost) updateLeavingHouse() {
+	const (
+		houseX = 108
+		houseY = 88
+	)
+
+	if g.pos.x == houseX && g.pos.y <= houseY {
+		g.pos.y = houseY // just in case ghost moves 2 pixels and misses target
+		g.state = game.ghostState
+		if g.state == Scatter {
+			g.Scatter()
+		} else {
+			g.Chase()
+		}
+
+		g.chooseDirection()
+		return
+	}
+
+	// still in house - move to horizontal center then start ascending
+	if g.pos.x < houseX {
+		g.dir = Right
+	} else if g.pos.x > houseX {
+		g.dir = Left
+	} else {
+		g.dir = Up
+	}
+
+	g.moveActor(g.getSpeed())
 }
 
 func (g *Ghost) getSpeed() uint32 {

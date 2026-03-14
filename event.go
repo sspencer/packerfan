@@ -2,6 +2,7 @@ package main
 
 const MaxEvents = 256
 
+//go:generate stringer -type=EventType
 type EventType int
 
 const (
