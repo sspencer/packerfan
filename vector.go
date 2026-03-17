@@ -22,6 +22,20 @@ func (v Vector) Sub(x, y int) Vector {
 	return Vector{v.x - x, v.y - y}
 }
 
+func (v Vector) AddDir(dir Direction) Vector {
+	switch dir {
+	case Up:
+		return v.Add(0, -1)
+	case Down:
+		return v.Add(0, 1)
+	case Left:
+
+		return v.Add(-1, 0)
+	default:
+		return v.Add(1, 0)
+	}
+}
+
 func (v Vector) String() string {
 	return fmt.Sprintf("(%d, %d)", v.x, v.y)
 }

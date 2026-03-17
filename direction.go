@@ -10,6 +10,8 @@ const (
 	Down
 )
 
+const DirCount = 4
+
 func (d Direction) IsOpposite(other Direction) bool {
 	return (d == Right && other == Left) ||
 		(d == Left && other == Right) ||

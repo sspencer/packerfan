@@ -9,17 +9,17 @@ func NewBlinky() *Ghost {
 		StartDir: Left,
 		StartPos: Vector{14, 11}.ToPixel().Sub(Half, 0),
 	}, GhostConfig{
-		StartState:    Scatter,
-		HouseTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
-		ScatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
-		Brain:         blinkyAI{},
+		startState:    Scatter,
+		eatenTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
+		scatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
+		brain:         blinkyAI{},
 	})
 }
 
-func (ai blinkyAI) ChaseTarget(_ *Ghost) Vector {
+func (ai blinkyAI) chaseAI(_ *Ghost) Vector {
 	return player.pos
 }
 
-func (ai blinkyAI) ShouldLeaveHouse(_ *Ghost) bool {
+func (ai blinkyAI) leaveAI(_ *Ghost) bool {
 	return true
 }

@@ -9,17 +9,17 @@ func NewClyde() *Ghost {
 		StartDir: Up,
 		StartPos: Vector{16, 14}.ToPixel().Sub(Half, 0),
 	}, GhostConfig{
-		StartState:    InHouse,
-		HouseTarget:   Vector{16, 14}.ToPixel().Sub(Half, 0),
-		ScatterTarget: Vector{0, GameHeight}.ToPixel(),
-		Brain:         clydeAI{},
+		startState:    InHouse,
+		eatenTarget:   Vector{16, 14}.ToPixel().Sub(Half, 0),
+		scatterTarget: Vector{0, GameHeight}.ToPixel(),
+		brain:         clydeAI{},
 	})
 }
 
-func (ai clydeAI) ChaseTarget(_ *Ghost) Vector {
+func (ai clydeAI) chaseAI(_ *Ghost) Vector {
 	return player.pos
 }
 
-func (ai clydeAI) ShouldLeaveHouse(_ *Ghost) bool {
+func (ai clydeAI) leaveAI(_ *Ghost) bool {
 	return false
 }

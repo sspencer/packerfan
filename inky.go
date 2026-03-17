@@ -9,17 +9,17 @@ func NewInky() *Ghost {
 		StartDir: Up,
 		StartPos: Vector{12, 14}.ToPixel().Sub(Half, 0),
 	}, GhostConfig{
-		StartState:    InHouse,
-		HouseTarget:   Vector{12, 14}.ToPixel().Sub(Half, 0),
-		ScatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
-		Brain:         inkyAI{},
+		startState:    InHouse,
+		eatenTarget:   Vector{12, 14}.ToPixel().Sub(Half, 0),
+		scatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
+		brain:         inkyAI{},
 	})
 }
 
-func (ai inkyAI) ChaseTarget(_ *Ghost) Vector {
+func (ai inkyAI) chaseAI(_ *Ghost) Vector {
 	return player.pos
 }
 
-func (ai inkyAI) ShouldLeaveHouse(_ *Ghost) bool {
+func (ai inkyAI) leaveAI(_ *Ghost) bool {
 	return false
 }

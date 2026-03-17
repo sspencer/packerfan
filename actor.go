@@ -88,7 +88,7 @@ func (a *Actor) moveActor(speed uint32) bool {
 			}
 		}
 
-		if move > 1 && isCentered(a.pos.x, a.pos.y) {
+		if move > 1 && a.isCentered() {
 			return true
 		}
 	}
@@ -97,6 +97,6 @@ func (a *Actor) moveActor(speed uint32) bool {
 	return move > 0
 }
 
-func isCentered(x, y int) bool {
-	return (x%Tile) == 0 && (y%Tile) == 0
+func (a *Actor) isCentered() bool {
+	return a.pos.x%Tile == 0 && a.pos.y%Tile == 0
 }

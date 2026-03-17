@@ -9,17 +9,17 @@ func NewPinky() *Ghost {
 		StartDir: Down,
 		StartPos: Vector{14, 14}.ToPixel().Sub(Half, 0),
 	}, GhostConfig{
-		StartState:    InHouse,
-		HouseTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
-		ScatterTarget: Vector{2, -3}.ToPixel(),
-		Brain:         pinkyAI{},
+		startState:    InHouse,
+		eatenTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
+		scatterTarget: Vector{2, -3}.ToPixel(),
+		brain:         pinkyAI{},
 	})
 }
 
-func (ai pinkyAI) ChaseTarget(_ *Ghost) Vector {
+func (ai pinkyAI) chaseAI(_ *Ghost) Vector {
 	return player.pos
 }
 
-func (ai pinkyAI) ShouldLeaveHouse(_ *Ghost) bool {
+func (ai pinkyAI) leaveAI(_ *Ghost) bool {
 	return false /* TODO change to true */
 }

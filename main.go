@@ -51,9 +51,8 @@ func main() {
 	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(61) // arcade game was clocked to 60.606061
-
+	initPrng()
 	art = NewArt()
-
 	game = NewGame(pacman, float32(zoom))
 	maze = NewMaze(pacman)
 	eventStack = NewEventStack()

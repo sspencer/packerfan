@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
 
 //go:generate stringer -type=GhostState
 type GhostState int
@@ -16,54 +19,56 @@ const (
 )
 
 type GhostBrain interface {
-	ChaseTarget(*Ghost) Vector
-	ShouldLeaveHouse(*Ghost) bool
+	chaseAI(*Ghost) Vector
+	leaveAI(*Ghost) bool
 }
 
 type GhostConfig struct {
-	StartState    GhostState
-	HouseTarget   Vector
-	ScatterTarget Vector
-	Brain         GhostBrain
+	startState    GhostState
+	eatenTarget   Vector
+	scatterTarget Vector
+	brain         GhostBrain
 }
 
 type Ghost struct {
 	Actor
-	target  Vector
-	state   GhostState
-	reverse bool
-	config  GhostConfig
+	target      Vector
+	state       GhostState
+	reverse     bool
+	pixelsMoved int
+	config      GhostConfig
 }
 
-func (g *Ghost) Start() {
-	g.state = g.config.StartState
+func (g *Ghost) Reset() {
+	g.state = g.config.startState
+	g.pixelsMoved = 0
 	g.ResetToStart()
 }
 
-func (g *Ghost) Chase() {
-	if g.config.Brain == nil {
-		return
+func (g *Ghost) ChaseTarget() Vector {
+	if g.config.brain == nil {
+		return Vector{}
 	}
-	g.target = g.config.Brain.ChaseTarget(g)
+	return g.config.brain.chaseAI(g)
 }
 
-func (g *Ghost) Scatter() {
-	g.target = g.config.ScatterTarget
+func (g *Ghost) ScatterTarget() Vector {
+	return g.config.scatterTarget
 }
 
-func (g *Ghost) Leave() bool {
-	if g.config.Brain == nil {
+func (g *Ghost) ShouldLeave() bool {
+	if g.config.brain == nil {
 		return false
 	}
-	return g.config.Brain.ShouldLeaveHouse(g)
+	return g.config.brain.leaveAI(g)
 }
 
-func (g *Ghost) House() {
-	g.target = g.config.HouseTarget
+func (g *Ghost) HouseTarget() Vector {
+	return g.config.eatenTarget
 }
 
 func newGhost(actor Actor, config GhostConfig) *Ghost {
-	if config.Brain == nil {
+	if config.brain == nil {
 		panic("ghost brain is required")
 	}
 	actor.isGhost = true
@@ -73,7 +78,7 @@ func newGhost(actor Actor, config GhostConfig) *Ghost {
 		config: config,
 	}
 
-	g.Start()
+	g.Reset()
 
 	return g
 }
@@ -108,8 +113,68 @@ func (g *Ghost) draw() {
 	drawSprite(g.pos, sprite, g.frameIndex)
 }
 
-func (g *Ghost) chooseDirection() {
+func (g *Ghost) isValidTile(t Vector) bool {
+	return true
+}
 
+func (g *Ghost) chooseDirection() Direction {
+	if g.reverse {
+		g.reverse = false
+		return g.dir.Opposite()
+	}
+
+	if g.state == Frightened {
+		return g.chooseFrightenedDirection()
+	}
+
+	return Right
+}
+
+// Simulate choosing next direction at an intersection (reverse won't be chosen)
+func (g *Ghost) chooseFrightenedDirection() Direction {
+	tile := g.pos.ToTile()
+	var allowedDirs []Direction
+
+	if g.isValidTile(tile.AddDir(Right)) {
+		allowedDirs = append(allowedDirs, Right)
+	}
+	if g.isValidTile(tile.AddDir(Left)) {
+		allowedDirs = append(allowedDirs, Left)
+	}
+	if g.isValidTile(tile.AddDir(Up)) {
+		allowedDirs = append(allowedDirs, Up)
+	}
+	if g.isValidTile(tile.AddDir(Down)) {
+		allowedDirs = append(allowedDirs, Down)
+	}
+
+	preferred := getPreferredDirection()
+	reverse := g.dir.Opposite()
+
+	for range DirCount {
+		if slices.Contains(allowedDirs, preferred) && preferred != reverse {
+			return preferred
+		}
+		preferred = clockwiseNext(preferred)
+	}
+
+	// Should never reach here if at least one valid direction exists
+	return g.dir // fallback
+}
+
+// Simulate choosing any of the allowed directions (including reverse)
+func (g *Ghost) chooseRandomDirection(allowedDirs []Direction) Direction {
+	preferred := getPreferredDirection()
+
+	for range DirCount {
+		if slices.Contains(allowedDirs, preferred) {
+			return preferred
+		}
+		preferred = clockwiseNext(preferred)
+	}
+
+	// Should never reach here if at least one valid direction exists
+	return g.dir
 }
 
 func (g *Ghost) updateFrame() {
@@ -132,30 +197,52 @@ func (g *Ghost) update() {
 	switch g.state {
 	case InHouse:
 		g.updateInHouse()
+		return // DONE
 	case LeavingHouse:
 		g.updateLeavingHouse()
+		return // DONE
 	case Scatter:
 		g.updateScatter()
 	default:
 		fmt.Printf("unhandled %q state for ghost %s\n", g.state.String(), g.ID.String())
 	}
+
+	g.moveActor(g.getSpeed())
+	g.teleport() // teleport to other side of screen when out of bounds
+	g.pixelsMoved++
+}
+
+func (g *Ghost) updateTarget(target Vector) {
+	g.target = target
+	dir := g.chooseDirection()
+	if dir != g.dir && g.pixelsMoved > Tile {
+		g.dir = dir
+		g.pixelsMoved = 0
+	}
 }
 
 func (g *Ghost) updateScatter() {
-	g.moveActor(g.getSpeed())
+	if !g.isCentered() {
+		return
+	}
+
+	g.updateTarget(g.ScatterTarget())
 }
 
 func (g *Ghost) updateInHouse() {
-	if g.Leave() {
-		g.state = LeavingHouse
-	} else {
-		const bounce1 = 14*Tile + Half
-		const bounce2 = 14*Tile - Half
-		moved := g.moveActor(g.getSpeed())
+	const (
+		bounceTop    = 14*Tile - Half
+		bounceBottom = 14*Tile + Half
+	)
 
-		if moved && (g.pos.y == bounce1 || g.pos.y == bounce2) {
-			g.dir = g.dir.Opposite()
-		}
+	if g.ShouldLeave() {
+		g.state = LeavingHouse
+		return
+	}
+
+	moved := g.moveActor(g.getSpeed())
+	if moved && (g.pos.y == bounceBottom || g.pos.y == bounceTop) {
+		g.dir = g.dir.Opposite()
 	}
 }
 
@@ -168,13 +255,6 @@ func (g *Ghost) updateLeavingHouse() {
 	if g.pos.x == houseX && g.pos.y <= houseY {
 		g.pos.y = houseY // just in case ghost moves 2 pixels and misses target
 		g.state = game.ghostState
-		if g.state == Scatter {
-			g.Scatter()
-		} else {
-			g.Chase()
-		}
-
-		g.chooseDirection()
 		return
 	}
 
@@ -217,4 +297,14 @@ func (g *Ghost) getSpeed() uint32 {
 	}
 
 	return s.GhostSpeed
+}
+
+func (g *Ghost) teleport() {
+	const edge = GameWidth * Tile
+
+	if g.pos.x < 0 {
+		g.pos.x += edge
+	} else if g.pos.x >= edge {
+		g.pos.x -= edge
+	}
 }
