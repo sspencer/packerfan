@@ -39,3 +39,9 @@ func (v Vector) AddDir(dir Direction) Vector {
 func (v Vector) String() string {
 	return fmt.Sprintf("(%d, %d)", v.x, v.y)
 }
+
+func (v Vector) DistanceSq(b Vector) int {
+	dx := v.x - b.x
+	dy := v.y - b.y
+	return dx*dx + dy*dy
+}

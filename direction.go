@@ -12,6 +12,8 @@ const (
 
 const DirCount = 4
 
+var ghostPriorityDir = []Direction{Up, Left, Down, Right}
+
 func (d Direction) IsOpposite(other Direction) bool {
 	return (d == Right && other == Left) ||
 		(d == Left && other == Right) ||

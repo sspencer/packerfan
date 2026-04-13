@@ -9,9 +9,10 @@ func NewBlinky() *Ghost {
 		StartDir: Left,
 		StartPos: Vector{14, 11}.ToPixel().Sub(Half, 0),
 	}, GhostConfig{
-		startState:    Scatter,
-		eatenTarget:   Vector{14, 14}.ToPixel().Sub(Half, 0),
-		scatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
+		startState:  Scatter,
+		eatenTarget: Vector{14, 14}.ToPixel().Sub(Half, 0),
+		// Blinky's scatter corner is the upper-right corner.
+		scatterTarget: Vector{GameWidth, -3}.ToPixel(),
 		brain:         blinkyAI{},
 	})
 }

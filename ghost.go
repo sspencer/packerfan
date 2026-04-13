@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math"
 	"slices"
 )
 
@@ -34,7 +35,6 @@ type Ghost struct {
 	Actor
 	target      Vector
 	state       GhostState
-	reverse     bool
 	pixelsMoved int
 	config      GhostConfig
 }
@@ -113,24 +113,73 @@ func (g *Ghost) draw() {
 	drawSprite(g.pos, sprite, g.frameIndex)
 }
 
+func normalizeTunnelTile(tile Vector) Vector {
+	if tile.x < 0 {
+		tile.x += GameWidth
+	}
+	if tile.x >= GameWidth {
+		tile.x -= GameWidth
+	}
+	return tile
+}
+
 func (g *Ghost) isValidTile(t Vector) bool {
+	wrappedTile := normalizeTunnelTile(t)
+
+	if wrappedTile.y < 0 || wrappedTile.y >= GameHeight {
+		return false
+	}
+
+	cell := maze.getCell(wrappedTile.x, wrappedTile.y)
+
+	if g.state == Chase || g.state == Scatter {
+		if maze.isGhostWall(wrappedTile.x, wrappedTile.y) {
+			return false
+		}
+	}
+
+	if cell == Wall {
+		return false
+	}
+
+	if cell == Door {
+		return g.state == LeavingHouse || g.state == Eaten || g.state == EnteringHouse
+	}
+
 	return true
 }
 
 func (g *Ghost) chooseDirection() Direction {
-	if g.reverse {
-		g.reverse = false
-		return g.dir.Opposite()
-	}
-
 	if g.state == Frightened {
 		return g.chooseFrightenedDirection()
 	}
 
-	return Right
+	bestDir := g.dir
+	minDist := math.MaxInt
+	targetTile := g.target.ToTile()
+
+	for _, dir := range ghostPriorityDir {
+		if dir == g.dir.Opposite() {
+			continue
+		}
+		nextTile := g.nextTile(dir)
+		if !g.isValidTile(nextTile) {
+			continue
+		}
+		if d := nextTile.DistanceSq(targetTile); d < minDist {
+			minDist = d
+			bestDir = dir
+		}
+	}
+
+	return bestDir
 }
 
-// Simulate choosing next direction at an intersection (reverse won't be chosen)
+func (g *Ghost) nextTile(dir Direction) Vector {
+	return g.pos.ToTile().AddDir(dir)
+}
+
+// Simulate choosing the next direction at an intersection (reverse won't be chosen)
 func (g *Ghost) chooseFrightenedDirection() Direction {
 	tile := g.pos.ToTile()
 	var allowedDirs []Direction

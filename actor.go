@@ -55,18 +55,12 @@ func (a *Actor) moveActor(speed uint32) bool {
 		switch a.dir {
 		case Up:
 			a.pos.y -= 1
-			break
 		case Right:
 			a.pos.x += 1
-			break
 		case Down:
 			a.pos.y += 1
-			break
 		case Left:
 			a.pos.x -= 1
-			break
-		default:
-			break
 		}
 
 		// cornering / snapping for player

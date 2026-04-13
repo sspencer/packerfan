@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go vet:*)",
+      "Bash(staticcheck /Users/steve/dev/go/pacfan/...)",
+      "Bash(go test:*)",
+      "Bash(grep:*)",
+      "Bash(go build:*)"
+    ]
+  }
+}
