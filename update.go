@@ -49,5 +49,16 @@ func handleEvent(event Event) {
 		game.dotsEaten++
 		game.dotsRemaining--
 		player.dotPause += PowerPause
+
+	case GhostStateChange:
+		game.ghostState = GhostState(event.ID)
+		ghosts := []*Ghost{blinky, inky, pinky, clyde}
+		for _, g := range ghosts {
+			if g.state == Chase || g.state == Scatter {
+				g.state = game.ghostState
+				g.reverse = true
+			}
+		}
+
 	}
 }

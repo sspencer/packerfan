@@ -63,8 +63,8 @@ type GhostModePhase struct {
 }
 
 type GhostModePhaseTable struct {
-	LevelMin uint8
-	LevelMax uint8
+	LevelMin int
+	LevelMax int
 	Phases   [8]GhostModePhase
 }
 
@@ -142,4 +142,29 @@ func getLevelSpec(level int) LevelSpecTable {
 func (g *Game) setLevel(level int) {
 	g.level = level
 	g.spec = getLevelSpec(level) // eventually change pacman/mspacman spec
+}
+
+func (g *Game) getGhostState() GhostState {
+	level := g.level
+	var phases [8]GhostModePhase
+	for _, pt := range ghostModePhaseTable {
+		if level >= pt.LevelMin && level <= pt.LevelMax {
+			phases = pt.Phases
+			break
+		}
+	}
+
+	ticks := 0
+	for _, phase := range phases {
+		if phase.DurationFrames == -1 {
+			return phase.State
+		}
+
+		ticks += phase.DurationFrames
+		if ticks >= g.frameCount {
+			return phase.State
+		}
+	}
+
+	return Chase
 }

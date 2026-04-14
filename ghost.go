@@ -37,6 +37,7 @@ type Ghost struct {
 	state       GhostState
 	pixelsMoved int
 	config      GhostConfig
+	reverse     bool
 }
 
 func (g *Ghost) Reset() {
@@ -113,27 +114,23 @@ func (g *Ghost) draw() {
 	drawSprite(g.pos, sprite, g.frameIndex)
 }
 
-func normalizeTunnelTile(tile Vector) Vector {
-	if tile.x < 0 {
-		tile.x += GameWidth
-	}
-	if tile.x >= GameWidth {
-		tile.x -= GameWidth
-	}
-	return tile
-}
-
 func (g *Ghost) isValidTile(t Vector) bool {
-	wrappedTile := normalizeTunnelTile(t)
+	if t.x < 0 { // tunnel wrap-around
+		t.x += GameWidth
+	}
 
-	if wrappedTile.y < 0 || wrappedTile.y >= GameHeight {
+	if t.x >= GameWidth { // tunnel wrap-around
+		t.x -= GameWidth
+	}
+
+	if t.y < 0 || t.y >= GameHeight {
 		return false
 	}
 
-	cell := maze.getCell(wrappedTile.x, wrappedTile.y)
+	cell := maze.getCell(t.x, t.y)
 
 	if g.state == Chase || g.state == Scatter {
-		if maze.isGhostWall(wrappedTile.x, wrappedTile.y) {
+		if maze.isGhostWall(t.x, t.y) {
 			return false
 		}
 	}
@@ -150,6 +147,11 @@ func (g *Ghost) isValidTile(t Vector) bool {
 }
 
 func (g *Ghost) chooseDirection() Direction {
+	if g.reverse {
+		g.reverse = false
+		return g.dir.Opposite()
+	}
+
 	if g.state == Frightened {
 		return g.chooseFrightenedDirection()
 	}
@@ -252,6 +254,8 @@ func (g *Ghost) update() {
 		return // DONE
 	case Scatter:
 		g.updateScatter()
+	case Chase:
+		g.updateChase()
 	default:
 		fmt.Printf("unhandled %q state for ghost %s\n", g.state.String(), g.ID.String())
 	}
@@ -276,6 +280,13 @@ func (g *Ghost) updateScatter() {
 	}
 
 	g.updateTarget(g.ScatterTarget())
+}
+
+func (g *Ghost) updateChase() {
+	if !g.isCentered() {
+		return
+	}
+	g.updateTarget(g.ChaseTarget())
 }
 
 func (g *Ghost) updateInHouse() {
@@ -304,6 +315,7 @@ func (g *Ghost) updateLeavingHouse() {
 	if g.pos.x == houseX && g.pos.y <= houseY {
 		g.pos.y = houseY // just in case ghost moves 2 pixels and misses target
 		g.state = game.ghostState
+		g.dir = g.chooseRandomDirection([]Direction{Right, Left})
 		return
 	}
 
@@ -322,7 +334,9 @@ func (g *Ghost) updateLeavingHouse() {
 func (g *Ghost) getSpeed() uint32 {
 	s := game.spec
 	tile := g.pos.ToTile()
-
+	if tile.x < 0 || tile.y < 0 || tile.x >= GameWidth || tile.y >= GameHeight {
+		fmt.Printf("ghost %s is out of bounds, pos: %v\n", g.ID.String(), g.pos)
+	}
 	if maze.getCell(tile.x, tile.y) == Tunnel || g.state == InHouse || g.state == LeavingHouse || g.state == EnteringHouse {
 		return s.GhostTunnelSpeed
 	}

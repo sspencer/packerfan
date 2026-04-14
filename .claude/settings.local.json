@@ -5,7 +5,8 @@
       "Bash(staticcheck /Users/steve/dev/go/pacfan/...)",
       "Bash(go test:*)",
       "Bash(grep:*)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(ls:*)"
     ]
   }
 }

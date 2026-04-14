@@ -21,5 +21,11 @@ func (ai clydeAI) chaseAI(_ *Ghost) Vector {
 }
 
 func (ai clydeAI) leaveAI(_ *Ghost) bool {
-	return false
+	if game.level == 1 {
+		return game.dotsEaten > 90 || game.frameCount > secondsToFrames(15)
+	} else if game.level == 2 {
+		return game.dotsEaten > 50 || game.frameCount > secondsToFrames(10)
+	}
+
+	return true
 }

@@ -29,7 +29,6 @@ func (v Vector) AddDir(dir Direction) Vector {
 	case Down:
 		return v.Add(0, 1)
 	case Left:
-
 		return v.Add(-1, 0)
 	default:
 		return v.Add(1, 0)

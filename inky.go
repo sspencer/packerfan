@@ -11,7 +11,7 @@ func NewInky() *Ghost {
 	}, GhostConfig{
 		startState:    InHouse,
 		eatenTarget:   Vector{12, 14}.ToPixel().Sub(Half, 0),
-		scatterTarget: Vector{GameWidth - 3, -3}.ToPixel(),
+		scatterTarget: Vector{GameWidth - 1, GameHeight}.ToPixel(),
 		brain:         inkyAI{},
 	})
 }
@@ -21,5 +21,9 @@ func (ai inkyAI) chaseAI(_ *Ghost) Vector {
 }
 
 func (ai inkyAI) leaveAI(_ *Ghost) bool {
-	return false
+	if game.level == 1 {
+		return game.dotsEaten > 30 || game.frameCount > secondsToFrames(7)
+	}
+
+	return true
 }
