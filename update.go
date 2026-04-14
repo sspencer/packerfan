@@ -6,6 +6,19 @@ func updateGame() {
 		return
 	}
 
+	// Tick frightened mode timer; revert ghosts when it expires
+	if game.isFrightMode {
+		game.frightFrames--
+		if game.frightFrames <= 0 {
+			game.isFrightMode = false
+			for _, g := range []*Ghost{blinky, inky, pinky, clyde} {
+				if g.state == Frightened {
+					g.state = game.ghostState
+				}
+			}
+		}
+	}
+
 	player.update()
 	blinky.update()
 	inky.update()
@@ -49,6 +62,17 @@ func handleEvent(event Event) {
 		game.dotsEaten++
 		game.dotsRemaining--
 		player.dotPause += PowerPause
+
+		if game.spec.FrightenedFrames > 0 {
+			game.isFrightMode = true
+			game.frightFrames = game.spec.FrightenedFrames
+			for _, g := range []*Ghost{blinky, inky, pinky, clyde} {
+				if g.state == Chase || g.state == Scatter || g.state == Frightened {
+					g.state = Frightened
+					g.reverse = true
+				}
+			}
+		}
 
 	case GhostStateChange:
 		game.ghostState = GhostState(event.ID)

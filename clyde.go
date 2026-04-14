@@ -16,8 +16,14 @@ func NewClyde() *Ghost {
 	})
 }
 
-func (ai clydeAI) chaseAI(_ *Ghost) Vector {
-	return player.pos
+func (ai clydeAI) chaseAI(clyde *Ghost) Vector {
+	pv := player.pos.ToTile()
+	sv := clyde.pos.ToTile()
+	if pv.DistanceSq(sv) >= 64 {
+		return pv.ToPixel()
+	}
+
+	return clyde.ScatterTarget()
 }
 
 func (ai clydeAI) leaveAI(_ *Ghost) bool {

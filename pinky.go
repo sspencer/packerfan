@@ -17,7 +17,24 @@ func NewPinky() *Ghost {
 }
 
 func (ai pinkyAI) chaseAI(_ *Ghost) Vector {
-	return player.pos
+	vx, vy := 0, 0
+
+	// Reproduce original Pinky chase bug for UP.
+	// To remove the bug, use vx = 0 when facing Up.
+	switch player.dir {
+	case Up:
+		vx, vy = -4, -4
+	case Down:
+		vy = 4
+	case Right:
+		vx = 4
+	default: // Left
+		vx = -4
+	}
+
+	playerTile := player.pos.ToTile()
+	targetTile := Vector{playerTile.x + vx, playerTile.y + vy}
+	return targetTile.ToPixel()
 }
 
 func (ai pinkyAI) leaveAI(_ *Ghost) bool {

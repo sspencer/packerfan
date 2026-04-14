@@ -6,7 +6,8 @@
       "Bash(go test:*)",
       "Bash(grep:*)",
       "Bash(go build:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "WebSearch"
     ]
   }
 }

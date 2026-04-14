@@ -256,6 +256,8 @@ func (g *Ghost) update() {
 		g.updateScatter()
 	case Chase:
 		g.updateChase()
+	case Frightened:
+		g.updateFrightened()
 	default:
 		fmt.Printf("unhandled %q state for ghost %s\n", g.state.String(), g.ID.String())
 	}
@@ -287,6 +289,17 @@ func (g *Ghost) updateChase() {
 		return
 	}
 	g.updateTarget(g.ChaseTarget())
+}
+
+func (g *Ghost) updateFrightened() {
+	if !g.isCentered() {
+		return
+	}
+	dir := g.chooseDirection()
+	if dir != g.dir && g.pixelsMoved > Tile {
+		g.dir = dir
+		g.pixelsMoved = 0
+	}
 }
 
 func (g *Ghost) updateInHouse() {

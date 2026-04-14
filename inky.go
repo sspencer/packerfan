@@ -17,7 +17,28 @@ func NewInky() *Ghost {
 }
 
 func (ai inkyAI) chaseAI(_ *Ghost) Vector {
-	return player.pos
+	vx, vy := 0, 0
+
+	// Reproduce original Inky chase bug for UP.
+	// To remove the bug, use vx = 0 when facing Up.
+	switch player.dir {
+	case Up:
+		vx, vy = -2, -2
+	case Down:
+		vy = 2
+	case Right:
+		vx = 2
+	default: // Left
+		vx = -2
+	}
+
+	playerTile := player.pos.ToTile()
+	pivot := Vector{playerTile.x + vx, playerTile.y + vy}
+	blinkyTile := blinky.pos.ToTile() // yes, Blinky
+	dx := pivot.x - blinkyTile.x
+	dy := pivot.y - blinkyTile.y
+	targetTile := Vector{blinkyTile.x + 2*dx, blinkyTile.y + 2*dy}
+	return targetTile.ToPixel()
 }
 
 func (ai inkyAI) leaveAI(_ *Ghost) bool {

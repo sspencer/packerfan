@@ -14,6 +14,7 @@ type Game struct {
 	dotsEaten     int
 	dotsRemaining int
 	isFrightMode  bool
+	frightFrames  int
 	spec          LevelSpecTable
 	ghostState    GhostState
 }
