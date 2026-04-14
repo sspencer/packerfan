@@ -92,20 +92,19 @@ func (g *Ghost) draw() {
 		sprite.x = []int{616, 584, 632, 600}[g.dir]
 		sprite.y = 80
 	} else if g.state == Frightened {
-		sprite.x = 584 // white is 616
+		const flashFrames = 14
+		const blueX = 584
+		const whiteX = 616
+
+		n := game.frightFrames/flashFrames + 1
+
 		sprite.y = 64
-		/*
-		   if (game.frightened_frames >= game.frightened_flashes * FRIGHTENED_FLASH_FRAMES) {
-		       return (Vector2){blues_x[dir], 64};
-		   }
+		if game.frightFrames >= game.frightFlashes*flashFrames || n%2 == 0 {
+			sprite.x = blueX
+		} else {
+			sprite.x = whiteX
+		}
 
-		   const int n = (game.frightened_frames / FRIGHTENED_FLASH_FRAMES) + 1;
-		   if (n % 2 == 0) {
-		       return (Vector2){blues_x[dir], 64};
-		   }
-
-		   return (Vector2){whites_x[dir], 64};
-		*/
 	} else {
 		sprite.y = []int{64, 80, 96, 112}[int(g.Actor.ID)] // blinky, inky, pinky, clyde
 		sprite.x = []int{456, 488, 520, 552}[g.dir]

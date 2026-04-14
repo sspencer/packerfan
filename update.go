@@ -1,29 +1,27 @@
 package main
 
+import rl "github.com/gen2brain/raylib-go/raylib"
+
+func inputUpdate() {
+	if rl.IsKeyPressed(rl.KeySpace) {
+		game.paused = !game.paused
+	}
+}
+
 func updateGame() {
-	game.update()
+	inputUpdate()
+
 	if game.paused {
 		return
 	}
 
-	// Tick frightened mode timer; revert ghosts when it expires
-	if game.isFrightMode {
-		game.frightFrames--
-		if game.frightFrames <= 0 {
-			game.isFrightMode = false
-			for _, g := range []*Ghost{blinky, inky, pinky, clyde} {
-				if g.state == Frightened {
-					g.state = game.ghostState
-				}
-			}
-		}
-	}
-
+	game.update()
 	player.update()
 	blinky.update()
 	inky.update()
 	pinky.update()
 	clyde.update()
+
 	handleEvents()
 }
 
@@ -66,6 +64,7 @@ func handleEvent(event Event) {
 		if game.spec.FrightenedFrames > 0 {
 			game.isFrightMode = true
 			game.frightFrames = game.spec.FrightenedFrames
+			game.frightFlashes = game.spec.FrightenedFlashes
 			for _, g := range []*Ghost{blinky, inky, pinky, clyde} {
 				if g.state == Chase || g.state == Scatter || g.state == Frightened {
 					g.state = Frightened
@@ -84,5 +83,16 @@ func handleEvent(event Event) {
 			}
 		}
 
+	case FrightModeEnd:
+		game.isFrightMode = false
+		game.frightFrames = 0
+		game.frightFlashes = 0
+
+		//TODO need to reset frightened flashes and frames too
+		for _, g := range []*Ghost{blinky, inky, pinky, clyde} {
+			if g.state == Frightened {
+				g.state = game.ghostState
+			}
+		}
 	}
 }

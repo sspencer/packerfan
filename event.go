@@ -9,6 +9,7 @@ const (
 	PlayerAteDot EventType = iota
 	PlayerAtePowerUp
 	GhostStateChange
+	FrightModeEnd
 )
 
 type Event struct {

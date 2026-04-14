@@ -1,7 +1,5 @@
 package main
 
-import rl "github.com/gen2brain/raylib-go/raylib"
-
 type Game struct {
 	zoom          float32
 	pacman        bool
@@ -14,6 +12,7 @@ type Game struct {
 	dotsEaten     int
 	dotsRemaining int
 	isFrightMode  bool
+	frightFlashes int
 	frightFrames  int
 	spec          LevelSpecTable
 	ghostState    GhostState
@@ -38,7 +37,12 @@ func (g *Game) update() {
 		eventStack.Push(Event{Type: GhostStateChange, ID: int(ghostState)})
 	}
 
-	if rl.IsKeyPressed(rl.KeySpace) {
-		g.paused = !g.paused
+	// Tick frightened mode timer; revert ghosts when it expires
+	if game.isFrightMode {
+		game.frightFrames--
+		if game.frightFrames <= 0 {
+			eventStack.Push(Event{Type: FrightModeEnd})
+		}
 	}
+
 }
