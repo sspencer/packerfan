@@ -25,6 +25,10 @@ type Actor struct {
 	isGhost    bool
 }
 
+func (a *Actor) String() string {
+	return a.ID.String()
+}
+
 func (a *Actor) ResetToStart() {
 	a.dir = a.StartDir
 	a.pos = a.StartPos

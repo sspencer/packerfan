@@ -84,6 +84,21 @@ func newGhost(actor Actor, config GhostConfig) *Ghost {
 	return g
 }
 
+func getGhostFromID(id ActorID) *Ghost {
+	switch id {
+	case Blinky:
+		return blinky
+	case Inky:
+		return inky
+	case Pinky:
+		return pinky
+	case Clyde:
+		return clyde
+	default:
+		panic("invalid ghost id: " + id.String())
+	}
+}
+
 func (g *Ghost) draw() {
 	// r l u d -- graphic
 	// u d l r -- dir
@@ -96,17 +111,16 @@ func (g *Ghost) draw() {
 		const blueX = 584
 		const whiteX = 616
 
-		n := game.frightFrames/flashFrames + 1
-
+		sprite.x = whiteX
 		sprite.y = 64
-		if game.frightFrames >= game.frightFlashes*flashFrames || n%2 == 0 {
+
+		n := game.frightFrames/flashFrames + 1
+		if n%2 == 0 || game.frightFrames >= game.frightFlashes*flashFrames {
 			sprite.x = blueX
-		} else {
-			sprite.x = whiteX
 		}
 
 	} else {
-		sprite.y = []int{64, 80, 96, 112}[int(g.Actor.ID)] // blinky, inky, pinky, clyde
+		sprite.y = []int{64, 80, 96, 112}[g.Actor.ID] // blinky, inky, pinky, clyde
 		sprite.x = []int{456, 488, 520, 552}[g.dir]
 	}
 
@@ -257,6 +271,8 @@ func (g *Ghost) update() {
 		g.updateChase()
 	case Frightened:
 		g.updateFrightened()
+	case Eaten:
+		g.updateEaten()
 	default:
 		fmt.Printf("unhandled %q state for ghost %s\n", g.state.String(), g.ID.String())
 	}
@@ -273,6 +289,10 @@ func (g *Ghost) updateTarget(target Vector) {
 		g.dir = dir
 		g.pixelsMoved = 0
 	}
+}
+
+func (g *Ghost) updateEaten() {
+	g.updateTarget(g.HouseTarget())
 }
 
 func (g *Ghost) updateScatter() {
@@ -353,11 +373,10 @@ func (g *Ghost) getSpeed() uint32 {
 		return s.GhostTunnelSpeed
 	}
 
-	//if g.state == Eaten {
-	//	return Speed80
-	//}
+	if g.state == Eaten {
+		return Speed80
+	} else if g.state == Frightened {
 
-	if g.state == Frightened {
 		return s.GhostFrightSpeed
 	}
 

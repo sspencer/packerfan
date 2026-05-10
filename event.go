@@ -8,8 +8,11 @@ type EventType int
 const (
 	PlayerAteDot EventType = iota
 	PlayerAtePowerUp
+	PlayerAteGhost
 	GhostStateChange
+	GhostAtePlayer
 	FrightModeEnd
+	LevelComplete
 )
 
 type Event struct {

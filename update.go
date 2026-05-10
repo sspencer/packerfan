@@ -1,6 +1,10 @@
 package main
 
-import rl "github.com/gen2brain/raylib-go/raylib"
+import (
+	"fmt"
+
+	rl "github.com/gen2brain/raylib-go/raylib"
+)
 
 func inputUpdate() {
 	if rl.IsKeyPressed(rl.KeySpace) {
@@ -16,12 +20,15 @@ func updateGame() {
 	}
 
 	game.update()
-	player.update()
+	handleEvents()
+
 	blinky.update()
 	inky.update()
 	pinky.update()
 	clyde.update()
+	handleEvents()
 
+	player.update()
 	handleEvents()
 }
 
@@ -36,12 +43,11 @@ func handleEvents() {
 }
 
 func handleEvent(event Event) {
-	if event.X < 0 || event.X >= GameWidth || event.Y < 0 || event.Y >= GameHeight {
-		return
-	}
-
 	switch event.Type {
 	case PlayerAteDot:
+		if event.X < 0 || event.X >= GameWidth || event.Y < 0 || event.Y >= GameHeight {
+			return
+		}
 		maze.setCell(event.X, event.Y, Empty)
 		game.score += PelletScore
 		if game.score > game.highScore {
@@ -52,6 +58,9 @@ func handleEvent(event Event) {
 		player.dotPause += PelletPause
 
 	case PlayerAtePowerUp:
+		if event.X < 0 || event.X >= GameWidth || event.Y < 0 || event.Y >= GameHeight {
+			return
+		}
 		maze.setCell(event.X, event.Y, Empty)
 		game.score += PowerScore
 		if game.score > game.highScore {
@@ -59,6 +68,7 @@ func handleEvent(event Event) {
 		}
 		game.dotsEaten++
 		game.dotsRemaining--
+		game.numGhostsEaten = 0
 		player.dotPause += PowerPause
 
 		if game.spec.FrightenedFrames > 0 {
@@ -72,6 +82,16 @@ func handleEvent(event Event) {
 				}
 			}
 		}
+
+	case PlayerAteGhost:
+		id := event.ID
+		ghost := getGhostFromID(ActorID(id))
+		ghost.isEaten = true
+		ghost.state = Eaten
+		fmt.Println("Player ate ghost: ", getGhostFromID(ActorID(id)))
+
+	case GhostAtePlayer:
+		fmt.Println("Ghost ate player")
 
 	case GhostStateChange:
 		game.ghostState = GhostState(event.ID)
@@ -94,5 +114,9 @@ func handleEvent(event Event) {
 				g.state = game.ghostState
 			}
 		}
+
+	case LevelComplete:
+		fmt.Println("Level complete!")
+		game.paused = true
 	}
 }
