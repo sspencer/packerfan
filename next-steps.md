@@ -178,16 +178,16 @@ Values below are illustrative.
 - [x] Tests: template-backed `LoadLevel` equals pixel-sampled `LoadLevel` tile-for-tile for all five mazes; text round-trips (`Rows()` → parse → identical grid). Replace the duplicated `png.Decode` helpers in `system_test.go`, `scene_test.go`, and `renderer_test.go` with `internal/sheet` where it is a drop-in.
 
 ### Step 1.4 — `internal/sim`
-- [ ] `input.go`: `Action` (`Right=0 … Noop=4`) and `ScriptedInput` implementing `system.InputProvider` (never sets pause, mute, or start keys).
-- [ ] `events.go`: subscribe to `DotEaten`, `PowerUpEaten`, `GhostEaten`, `FruitEaten`, `ExtraLifeAwarded`, `PlayerEaten`, `LevelCompleted`; collect an event bitmask and the eaten-tile list per step into reusable buffers.
-- [ ] `env.go`:
+- [x] `input.go`: `Action` (`Right=0 … Noop=4`) and `ScriptedInput` implementing `system.InputProvider` (never sets pause, mute, or start keys).
+- [x] `events.go`: subscribe to `DotEaten`, `PowerUpEaten`, `GhostEaten`, `FruitEaten`, `ExtraLifeAwarded`, `PlayerEaten`, `LevelCompleted`; collect an event bitmask and the eaten-tile list per step into reusable buffers.
+- [x] `env.go`:
   - `Config{Mazes *component.MazeSet, PacmanMode, StartLevel, Seed, EpisodicLife, EndOnLevelClear, MaxTicks}`.
   - `NewEnv(cfg)` builds the world the way `game.NewEngine` does minus art, audio, renderer, high score, and scenes: `CreateGameState`, `CreateMaze` (+ `UseTemplates`), `CreatePRNG`, `SpawnPlayer`, `SpawnAllGhosts`, `RegisterEventHandlers`, `NewPipeline(scriptedInput)`.
   - `Reset(opts)`, `Step(action, mode, frames) StepResult`, `LegalActions() [4]bool`, `World()`, `Tick()`.
   - One internal `tick()` that runs `Pipeline.Update` and then applies the three transition rules from Decision 1. Everything else (step modes, replay, viewer) goes through it.
   - Step modes: `frames` (N ticks), `tile` (until Pac-Man is centred on a new tile, or stopped by a wall), `intersection` (until a centred tile with a choice other than straight-on or reverse). All modes stop early on death, level clear, or termination, always run through a ghost-eaten freeze, and have a tick cap so pushing into a wall cannot hang.
   - `EpisodicLife`: a death sets `terminated` for the learner; the next `Reset` continues the same game if lives remain.
-- [ ] `hash.go`: `HashWorld(w) uint64` (FNV-1a over gameplay fields of `GameState`, the maze grid, actor transforms / motion / ghost state / dot counters, fruit state, `PRNG.Index`; excludes `Zoom` and `HighScore`).
+- [x] `hash.go`: `HashWorld(w) uint64` (FNV-1a over gameplay fields of `GameState`, the maze grid, actor transforms / motion / ghost state / dot counters, fruit state, `PRNG.Index`; excludes `Zoom` and `HighScore`).
 
 ### Step 1.5 — Determinism, rule coverage, benchmark
 - [ ] Audit `internal/system` and `internal/component` for nondeterminism. Already checked: no `time.Now`, no map iteration, and `math/rand` is used only to fill the PRNG ROM. Still to confirm: donburi query iteration order is stable across worlds built the same way (the per-tick hash test below is the proof).
