@@ -52,10 +52,7 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState := component.MustFindGameState(w)
 
 		maze.SetCell(ev.X, ev.Y, component.Empty)
-		gameState.Score += config.PelletScore
-		if gameState.Score > gameState.HighScore {
-			gameState.HighScore = gameState.Score
-		}
+		gameState.AddScore(config.PelletScore)
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
 		recordDotForGhostHouse(w, gameState)
@@ -77,10 +74,7 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState := component.MustFindGameState(w)
 
 		maze.SetCell(ev.X, ev.Y, component.Empty)
-		gameState.Score += config.PowerScore
-		if gameState.Score > gameState.HighScore {
-			gameState.HighScore = gameState.Score
-		}
+		gameState.AddScore(config.PowerScore)
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
 		recordDotForGhostHouse(w, gameState)
@@ -139,10 +133,7 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState := component.MustFindGameState(w)
 		gameState.NumGhostsEaten++
 		points := config.GhostScore(gameState.NumGhostsEaten)
-		gameState.Score += points
-		if gameState.Score > gameState.HighScore {
-			gameState.HighScore = gameState.Score
-		}
+		gameState.AddScore(points)
 		gameState.GhostEatenPause = config.GhostEatenPause
 		gameState.GhostEatenX = ev.X
 		gameState.GhostEatenY = ev.Y
@@ -211,10 +202,7 @@ func RegisterEventHandlers(w donburi.World) {
 		}
 		gameState.FruitActive = false
 		gameState.FruitTimer = 0
-		gameState.Score += ev.Points
-		if gameState.Score > gameState.HighScore {
-			gameState.HighScore = gameState.Score
-		}
+		gameState.AddScore(ev.Points)
 		gameState.FruitScoreTimer = config.FruitScorePopupFrames
 		gameState.FruitScoreValue = ev.Points
 	})

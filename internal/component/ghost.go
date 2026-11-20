@@ -18,20 +18,20 @@ const (
 
 // GhostData stores ghost-specific state, navigation targets, and sprite metadata.
 type GhostData struct {
-	AIKind        GhostAIKind
-	State         config.GhostState
-	StartState    config.GhostState
-	Target        config.Vector
-	ScatterTarget config.Vector
-	EatenTarget   config.Vector
+	AIKind            GhostAIKind
+	State             config.GhostState
+	StartState        config.GhostState
+	Target            config.Vector
+	ScatterTarget     config.Vector
+	EatenTarget       config.Vector
 	PixelsMoved       int
 	Reverse           bool
 	FrightenedInHouse bool
 	NextDir           config.Direction
-	PlannedTile   config.Vector
-	HasNextDir    bool
-	DotCounter    int
-	SpriteRow     int
+	PlannedTile       config.Vector
+	HasNextDir        bool
+	DotCounter        int
+	SpriteRow         int
 }
 
 var (

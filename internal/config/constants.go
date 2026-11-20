@@ -10,6 +10,7 @@ const (
 	Sprite                      = 16
 	Half                        = Tile / 2
 	InitialLives                = 3
+	ExtraLifeScore              = 10000
 	PelletScore                 = 10
 	PelletPause                 = 1
 	PowerScore                  = 50

@@ -9,26 +9,27 @@ import (
 // GameStateData is the singleton world resource holding round metrics, timers,
 // difficulty specs, and global ghost wave state.
 type GameStateData struct {
-	Zoom             float32
-	PacmanMode       bool
-	Paused           bool
-	Lives            int
-	Score            int
-	HighScore        int
-	Level            int
-	FrameCount       int
-	WaveFrames       int
-	DotsEaten        int
-	DotsRemaining    int
-	IsFrightMode     bool
-	FrightFlashes    int
-	FrightFrames     int
-	NumGhostsEaten   int
-	GhostEatenPause  int
-	GhostEatenX      int
-	GhostEatenY      int
-	GhostEatenEntity donburi.Entity
-	GhostEatenScore  int
+	Zoom                float32
+	PacmanMode          bool
+	Paused              bool
+	Lives               int
+	ExtraLifeAwarded    bool
+	Score               int
+	HighScore           int
+	Level               int
+	FrameCount          int
+	WaveFrames          int
+	DotsEaten           int
+	DotsRemaining       int
+	IsFrightMode        bool
+	FrightFlashes       int
+	FrightFrames        int
+	NumGhostsEaten      int
+	GhostEatenPause     int
+	GhostEatenX         int
+	GhostEatenY         int
+	GhostEatenEntity    donburi.Entity
+	GhostEatenScore     int
 	LevelComplete       bool
 	PlayerDying         bool
 	GameOver            bool
@@ -43,7 +44,23 @@ type GameStateData struct {
 	FruitScoreValue     int
 	FruitPos            config.Vector
 	Spec                config.LevelSpecTable
-	GhostState       config.GhostState
+	GhostState          config.GhostState
+}
+
+// AddScore increments Score, updates HighScore, and awards a one-time extra
+// life upon reaching config.ExtraLifeScore (10,000 points).
+func (g *GameStateData) AddScore(points int) {
+	if points <= 0 {
+		return
+	}
+	g.Score += points
+	if g.Score > g.HighScore {
+		g.HighScore = g.Score
+	}
+	if !g.ExtraLifeAwarded && g.Score >= config.ExtraLifeScore {
+		g.ExtraLifeAwarded = true
+		g.Lives++
+	}
 }
 
 // SetLevel updates the active level number and loads its speed/timing specification.
@@ -117,6 +134,7 @@ func (g *GameStateData) ResetForNextLife() {
 // score while preserving HighScore, Zoom, and PacmanMode.
 func (g *GameStateData) ResetForNewGame(dotsRemaining int) {
 	g.Lives = config.InitialLives
+	g.ExtraLifeAwarded = false
 	g.Score = 0
 	g.Paused = false
 	g.ResetForNextLevel(1, dotsRemaining)

@@ -33,18 +33,18 @@ type LevelSpecTable struct {
 }
 
 const (
-	Speed20  uint32 = 0x00008888
-	Speed40  uint32 = 0x0000AAAA
-	Speed45  uint32 = 0x0000B555
-	Speed50  uint32 = 0x0000B6B6
-	Speed55  uint32 = 0x0000B6B7
-	Speed60  uint32 = 0x0000EEEE
-	Speed65  uint32 = 0x0000EEEF
-	Speed75  uint32 = 0x0000FFFD
-	Speed80  uint32 = 0x0000FFFF
-	Speed85  uint32 = 0x80000001 // start of fast mode
-	Speed90  uint32 = 0x80000101
-	Speed95  uint32 = 0x80000421
+	Speed20    uint32 = 0x00008888
+	Speed40    uint32 = 0x0000AAAA
+	Speed45    uint32 = 0x0000B555
+	Speed50    uint32 = 0x0000B6B6
+	Speed55    uint32 = 0x0000B6B7
+	Speed60    uint32 = 0x0000EEEE
+	Speed65    uint32 = 0x0000EEEF
+	Speed75    uint32 = 0x0000FFFD
+	Speed80    uint32 = 0x0000FFFF
+	Speed85    uint32 = 0x80000001 // start of fast mode
+	Speed90    uint32 = 0x80000101
+	Speed95    uint32 = 0x80000421
 	Speed100   uint32 = 0x80001111
 	Speed105   uint32 = 0x80002492
 	SpeedEaten uint32 = 0x8000FFFF // 2 px/frame (2x base speed) for eaten ghost eyes

@@ -1584,6 +1584,33 @@ func TestBonusFruitSpawnsAt70And170DotsAndCollects(t *testing.T) {
 	}
 }
 
+func TestExtraLifeAwardedOnceAt10000Points(t *testing.T) {
+	w, _, _ := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.DotsRemaining = 100
+	gs.Lives = 3
+	gs.Score = 9990
+
+	// Crossing 10,000 awards +1 life.
+	event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
+	events.ProcessAllEvents(w)
+	if gs.Score != 10000 || gs.Lives != 4 || !gs.ExtraLifeAwarded {
+		t.Fatalf("expected extra life at 10,000: score=%d lives=%d awarded=%v", gs.Score, gs.Lives, gs.ExtraLifeAwarded)
+	}
+
+	// Scoring further (even past 20,000) does not award another extra life in the same game.
+	gs.AddScore(15000)
+	if gs.Lives != 4 {
+		t.Fatalf("expected only one extra life per game, got lives=%d", gs.Lives)
+	}
+
+	// Starting a new game resets ExtraLifeAwarded so 10,000 awards again.
+	system.RestartGame(w, nil)
+	if gs.ExtraLifeAwarded || gs.Lives != config.InitialLives {
+		t.Fatalf("expected reset extra life state on RestartGame: awarded=%v lives=%d", gs.ExtraLifeAwarded, gs.Lives)
+	}
+}
+
 func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 	for _, state := range []config.GhostState{
 		config.Eaten,
