@@ -70,17 +70,27 @@ func (r *Renderer) Draw(w donburi.World) {
 	rl.BeginMode2D(spriteCamera)
 	rl.BeginShaderMode(r.art.Shader)
 
-	for entry := range r.playerQuery.Iter(w) {
-		r.drawPlayer(gameState, component.Transform.Get(entry), component.Animation.Get(entry))
+	showGhostScore := gameState.GhostEatenPause > 0
+	if !showGhostScore {
+		for entry := range r.playerQuery.Iter(w) {
+			r.drawPlayer(gameState, component.Transform.Get(entry), component.Animation.Get(entry))
+		}
 	}
 
 	for entry := range r.ghostQuery.Iter(w) {
+		if showGhostScore && entry.Entity() == gameState.GhostEatenEntity {
+			continue
+		}
 		r.drawGhost(
 			gameState,
 			component.Transform.Get(entry),
 			component.Animation.Get(entry),
 			component.Ghost.Get(entry),
 		)
+	}
+
+	if showGhostScore {
+		r.drawGhostScore(gameState)
 	}
 
 	rl.EndShaderMode()
@@ -186,6 +196,33 @@ func (r *Renderer) drawGhost(
 	}
 
 	r.drawSprite(transform.Pos, sprite, frameIndex)
+}
+
+// GhostScoreSprite returns the top-left spritesheet pixel coordinates in
+// assets/game.png for a ghost-eaten bonus score (200, 400, 800, 1600).
+func GhostScoreSprite(score int) (config.Vector, bool) {
+	const scoreRowY = 128
+	switch score {
+	case 200:
+		return config.Vector{X: 456, Y: scoreRowY}, true
+	case 400:
+		return config.Vector{X: 472, Y: scoreRowY}, true
+	case 800:
+		return config.Vector{X: 488, Y: scoreRowY}, true
+	case 1600:
+		return config.Vector{X: 504, Y: scoreRowY}, true
+	default:
+		return config.Vector{}, false
+	}
+}
+
+func (r *Renderer) drawGhostScore(gameState *component.GameStateData) {
+	sprite, ok := GhostScoreSprite(gameState.GhostEatenScore)
+	if !ok {
+		return
+	}
+	pos := config.Vector{X: gameState.GhostEatenX, Y: gameState.GhostEatenY}
+	r.drawSprite(pos, sprite, 0)
 }
 
 func (r *Renderer) drawSprite(pos, sprite config.Vector, frameIndex int) {

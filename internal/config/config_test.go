@@ -48,3 +48,24 @@ func TestGhostWaveStateTransitions(t *testing.T) {
 		t.Fatalf("frame %d = %v, want Chase", scatterEnd+1, got)
 	}
 }
+
+func TestGhostScoreProgression(t *testing.T) {
+	tests := []struct {
+		eatenCount int
+		want       int
+	}{
+		{-1, 0},
+		{0, 0},
+		{1, 200},
+		{2, 400},
+		{3, 800},
+		{4, 1600},
+		{5, 1600},
+	}
+
+	for _, tt := range tests {
+		if got := config.GhostScore(tt.eatenCount); got != tt.want {
+			t.Errorf("GhostScore(%d) = %d, want %d", tt.eatenCount, got, tt.want)
+		}
+	}
+}

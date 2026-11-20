@@ -32,13 +32,28 @@ func (p *Pipeline) Update(w donburi.World) {
 	p.input.Sample()
 	p.input.ApplyPause(w)
 
-	if component.MustFindGameState(w).Paused {
+	gameState := component.MustFindGameState(w)
+	if gameState.Paused {
 		return
+	}
+
+	if gameState.GhostEatenPause > 0 {
+		p.input.ApplyPlayerInput(w)
+		gameState.GhostEatenPause--
+		if gameState.GhostEatenPause > 0 {
+			return
+		}
+		gameState.GhostEatenEntity = donburi.Null
+		gameState.GhostEatenScore = 0
 	}
 
 	p.gameState.Update(w)
 	p.collision.Update(w)
 	events.ProcessAllEvents(w)
+
+	if gameState.GhostEatenPause > 0 {
+		return
+	}
 
 	p.ghosts.Update(w)
 	events.ProcessAllEvents(w)

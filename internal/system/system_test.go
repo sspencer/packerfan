@@ -580,3 +580,190 @@ func TestEatenGhostNavigationOnRealMazesIfPresent(t *testing.T) {
 		})
 	}
 }
+
+func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	maze := component.MustFindMaze(w)
+
+	// Place all ghosts outside the house in Scatter so eating a power pellet turns all 4 frightened.
+	for _, entry := range ghosts {
+		component.Ghost.Get(entry).State = config.Scatter
+		component.Transform.Get(entry).Pos = config.Vector{X: 16, Y: 16}
+	}
+
+	// Eat a power pellet to start frightened mode.
+	maze.SetCell(5, 5, component.Power)
+	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 5, Y: 5})
+	events.ProcessAllEvents(w)
+
+	wantPoints := []int{200, 400, 800, 1600}
+	wantTotal := config.PowerScore
+	collisionSys := system.NewCollisionSystem()
+
+	for i, entry := range ghosts {
+		pos := config.Vector{X: (6 + i*2) * config.Tile, Y: 10 * config.Tile}
+		component.Transform.Get(player).Pos = pos
+		component.Transform.Get(entry).Pos = pos
+
+		collisionSys.Update(w)
+		events.ProcessAllEvents(w)
+
+		wantTotal += wantPoints[i]
+		if gs.NumGhostsEaten != i+1 {
+			t.Fatalf("ghost %d: NumGhostsEaten = %d, want %d", i+1, gs.NumGhostsEaten, i+1)
+		}
+		if gs.Score != wantTotal {
+			t.Fatalf("ghost %d: Score = %d, want %d", i+1, gs.Score, wantTotal)
+		}
+		if gs.HighScore != wantTotal {
+			t.Fatalf("ghost %d: HighScore = %d, want %d", i+1, gs.HighScore, wantTotal)
+		}
+		if gs.GhostEatenScore != wantPoints[i] {
+			t.Fatalf("ghost %d: GhostEatenScore = %d, want %d", i+1, gs.GhostEatenScore, wantPoints[i])
+		}
+		if gs.GhostEatenPause != config.GhostEatenPause {
+			t.Fatalf("ghost %d: GhostEatenPause = %d, want %d", i+1, gs.GhostEatenPause, config.GhostEatenPause)
+		}
+		if gs.GhostEatenX != pos.X || gs.GhostEatenY != pos.Y {
+			t.Fatalf("ghost %d: GhostEaten pos = (%d,%d), want (%d,%d)", i+1, gs.GhostEatenX, gs.GhostEatenY, pos.X, pos.Y)
+		}
+		if gs.GhostEatenEntity != entry.Entity() {
+			t.Fatalf("ghost %d: GhostEatenEntity = %v, want %v", i+1, gs.GhostEatenEntity, entry.Entity())
+		}
+	}
+
+	// Duplicate GhostEaten for an already-eaten ghost must not double-score.
+	event.GhostEaten.Publish(w, event.GhostEatenEvent{
+		Entity: ghosts[0].Entity(),
+		ID:     component.Actor.Get(ghosts[0]).ID,
+		X:      80,
+		Y:      80,
+	})
+	events.ProcessAllEvents(w)
+	if gs.Score != wantTotal || gs.NumGhostsEaten != 4 {
+		t.Fatalf("duplicate GhostEaten altered state: Score=%d NumGhostsEaten=%d", gs.Score, gs.NumGhostsEaten)
+	}
+
+	// Eating a new power pellet resets the ghost-eaten streak back to 200.
+	component.Actor.Get(ghosts[0]).IsEaten = false
+	component.Ghost.Get(ghosts[0]).State = config.Scatter
+	maze.SetCell(6, 5, component.Power)
+	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 6, Y: 5})
+	events.ProcessAllEvents(w)
+	wantTotal += config.PowerScore
+
+	if gs.NumGhostsEaten != 0 {
+		t.Fatalf("after second power pellet: NumGhostsEaten = %d, want 0", gs.NumGhostsEaten)
+	}
+
+	pos := config.Vector{X: 120, Y: 120}
+	component.Transform.Get(player).Pos = pos
+	component.Transform.Get(ghosts[0]).Pos = pos
+	collisionSys.Update(w)
+	events.ProcessAllEvents(w)
+	wantTotal += 200
+
+	if gs.Score != wantTotal || gs.GhostEatenScore != 200 || gs.NumGhostsEaten != 1 {
+		t.Fatalf("after second power pellet eat: Score=%d (want %d) GhostEatenScore=%d NumGhostsEaten=%d",
+			gs.Score, wantTotal, gs.GhostEatenScore, gs.NumGhostsEaten)
+	}
+}
+
+func TestGhostEatenPausesSimulationForOneSecond(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+
+	blinky := ghosts[0]
+	component.Ghost.Get(blinky).State = config.Frightened
+	gs.IsFrightMode = true
+	gs.FrightFrames = 300
+
+	pos := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	component.Transform.Get(player).Pos = pos
+	component.Transform.Get(player).Dir = config.Left
+	component.PlayerInput.Get(player).Requested = config.Left
+	component.Transform.Get(blinky).Pos = pos
+
+	input := &stubInput{}
+	pipeline := system.NewPipeline(input)
+
+	// Frame 0: collision triggers GhostEatenPause = 61; actors must not move this frame.
+	pipeline.Update(w)
+	if gs.GhostEatenPause != config.GhostEatenPause {
+		t.Fatalf("after collision frame: GhostEatenPause = %d, want %d", gs.GhostEatenPause, config.GhostEatenPause)
+	}
+	if gs.GhostEatenScore != 200 {
+		t.Fatalf("after collision frame: GhostEatenScore = %d, want 200", gs.GhostEatenScore)
+	}
+	if got := component.Transform.Get(player).Pos; got != pos {
+		t.Fatalf("player moved during collision frame: got %v, want %v", got, pos)
+	}
+	if got := component.Transform.Get(blinky).Pos; got != pos {
+		t.Fatalf("eaten ghost moved during collision frame: got %v, want %v", got, pos)
+	}
+
+	frozenFrameCount := gs.FrameCount
+	frozenFrightFrames := gs.FrightFrames
+
+	// User pause during ghost-eaten freeze must not decrement GhostEatenPause.
+	input.state = system.InputState{PausePressed: true}
+	pipeline.Update(w)
+	if !gs.Paused || gs.GhostEatenPause != config.GhostEatenPause {
+		t.Fatalf("while user-paused: Paused=%v GhostEatenPause=%d, want true and %d",
+			gs.Paused, gs.GhostEatenPause, config.GhostEatenPause)
+	}
+	// Unpause (Space pressed again) -> decrements GhostEatenPause by 1.
+	pipeline.Update(w)
+	input.state = system.InputState{}
+	if gs.Paused || gs.GhostEatenPause != config.GhostEatenPause-1 {
+		t.Fatalf("after unpause: Paused=%v GhostEatenPause=%d, want false and %d",
+			gs.Paused, gs.GhostEatenPause, config.GhostEatenPause-1)
+	}
+
+	// Remaining 59 frozen frames keep popup active and gameplay frozen (total 61 drawn frames = 1 second).
+	for i := range config.GhostEatenPause - 2 {
+		pipeline.Update(w)
+		if gs.GhostEatenPause <= 0 {
+			t.Fatalf("popup ended early on frozen frame %d", i+2)
+		}
+		if gs.FrameCount != frozenFrameCount {
+			t.Fatalf("FrameCount advanced during ghost-eaten freeze: got %d, want %d", gs.FrameCount, frozenFrameCount)
+		}
+		if gs.FrightFrames != frozenFrightFrames {
+			t.Fatalf("FrightFrames ticked down during ghost-eaten freeze: got %d, want %d", gs.FrightFrames, frozenFrightFrames)
+		}
+		if got := component.Transform.Get(player).Pos; got != pos {
+			t.Fatalf("player moved during ghost-eaten freeze: got %v, want %v", got, pos)
+		}
+		if got := component.Transform.Get(blinky).Pos; got != pos {
+			t.Fatalf("eaten ghost moved during ghost-eaten freeze: got %v, want %v", got, pos)
+		}
+	}
+
+	if gs.GhostEatenPause != 1 {
+		t.Fatalf("before final tick: GhostEatenPause = %d, want 1", gs.GhostEatenPause)
+	}
+
+	// Next tick ends the 1-second freeze and immediately resumes simulation.
+	pipeline.Update(w)
+	if gs.GhostEatenPause != 0 {
+		t.Fatalf("after 1s freeze: GhostEatenPause = %d, want 0", gs.GhostEatenPause)
+	}
+	if gs.GhostEatenEntity != donburi.Null || gs.GhostEatenScore != 0 {
+		t.Fatalf("after 1s freeze: expected cleared popup state, got entity=%v score=%d",
+			gs.GhostEatenEntity, gs.GhostEatenScore)
+	}
+	if gs.FrameCount != frozenFrameCount+1 {
+		t.Fatalf("FrameCount did not resume after freeze: got %d, want %d", gs.FrameCount, frozenFrameCount+1)
+	}
+	if gs.FrightFrames != frozenFrightFrames-1 {
+		t.Fatalf("FrightFrames did not resume after freeze: got %d, want %d", gs.FrightFrames, frozenFrightFrames-1)
+	}
+	if got := component.Transform.Get(player).Pos; got == pos {
+		t.Fatalf("expected player to resume moving after freeze, stayed at %v", got)
+	}
+	if got := component.Transform.Get(blinky).Pos; got == pos {
+		t.Fatalf("expected eaten ghost eyes to resume moving after freeze, stayed at %v", got)
+	}
+}

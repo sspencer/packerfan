@@ -79,10 +79,28 @@ func RegisterEventHandlers(w donburi.World) {
 			return
 		}
 		entry := w.Entry(ev.Entity)
-		component.Actor.Get(entry).IsEaten = true
+		actor := component.Actor.Get(entry)
+		if actor.IsEaten {
+			return
+		}
+		actor.IsEaten = true
 		ghost := component.Ghost.Get(entry)
 		ghost.State = config.Eaten
 		ghost.Reverse = false
+
+		gameState := component.MustFindGameState(w)
+		gameState.NumGhostsEaten++
+		points := config.GhostScore(gameState.NumGhostsEaten)
+		gameState.Score += points
+		if gameState.Score > gameState.HighScore {
+			gameState.HighScore = gameState.Score
+		}
+		gameState.GhostEatenPause = config.GhostEatenPause
+		gameState.GhostEatenX = ev.X
+		gameState.GhostEatenY = ev.Y
+		gameState.GhostEatenEntity = ev.Entity
+		gameState.GhostEatenScore = points
+
 		fmt.Println("Player ate ghost: ", ev.ID.String())
 	})
 

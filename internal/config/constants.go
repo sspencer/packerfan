@@ -17,3 +17,18 @@ const (
 	TargetFPS       = 61
 	ArcadeFPS       = 60.606061
 )
+
+var ghostScores = [...]int{200, 400, 800, 1600}
+
+// GhostScore returns the points awarded for the nth ghost eaten during a
+// single power pellet (1->200, 2->400, 3->800, 4+->1600).
+func GhostScore(eatenCount int) int {
+	if eatenCount <= 0 {
+		return 0
+	}
+	idx := eatenCount - 1
+	if idx >= len(ghostScores) {
+		idx = len(ghostScores) - 1
+	}
+	return ghostScores[idx]
+}
