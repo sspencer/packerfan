@@ -257,7 +257,7 @@ a ...
 - [x] `ml/baselines.py`: `RandomLegalAgent` and `GreedyBFSAgent` (nearest dot or frightened ghost, avoid dangerous ghosts within K tiles). Log mean/max score, levels cleared, ticks survived, and env steps/sec at 1, 4, 8 workers.
 
 ### Step 3.4 — Training and evaluation
-- [ ] `ml/train_ppo.py`: `MaskablePPO` with a small CNN sized for 31×28 grids, run directory:
+- [x] `ml/train_ppo.py`: `MaskablePPO` with a small CNN sized for 31×28 grids, run directory:
   ```text
   runs/<run-id>/
     run.json          # hyperparameters, reward config, git commit, art file + maze_hash
@@ -266,7 +266,7 @@ a ...
     eval/ckpt-XXXX/   # fixed-seed eval metrics + .pfr replays
     best/
   ```
-- [ ] Fixed-seed evaluation at each checkpoint (full games, deterministic policy, recorded to `.pfr`). `ml/eval.py` loads a checkpoint and prints summary statistics.
+- [x] Fixed-seed evaluation at each checkpoint (full games, deterministic policy, recorded to `.pfr`). `ml/eval.py` loads a checkpoint and prints summary statistics.
 
 **Done when:** `pytest ml/tests` passes, `GreedyBFSAgent` reliably clears most of level 1, and a short PPO run writes the run directory and beats `RandomLegalAgent` on the fixed eval seeds.
 
