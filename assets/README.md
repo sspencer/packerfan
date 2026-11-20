@@ -56,4 +56,9 @@ Main maze atlas and spritesheet.
 
 ## Audio
 
-`.gitignore` excludes `assets/*/*.wav` for local sound collections (`assets/pacman/` and `assets/ms-pacman/`). When present at build time, `internal/audio` loads mode-appropriate WAV clips (start jingle, credit, waka-waka chomp, 5-stage dynamic siren, frightened hum, retreating eyes hum, eat ghost/fruit, extra life, death, and intermission music). Missing WAV files degrade silently so the game still runs without audio assets (or pass `-mute`).
+`.gitignore` excludes `assets/*/*.wav` for local sound collections (`assets/pacman/` and `assets/ms-pacman/`). On startup (unless `-mute` is passed), `audio.MissingAssets` verifies via `fs.Stat` which WAV files are embedded before initializing audio and prints a warning listing any missing files; missing files degrade silently so the game still runs without audio.
+
+Expected optional WAV files:
+
+- **Ms. Pac-Man (`assets/ms-pacman/`)**: `start.wav`, `credit.wav`, `eat_dot.wav`, `eat_ghost.wav`, `eat_fruit.wav`, `extend.wav`, `death.wav`, `intermission1.wav`, `intermission2.wav`, `intermission3.wav`, `siren0.wav`–`siren4.wav`, `fright.wav`, `eyes.wav`.
+- **Classic Pac-Man (`assets/pacman/`)**: `beginning.wav`, `chomp.wav`, `eatghost.wav`, `eatfruit.wav`, `extrapac.wav`, `death.wav`, `intermission.wav` (falls back to `assets/ms-pacman/` for `credit.wav`, `siren0.wav`–`siren4.wav`, `fright.wav`, and `eyes.wav` when present).

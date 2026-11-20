@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 
+	"pacfan/internal/audio"
 	"pacfan/internal/config"
 	"pacfan/internal/game"
 	"pacfan/internal/render"
@@ -44,6 +46,19 @@ for the expected format), then rebuild: the assets are embedded into the
 binary at build time, so adding them without rebuilding has no effect.
 `, err)
 		os.Exit(1)
+	}
+
+	// Verify optional audio assets before initializing audio; warn clearly if any are absent.
+	if !mute {
+		if missing := audio.MissingAssets(assetsFS, pacman); len(missing) > 0 {
+			fmt.Fprintf(os.Stderr, `warning: missing optional audio file(s):
+  %s
+
+Audio files are not included in this repository for copyright reasons.
+Place WAV files under assets/pacman/ or assets/ms-pacman/ (see assets/README.md)
+and rebuild to enable missing sounds, or pass -mute to silence this warning.
+`, strings.Join(missing, "\n  "))
+		}
 	}
 
 	rl.SetTraceLogLevel(rl.LogWarning)

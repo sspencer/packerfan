@@ -1,9 +1,11 @@
 package audio_test
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
 
 	"github.com/yohamta/donburi"
 
@@ -106,5 +108,46 @@ func TestAudioAssetPathsPresentIfLocalWAVsExist(t *testing.T) {
 		if !found {
 			t.Errorf("no existing WAV found for loop=%v (candidates: %v)", loop, audio.LoopPaths(loop))
 		}
+	}
+}
+
+func TestMissingAndHasAnyAssetsVerification(t *testing.T) {
+	emptyFS := fstest.MapFS{}
+	if audio.HasAnyAssets(emptyFS, false) || audio.HasAnyAssets(emptyFS, true) {
+		t.Fatalf("expected HasAnyAssets=false for empty FS")
+	}
+	if missing := audio.MissingAssets(emptyFS, false); len(missing) == 0 {
+		t.Fatalf("expected MissingAssets to report missing files for empty FS")
+	}
+
+	// Zero-byte files and directories must not count as valid audio files.
+	badFS := fstest.MapFS{
+		"assets/ms-pacman/start.wav": {Data: nil},
+		"assets/ms-pacman/death.wav": {Mode: fs.ModeDir},
+	}
+	if audio.HasAnyAssets(badFS, false) {
+		t.Fatalf("expected HasAnyAssets=false for empty file / directory entries")
+	}
+
+	// Populate every primary Ms. Pac-Man sound + loop -> 0 missing.
+	fullFS := fstest.MapFS{}
+	for _, id := range audio.AllSounds {
+		fullFS[audio.SoundPaths(false, id)[0]] = &fstest.MapFile{Data: []byte("RIFF")}
+	}
+	for _, loop := range audio.AllLoops {
+		fullFS[audio.LoopPaths(loop)[0]] = &fstest.MapFile{Data: []byte("RIFF")}
+	}
+	if !audio.HasAnyAssets(fullFS, false) {
+		t.Fatalf("expected HasAnyAssets=true for populated FS")
+	}
+	if missing := audio.MissingAssets(fullFS, false); len(missing) != 0 {
+		t.Fatalf("expected no missing assets for populated FS, got %v", missing)
+	}
+
+	// Removing one file reports only that file as missing.
+	delete(fullFS, "assets/ms-pacman/death.wav")
+	missing := audio.MissingAssets(fullFS, false)
+	if len(missing) != 1 || missing[0] != "assets/ms-pacman/death.wav" {
+		t.Fatalf("MissingAssets = %v, want [assets/ms-pacman/death.wav]", missing)
 	}
 }

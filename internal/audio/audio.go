@@ -1,6 +1,8 @@
 package audio
 
 import (
+	"io/fs"
+
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
@@ -124,6 +126,92 @@ func LoopPaths(loop LoopID) []string {
 		return []string{"assets/ms-pacman/eyes.wav"}
 	}
 	return nil
+}
+
+// AllSounds lists every SoundID loaded by NewRaylibPlayer.
+var AllSounds = []SoundID{
+	SoundStart,
+	SoundCredit,
+	SoundChomp,
+	SoundEatGhost,
+	SoundEatFruit,
+	SoundExtraLife,
+	SoundDeath,
+	SoundIntermission1,
+	SoundIntermission2,
+	SoundIntermission3,
+}
+
+// AllLoops lists every continuous LoopID loaded by NewRaylibPlayer.
+var AllLoops = []LoopID{
+	LoopSiren0,
+	LoopSiren1,
+	LoopSiren2,
+	LoopSiren3,
+	LoopSiren4,
+	LoopFright,
+	LoopEyes,
+}
+
+func fileExists(assetsFS fs.FS, path string) bool {
+	if assetsFS == nil || path == "" {
+		return false
+	}
+	info, err := fs.Stat(assetsFS, path)
+	return err == nil && !info.IsDir() && info.Size() > 0
+}
+
+func firstExistingPath(assetsFS fs.FS, paths []string) (string, bool) {
+	for _, path := range paths {
+		if fileExists(assetsFS, path) {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+// MissingAssets verifies every sound and loop candidate in assetsFS via fs.Stat
+// before attempting to load audio. It returns the deduplicated list of primary
+// expected paths for which no candidate file exists.
+func MissingAssets(assetsFS fs.FS, pacmanMode bool) []string {
+	var missing []string
+	seen := make(map[string]bool)
+	addMissing := func(paths []string) {
+		if len(paths) == 0 {
+			return
+		}
+		if _, ok := firstExistingPath(assetsFS, paths); ok {
+			return
+		}
+		primary := paths[0]
+		if !seen[primary] {
+			seen[primary] = true
+			missing = append(missing, primary)
+		}
+	}
+
+	for _, id := range AllSounds {
+		addMissing(SoundPaths(pacmanMode, id))
+	}
+	for _, loop := range AllLoops {
+		addMissing(LoopPaths(loop))
+	}
+	return missing
+}
+
+// HasAnyAssets reports whether at least one usable WAV asset exists in assetsFS.
+func HasAnyAssets(assetsFS fs.FS, pacmanMode bool) bool {
+	for _, id := range AllSounds {
+		if _, ok := firstExistingPath(assetsFS, SoundPaths(pacmanMode, id)); ok {
+			return true
+		}
+	}
+	for _, loop := range AllLoops {
+		if _, ok := firstExistingPath(assetsFS, LoopPaths(loop)); ok {
+			return true
+		}
+	}
+	return false
 }
 
 // IntermissionSound maps a 1-based intermission act number to its SoundID.

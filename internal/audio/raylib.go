@@ -17,12 +17,17 @@ type RaylibPlayer struct {
 	chompAlt   bool
 }
 
-// NewRaylibPlayer initializes Raylib's audio device and preloads available WAV
-// assets from assetsFS for Pac-Man or Ms. Pac-Man mode.
+// NewRaylibPlayer verifies that at least one audio file exists in assetsFS,
+// initializes Raylib's audio device, and preloads available WAV assets for
+// Pac-Man or Ms. Pac-Man mode.
 func NewRaylibPlayer(assetsFS fs.FS, pacmanMode bool) *RaylibPlayer {
 	p := &RaylibPlayer{
 		sounds: make(map[SoundID]rl.Sound),
 		loops:  make(map[LoopID]rl.Sound),
+	}
+
+	if !HasAnyAssets(assetsFS, pacmanMode) {
+		return p
 	}
 
 	rl.InitAudioDevice()
@@ -31,34 +36,13 @@ func NewRaylibPlayer(assetsFS fs.FS, pacmanMode bool) *RaylibPlayer {
 	}
 	p.ready = true
 
-	allSounds := []SoundID{
-		SoundStart,
-		SoundCredit,
-		SoundChomp,
-		SoundEatGhost,
-		SoundEatFruit,
-		SoundExtraLife,
-		SoundDeath,
-		SoundIntermission1,
-		SoundIntermission2,
-		SoundIntermission3,
-	}
-	for _, id := range allSounds {
+	for _, id := range AllSounds {
 		if snd, ok := loadFirstWAV(assetsFS, SoundPaths(pacmanMode, id)); ok {
 			p.sounds[id] = snd
 		}
 	}
 
-	allLoops := []LoopID{
-		LoopSiren0,
-		LoopSiren1,
-		LoopSiren2,
-		LoopSiren3,
-		LoopSiren4,
-		LoopFright,
-		LoopEyes,
-	}
-	for _, loop := range allLoops {
+	for _, loop := range AllLoops {
 		if snd, ok := loadFirstWAV(assetsFS, LoopPaths(loop)); ok {
 			p.loops[loop] = snd
 		}
@@ -68,23 +52,21 @@ func NewRaylibPlayer(assetsFS fs.FS, pacmanMode bool) *RaylibPlayer {
 }
 
 func loadFirstWAV(assetsFS fs.FS, paths []string) (rl.Sound, bool) {
-	if assetsFS == nil {
+	path, ok := firstExistingPath(assetsFS, paths)
+	if !ok {
 		return rl.Sound{}, false
 	}
-	for _, path := range paths {
-		data, err := fs.ReadFile(assetsFS, path)
-		if err != nil || len(data) == 0 {
-			continue
-		}
-		wave := rl.LoadWaveFromMemory(".wav", data, int32(len(data)))
-		if wave.FrameCount == 0 {
-			continue
-		}
-		snd := rl.LoadSoundFromWave(wave)
-		rl.UnloadWave(wave)
-		return snd, true
+	data, err := fs.ReadFile(assetsFS, path)
+	if err != nil || len(data) == 0 {
+		return rl.Sound{}, false
 	}
-	return rl.Sound{}, false
+	wave := rl.LoadWaveFromMemory(".wav", data, int32(len(data)))
+	if wave.FrameCount == 0 {
+		return rl.Sound{}, false
+	}
+	snd := rl.LoadSoundFromWave(wave)
+	rl.UnloadWave(wave)
+	return snd, true
 }
 
 // Play triggers a one-shot sound effect. Dot chomps alternate pitch slightly
