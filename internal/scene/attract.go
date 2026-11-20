@@ -38,6 +38,7 @@ func (s *AttractScene) Enter() {
 func (s *AttractScene) Update() {
 	if s.ctx.Input != nil {
 		s.ctx.Input.Sample()
+		s.ctx.syncAudioMute()
 		switch {
 		case s.ctx.Input.Start1PPressed():
 			s.startGame(1)

@@ -11,6 +11,7 @@ import (
 // InputState captures one frame of user input decoupled from any specific backend.
 type InputState struct {
 	PausePressed   bool
+	MutePressed    bool
 	ConfirmPressed bool
 	Start1PPressed bool
 	Start2PPressed bool
@@ -57,6 +58,11 @@ func (s *InputSystem) AnyKeyPressed() bool {
 // PausePressed reports whether Space (pause/start) was pressed on the most recently sampled frame.
 func (s *InputSystem) PausePressed() bool {
 	return s.current.PausePressed
+}
+
+// MutePressed reports whether M (mute toggle) was pressed on the most recently sampled frame.
+func (s *InputSystem) MutePressed() bool {
+	return s.current.MutePressed
 }
 
 // ConfirmPressed reports whether Enter was pressed on the most recently sampled frame.

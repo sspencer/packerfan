@@ -12,6 +12,7 @@ import (
 type RaylibPlayer struct {
 	ready        bool
 	paused       bool
+	muted        bool
 	sounds       map[SoundID]rl.Sound
 	loops        map[LoopID]rl.Sound
 	pausedSounds []rl.Sound
@@ -74,7 +75,7 @@ func loadFirstWAV(assetsFS fs.FS, paths []string) (rl.Sound, bool) {
 // Play triggers a one-shot sound effect. Dot chomps alternate pitch slightly
 // to reproduce the arcade waka-waka cadence.
 func (p *RaylibPlayer) Play(id SoundID) {
-	if !p.ready || p.paused {
+	if !p.ready || p.paused || p.muted {
 		return
 	}
 	snd, ok := p.sounds[id]
@@ -98,7 +99,7 @@ func (p *RaylibPlayer) Play(id SoundID) {
 // SetLoop ensures loop is playing continuously and stops any previous loop.
 // Call every frame during gameplay to seamlessly re-trigger completed loops.
 func (p *RaylibPlayer) SetLoop(loop LoopID) {
-	if !p.ready || p.paused {
+	if !p.ready || p.paused || p.muted {
 		return
 	}
 	if loop != p.activeLoop {
@@ -142,6 +143,22 @@ func (p *RaylibPlayer) SetPaused(paused bool) {
 		rl.ResumeSound(snd)
 	}
 	p.pausedSounds = p.pausedSounds[:0]
+}
+
+// SetMuted silences or restores audio playback.
+func (p *RaylibPlayer) SetMuted(muted bool) {
+	if p.muted == muted {
+		return
+	}
+	p.muted = muted
+	if muted {
+		p.StopAll()
+	}
+}
+
+// Muted reports whether audio is currently muted.
+func (p *RaylibPlayer) Muted() bool {
+	return p.muted
 }
 
 // StopAll halts every active sound effect and background loop.

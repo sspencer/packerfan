@@ -108,7 +108,15 @@ func (c *Context) audio() audio.Player {
 	return audio.NoopPlayer{}
 }
 
+func (c *Context) syncAudioMute() {
+	if c.Input != nil && c.Input.MutePressed() {
+		a := c.audio()
+		a.SetMuted(!a.Muted())
+	}
+}
+
 func (c *Context) syncAudioPause() bool {
+	c.syncAudioMute()
 	paused := component.MustFindGameState(c.World).Paused
 	c.audio().SetPaused(paused)
 	return paused

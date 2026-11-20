@@ -46,6 +46,8 @@ type Player interface {
 	Play(id SoundID)
 	SetLoop(loop LoopID)
 	SetPaused(paused bool)
+	SetMuted(muted bool)
+	Muted() bool
 	StopAll()
 	Unload()
 }
@@ -56,6 +58,8 @@ type NoopPlayer struct{}
 func (NoopPlayer) Play(SoundID)   {}
 func (NoopPlayer) SetLoop(LoopID) {}
 func (NoopPlayer) SetPaused(bool) {}
+func (NoopPlayer) SetMuted(bool)  {}
+func (NoopPlayer) Muted() bool    { return true }
 func (NoopPlayer) StopAll()       {}
 func (NoopPlayer) Unload()        {}
 

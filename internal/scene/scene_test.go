@@ -846,12 +846,15 @@ type recordingAudio struct {
 	played      []audio.SoundID
 	loops       []audio.LoopID
 	pauseStates []bool
+	muted       bool
 	stopped     int
 }
 
 func (a *recordingAudio) Play(id audio.SoundID)     { a.played = append(a.played, id) }
 func (a *recordingAudio) SetLoop(loop audio.LoopID) { a.loops = append(a.loops, loop) }
 func (a *recordingAudio) SetPaused(paused bool)     { a.pauseStates = append(a.pauseStates, paused) }
+func (a *recordingAudio) SetMuted(muted bool)       { a.muted = muted }
+func (a *recordingAudio) Muted() bool               { return a.muted }
 func (a *recordingAudio) StopAll()                  { a.stopped++ }
 func (a *recordingAudio) Unload()                   {}
 
@@ -990,5 +993,16 @@ func TestPauseSynchronizesAudioPauseAndResume(t *testing.T) {
 	ctx.Manager.Update() // unpauses
 	if rec.pauseStates[len(rec.pauseStates)-1] {
 		t.Fatalf("expected SetPaused(false) on unpause, got %v", rec.pauseStates)
+	}
+
+	// Pressing M toggles mute on and off.
+	input.state = system.InputState{MutePressed: true}
+	ctx.Manager.Update()
+	if !rec.Muted() {
+		t.Fatalf("expected Muted()=true after pressing M")
+	}
+	ctx.Manager.Update()
+	if rec.Muted() {
+		t.Fatalf("expected Muted()=false after pressing M again")
 	}
 }

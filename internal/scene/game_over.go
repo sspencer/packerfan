@@ -28,6 +28,7 @@ func (s *GameOverScene) Update() {
 	anyKey := false
 	if s.ctx.Input != nil {
 		s.ctx.Input.Sample()
+		s.ctx.syncAudioMute()
 		anyKey = s.ctx.Input.AnyKeyPressed()
 	}
 

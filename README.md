@@ -38,6 +38,7 @@ go run . -pacman -zoom 4
 - **Enter / Space** (on Attract screen): Start with the selected player count
 - **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume gameplay
+- **M**: Mute / unmute audio
 - **Any Key** (on the Game Over screen, after a 1-second delay): Return to the Attract screen to pick 1P or 2P (or returns automatically after 3 seconds)
 
 ### Useful Make Targets

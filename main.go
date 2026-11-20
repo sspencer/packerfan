@@ -61,11 +61,16 @@ and rebuild to enable missing sounds, or pass -mute to silence this warning.
 		}
 	}
 
+	title := "Ms. Pac-Man"
+	if pacman {
+		title = "Pac-Man"
+	}
+
 	rl.SetTraceLogLevel(rl.LogWarning)
 	rl.InitWindow(
 		config.ScreenWidth*config.Tile*int32(zoom),
 		config.ScreenHeight*config.Tile*int32(zoom),
-		"Pacman",
+		title,
 	)
 	defer rl.CloseWindow()
 
