@@ -134,6 +134,24 @@ func LoopPaths(loop LoopID) []string {
 	return nil
 }
 
+// LoopFirstPaths returns the optional intro clip paths played once when
+// transitioning into a background loop before seamlessly repeating LoopPaths.
+func LoopFirstPaths(loop LoopID) []string {
+	switch loop {
+	case LoopSiren0:
+		return []string{"assets/ms-pacman/siren0_firstloop.wav"}
+	case LoopSiren1:
+		return []string{"assets/ms-pacman/siren1_firstloop.wav"}
+	case LoopSiren2:
+		return []string{"assets/ms-pacman/siren2_firstloop.wav"}
+	case LoopSiren3:
+		return []string{"assets/ms-pacman/siren3_firstloop.wav"}
+	case LoopEyes:
+		return []string{"assets/ms-pacman/eyes_firstloop.wav"}
+	}
+	return nil
+}
+
 // AllSounds lists every SoundID loaded by NewRaylibPlayer.
 var AllSounds = []SoundID{
 	SoundStart,

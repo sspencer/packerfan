@@ -7,16 +7,19 @@ import (
 )
 
 // RaylibPlayer loads embedded WAV clips into Raylib and drives one-shot SFX
-// (with alternating waka-waka chomp pitch) and continuous background loops.
-// Missing audio files or unavailable audio devices degrade silently to no-ops.
+// (with alternating waka-waka chomp pitch) and continuous background loops
+// (with optional *_firstloop.wav transition intros). Missing audio files or
+// unavailable audio devices degrade silently to no-ops.
 type RaylibPlayer struct {
 	ready        bool
 	paused       bool
 	muted        bool
 	sounds       map[SoundID]rl.Sound
 	loops        map[LoopID]rl.Sound
+	firstLoops   map[LoopID]rl.Sound
 	pausedSounds []rl.Sound
 	activeLoop   LoopID
+	playingFirst bool
 	chompAlt     bool
 }
 
@@ -25,8 +28,9 @@ type RaylibPlayer struct {
 // Pac-Man or Ms. Pac-Man mode.
 func NewRaylibPlayer(assetsFS fs.FS, pacmanMode bool) *RaylibPlayer {
 	p := &RaylibPlayer{
-		sounds: make(map[SoundID]rl.Sound),
-		loops:  make(map[LoopID]rl.Sound),
+		sounds:     make(map[SoundID]rl.Sound),
+		loops:      make(map[LoopID]rl.Sound),
+		firstLoops: make(map[LoopID]rl.Sound),
 	}
 
 	if !HasAnyAssets(assetsFS, pacmanMode) {
@@ -48,6 +52,9 @@ func NewRaylibPlayer(assetsFS fs.FS, pacmanMode bool) *RaylibPlayer {
 	for _, loop := range AllLoops {
 		if snd, ok := loadFirstWAV(assetsFS, LoopPaths(loop)); ok {
 			p.loops[loop] = snd
+		}
+		if snd, ok := loadFirstWAV(assetsFS, LoopFirstPaths(loop)); ok {
+			p.firstLoops[loop] = snd
 		}
 	}
 
@@ -97,19 +104,38 @@ func (p *RaylibPlayer) Play(id SoundID) {
 }
 
 // SetLoop ensures loop is playing continuously and stops any previous loop.
-// Call every frame during gameplay to seamlessly re-trigger completed loops.
+// When an optional *_firstloop.wav clip exists for loop, it plays once on
+// transition before seamlessly repeating the main loop clip.
 func (p *RaylibPlayer) SetLoop(loop LoopID) {
 	if !p.ready || p.paused || p.muted {
 		return
 	}
 	if loop != p.activeLoop {
+		if prevFirst, ok := p.firstLoops[p.activeLoop]; ok && rl.IsSoundPlaying(prevFirst) {
+			rl.StopSound(prevFirst)
+		}
 		if prev, ok := p.loops[p.activeLoop]; ok && rl.IsSoundPlaying(prev) {
 			rl.StopSound(prev)
 		}
 		p.activeLoop = loop
+		p.playingFirst = false
+		if loop == LoopNone {
+			return
+		}
+		if firstSnd, ok := p.firstLoops[loop]; ok {
+			p.playingFirst = true
+			rl.PlaySound(firstSnd)
+			return
+		}
 	}
 	if loop == LoopNone {
 		return
+	}
+	if p.playingFirst {
+		if firstSnd, ok := p.firstLoops[loop]; ok && rl.IsSoundPlaying(firstSnd) {
+			return
+		}
+		p.playingFirst = false
 	}
 	if snd, ok := p.loops[loop]; ok && !rl.IsSoundPlaying(snd) {
 		rl.PlaySound(snd)
@@ -126,6 +152,12 @@ func (p *RaylibPlayer) SetPaused(paused bool) {
 	if paused {
 		p.pausedSounds = p.pausedSounds[:0]
 		for _, snd := range p.sounds {
+			if rl.IsSoundPlaying(snd) {
+				rl.PauseSound(snd)
+				p.pausedSounds = append(p.pausedSounds, snd)
+			}
+		}
+		for _, snd := range p.firstLoops {
 			if rl.IsSoundPlaying(snd) {
 				rl.PauseSound(snd)
 				p.pausedSounds = append(p.pausedSounds, snd)
@@ -167,8 +199,14 @@ func (p *RaylibPlayer) StopAll() {
 		return
 	}
 	p.paused = false
+	p.playingFirst = false
 	p.pausedSounds = p.pausedSounds[:0]
 	for _, snd := range p.sounds {
+		if rl.IsSoundPlaying(snd) {
+			rl.StopSound(snd)
+		}
+	}
+	for _, snd := range p.firstLoops {
 		if rl.IsSoundPlaying(snd) {
 			rl.StopSound(snd)
 		}
@@ -190,10 +228,14 @@ func (p *RaylibPlayer) Unload() {
 	for _, snd := range p.sounds {
 		rl.UnloadSound(snd)
 	}
+	for _, snd := range p.firstLoops {
+		rl.UnloadSound(snd)
+	}
 	for _, snd := range p.loops {
 		rl.UnloadSound(snd)
 	}
 	clear(p.sounds)
+	clear(p.firstLoops)
 	clear(p.loops)
 	rl.CloseAudioDevice()
 	p.ready = false

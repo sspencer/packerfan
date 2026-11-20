@@ -108,6 +108,11 @@ func TestAudioAssetPathsPresentIfLocalWAVsExist(t *testing.T) {
 		if !found {
 			t.Errorf("no existing WAV found for loop=%v (candidates: %v)", loop, audio.LoopPaths(loop))
 		}
+		for _, rel := range audio.LoopFirstPaths(loop) {
+			if _, err := os.Stat(filepath.Join(root, rel)); err != nil {
+				t.Errorf("missing firstloop WAV %s for loop=%v: %v", rel, loop, err)
+			}
+		}
 	}
 }
 
