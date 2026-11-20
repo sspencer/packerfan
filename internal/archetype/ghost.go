@@ -51,6 +51,7 @@ func spawnGhost(w donburi.World, spec ghostSpec) *donburi.Entry {
 		StartState:    spec.startState,
 		ScatterTarget: spec.scatterTarget,
 		EatenTarget:   spec.eatenTarget,
+		PixelsMoved:   config.Tile,
 		SpriteRow:     spec.spriteRow,
 	})
 

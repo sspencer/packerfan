@@ -117,7 +117,7 @@ func isValidGhostTile(maze *component.MazeData, state config.GhostState, t confi
 	}
 
 	if cell == component.Door {
-		return state == config.LeavingHouse || state == config.Eaten || state == config.EnteringHouse
+		return state == config.LeavingHouse || state == config.EnteringHouse
 	}
 
 	return true
@@ -222,13 +222,14 @@ func ghostSpeed(
 		inTunnel = maze.GetCell(tile.X, tile.Y) == component.Tunnel
 	}
 
-	if inTunnel || ghost.State == config.InHouse || ghost.State == config.LeavingHouse || ghost.State == config.EnteringHouse {
+	if ghost.State == config.Eaten || ghost.State == config.EnteringHouse {
+		return config.Speed80
+	}
+
+	if inTunnel || ghost.State == config.InHouse || ghost.State == config.LeavingHouse {
 		return s.GhostTunnelSpeed
 	}
 
-	if ghost.State == config.Eaten {
-		return config.Speed80
-	}
 	if ghost.State == config.Frightened {
 		return s.GhostFrightSpeed
 	}

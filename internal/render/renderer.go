@@ -160,11 +160,14 @@ func (r *Renderer) drawGhost(
 	ghost *component.GhostData,
 ) {
 	var sprite config.Vector
+	frameIndex := anim.FrameIndex
 
 	switch ghost.State {
-	case config.Eaten:
-		sprite.X = []int{616, 584, 632, 600}[transform.Dir]
+	case config.Eaten, config.EnteringHouse:
+		// Eye sprites are single-frame (16px apart: Right, Left, Up, Down).
+		sprite.X = []int{584, 600, 616, 632}[transform.Dir]
 		sprite.Y = 80
+		frameIndex = 0
 	case config.Frightened:
 		const flashFrames = 14
 		const blueX = 584
@@ -182,7 +185,7 @@ func (r *Renderer) drawGhost(
 		sprite.X = []int{456, 488, 520, 552}[transform.Dir]
 	}
 
-	r.drawSprite(transform.Pos, sprite, anim.FrameIndex)
+	r.drawSprite(transform.Pos, sprite, frameIndex)
 }
 
 func (r *Renderer) drawSprite(pos, sprite config.Vector, frameIndex int) {

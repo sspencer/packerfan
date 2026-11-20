@@ -409,3 +409,174 @@ func TestMazeLoadLevelFromSpritesheetIfPresent(t *testing.T) {
 		t.Errorf("Ms. Pac-Man level 1 dots = 0, expected > 0")
 	}
 }
+
+func TestEatenGhostEntersHouseRegeneratesAndLeaves(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Chase
+
+	// Build ghost house walls and doorway matching the real arcade mazes.
+	maze := component.MustFindMaze(w)
+	for x := 10; x <= 17; x++ {
+		maze.SetCell(x, 10, component.Wall)
+		maze.SetCell(x, 12, component.Wall)
+		maze.SetCell(x, 16, component.Wall)
+	}
+	maze.SetCell(13, 12, component.Door)
+	maze.SetCell(14, 12, component.Door)
+	for y := 13; y <= 15; y++ {
+		maze.SetCell(10, y, component.Wall)
+		maze.SetCell(17, y, component.Wall)
+	}
+
+	ghostSys := system.NewGhostSystem()
+
+	for _, entry := range ghosts {
+		actor := component.Actor.Get(entry)
+		tr := component.Transform.Get(entry)
+		g := component.Ghost.Get(entry)
+
+		// Simulate being eaten mid-tile along row 11 (not centered on X!).
+		actor.IsEaten = true
+		g.State = config.Eaten
+		g.PixelsMoved = config.Tile
+		tr.Pos = config.Vector{X: 8*config.Tile + 3, Y: 11 * config.Tile}
+		tr.Dir = config.Right
+
+		sawEntering := false
+		sawLeaving := false
+		returnedToPlay := false
+
+		for range 400 {
+			ghostSys.Update(w)
+
+			switch g.State {
+			case config.Eaten:
+				if tr.Pos.X%config.Tile != 0 && tr.Pos.Y%config.Tile != 0 {
+					t.Fatalf("%s eyes drifted off hallway grid at %v", actor.ID, tr.Pos)
+				}
+			case config.EnteringHouse:
+				sawEntering = true
+			case config.LeavingHouse:
+				if actor.IsEaten {
+					t.Fatalf("%s entered LeavingHouse while IsEaten is still true", actor.ID)
+				}
+				sawLeaving = true
+			case config.Chase:
+				if sawLeaving {
+					returnedToPlay = true
+				}
+			}
+
+			if returnedToPlay {
+				break
+			}
+		}
+
+		if !sawEntering || !sawLeaving || !returnedToPlay {
+			t.Fatalf("%s lifecycle incomplete: entering=%v leaving=%v returned=%v (final state=%v pos=%v)",
+				actor.ID, sawEntering, sawLeaving, returnedToPlay, g.State, tr.Pos)
+		}
+	}
+}
+
+func TestEatenGhostNavigationOnRealMazesIfPresent(t *testing.T) {
+	path := filepath.Join("..", "..", "assets", "game.png")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Skipf("spritesheet %s not present: %v", path, err)
+	}
+	defer f.Close()
+
+	img, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("decode spritesheet: %v", err)
+	}
+	isLit := func(x, y int) bool {
+		r, g, b, _ := img.At(x, y).RGBA()
+		return r > 0 || g > 0 || b > 0
+	}
+
+	cases := []struct {
+		name       string
+		pacmanMode bool
+		startPos   config.Vector
+		startDir   config.Direction
+	}{
+		{"Pacman bottom-left mid-tile", true, config.Vector{X: 1*config.Tile + 3, Y: 29 * config.Tile}, config.Right},
+		{"Pacman top-right mid-tile", true, config.Vector{X: 26*config.Tile - 2, Y: 1 * config.Tile}, config.Left},
+		{"MsPacman bottom-left mid-tile", false, config.Vector{X: 1*config.Tile + 5, Y: 29 * config.Tile}, config.Right},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			w := donburi.NewWorld()
+			archetype.CreateGameState(w, tc.pacmanMode, 3)
+			archetype.CreateMaze(w, tc.pacmanMode)
+			archetype.CreatePRNG(w)
+
+			maze := component.MustFindMaze(w)
+			gs := component.MustFindGameState(w)
+			gs.DotsRemaining = maze.LoadLevel(1, isLit)
+			gs.GhostState = config.Scatter
+
+			archetype.SpawnPlayer(w)
+			blinky := archetype.SpawnBlinky(w)
+			system.RegisterEventHandlers(w)
+
+			component.Actor.Get(blinky).IsEaten = true
+			tr := component.Transform.Get(blinky)
+			tr.Pos = tc.startPos
+			tr.Dir = tc.startDir
+			g := component.Ghost.Get(blinky)
+			g.State = config.Eaten
+			g.PixelsMoved = config.Tile
+
+			ghostSys := system.NewGhostSystem()
+			sawEntering := false
+			sawLeaving := false
+			returned := false
+
+			for frame := range 1000 {
+				ghostSys.Update(w)
+
+				switch g.State {
+				case config.Eaten:
+					if tr.Dir == config.Left || tr.Dir == config.Right {
+						if tr.Pos.Y%config.Tile != 0 {
+							t.Fatalf("frame %d: horizontal eaten eyes off-center Y at %v", frame, tr.Pos)
+						}
+					} else {
+						if tr.Pos.X%config.Tile != 0 {
+							t.Fatalf("frame %d: vertical eaten eyes off-center X at %v", frame, tr.Pos)
+						}
+					}
+					tile := tr.Pos.ToTile()
+					if maze.InBounds(tile.X, tile.Y) && maze.GetCell(tile.X, tile.Y) == component.Wall {
+						t.Fatalf("frame %d: eaten eyes clipped wall at tile %v (pos %v)", frame, tile, tr.Pos)
+					}
+				case config.EnteringHouse:
+					sawEntering = true
+				case config.LeavingHouse:
+					sawLeaving = true
+				case config.Scatter:
+					if sawLeaving {
+						returned = true
+					}
+				}
+
+				if returned {
+					break
+				}
+			}
+
+			if !sawEntering || !sawLeaving || !returned {
+				t.Fatalf("eaten ghost did not complete return cycle: entering=%v leaving=%v returned=%v (state=%v pos=%v)",
+					sawEntering, sawLeaving, returned, g.State, tr.Pos)
+			}
+			if component.Actor.Get(blinky).IsEaten {
+				t.Fatalf("expected IsEaten=false after regenerating")
+			}
+		})
+	}
+}

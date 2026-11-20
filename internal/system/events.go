@@ -80,7 +80,9 @@ func RegisterEventHandlers(w donburi.World) {
 		}
 		entry := w.Entry(ev.Entity)
 		component.Actor.Get(entry).IsEaten = true
-		component.Ghost.Get(entry).State = config.Eaten
+		ghost := component.Ghost.Get(entry)
+		ghost.State = config.Eaten
+		ghost.Reverse = false
 		fmt.Println("Player ate ghost: ", ev.ID.String())
 	})
 

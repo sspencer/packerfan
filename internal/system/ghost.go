@@ -35,6 +35,11 @@ func NewGhostSystem() *GhostSystem {
 	}
 }
 
+const (
+	houseEntranceX = 108
+	houseEntranceY = 88
+)
+
 func (s *GhostSystem) Update(w donburi.World) {
 	gameState := component.MustFindGameState(w)
 	maze := component.MustFindMaze(w)
@@ -70,6 +75,9 @@ func (s *GhostSystem) Update(w donburi.World) {
 		case config.LeavingHouse:
 			updateGhostLeavingHouse(maze, gameState, prng, actor, transform, motion, ghost)
 			continue
+		case config.EnteringHouse:
+			updateGhostEnteringHouse(maze, gameState, actor, transform, motion, ghost)
+			continue
 		case config.Scatter:
 			if IsCentered(transform.Pos) {
 				updateGhostTarget(maze, prng, transform, ghost, ghost.ScatterTarget)
@@ -82,21 +90,42 @@ func (s *GhostSystem) Update(w donburi.World) {
 		case config.Frightened:
 			if IsCentered(transform.Pos) {
 				dir := chooseGhostDirection(maze, prng, transform, ghost)
-				if dir != transform.Dir && ghost.PixelsMoved > config.Tile {
+				if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
 					transform.Dir = dir
 					ghost.PixelsMoved = 0
 				}
 			}
 		case config.Eaten:
-			updateGhostTarget(maze, prng, transform, ghost, ghost.EatenTarget)
+			if transform.Pos.X == houseEntranceX && transform.Pos.Y == houseEntranceY {
+				ghost.State = config.EnteringHouse
+				transform.Dir = config.Down
+				continue
+			}
+			if IsCentered(transform.Pos) {
+				entrance := config.Vector{X: houseEntranceX, Y: houseEntranceY}
+				updateGhostTarget(maze, prng, transform, ghost, entrance)
+			}
 		default:
 			fmt.Printf("unhandled %q state for ghost %s\n", ghost.State.String(), actor.ID.String())
 		}
 
+		oldPos := transform.Pos
 		MoveActor(transform, motion, ghostSpeed(maze, gameState, actor, transform, ghost))
+		ghost.PixelsMoved += absInt(transform.Pos.X-oldPos.X) + absInt(transform.Pos.Y-oldPos.Y)
 		WrapHorizontal(&transform.Pos)
-		ghost.PixelsMoved++
+
+		if ghost.State == config.Eaten && transform.Pos.X == houseEntranceX && transform.Pos.Y == houseEntranceY {
+			ghost.State = config.EnteringHouse
+			transform.Dir = config.Down
+		}
 	}
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 func updateGhostAnimation(anim *component.AnimationData) {
@@ -123,10 +152,55 @@ func updateGhostTarget(
 ) {
 	ghost.Target = target
 	dir := chooseGhostDirection(maze, prng, transform, ghost)
-	if dir != transform.Dir && ghost.PixelsMoved > config.Tile {
+	if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
 		transform.Dir = dir
 		ghost.PixelsMoved = 0
 	}
+}
+
+func updateGhostEnteringHouse(
+	maze *component.MazeData,
+	gameState *component.GameStateData,
+	actor *component.ActorData,
+	transform *component.TransformData,
+	motion *component.MotionData,
+	ghost *component.GhostData,
+) {
+	target := ghost.EatenTarget
+
+	if transform.Pos.Y < target.Y {
+		transform.Dir = config.Down
+		MoveActor(transform, motion, ghostSpeed(maze, gameState, actor, transform, ghost))
+		if transform.Pos.Y > target.Y {
+			transform.Pos.Y = target.Y
+		}
+		return
+	}
+
+	if transform.Pos.X < target.X {
+		transform.Dir = config.Right
+		MoveActor(transform, motion, ghostSpeed(maze, gameState, actor, transform, ghost))
+		if transform.Pos.X > target.X {
+			transform.Pos.X = target.X
+		}
+		return
+	}
+
+	if transform.Pos.X > target.X {
+		transform.Dir = config.Left
+		MoveActor(transform, motion, ghostSpeed(maze, gameState, actor, transform, ghost))
+		if transform.Pos.X < target.X {
+			transform.Pos.X = target.X
+		}
+		return
+	}
+
+	// Reached home slot inside the ghost house: regenerate into a normal ghost
+	// and immediately begin exiting the house.
+	actor.IsEaten = false
+	ghost.Reverse = false
+	ghost.PixelsMoved = 0
+	ghost.State = config.LeavingHouse
 }
 
 func updateGhostInHouse(
@@ -162,21 +236,17 @@ func updateGhostLeavingHouse(
 	motion *component.MotionData,
 	ghost *component.GhostData,
 ) {
-	const (
-		houseX = 108
-		houseY = 88
-	)
-
-	if transform.Pos.X == houseX && transform.Pos.Y <= houseY {
-		transform.Pos.Y = houseY
+	if transform.Pos.X == houseEntranceX && transform.Pos.Y <= houseEntranceY {
+		transform.Pos.Y = houseEntranceY
 		ghost.State = gameState.GhostState
+		ghost.PixelsMoved = config.Tile
 		transform.Dir = chooseRandomDirection(prng, transform.Dir, []config.Direction{config.Right, config.Left})
 		return
 	}
 
-	if transform.Pos.X < houseX {
+	if transform.Pos.X < houseEntranceX {
 		transform.Dir = config.Right
-	} else if transform.Pos.X > houseX {
+	} else if transform.Pos.X > houseEntranceX {
 		transform.Dir = config.Left
 	} else {
 		transform.Dir = config.Up
