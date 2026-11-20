@@ -24,17 +24,19 @@ func (s *GameStateSystem) Update(w donburi.World) {
 		event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
 	}
 
-	nextGhostState := config.GetGhostWaveState(gameState.Level, gameState.FrameCount)
-	if nextGhostState != gameState.GhostState {
-		event.GhostStateChanged.Publish(w, event.GhostStateChangedEvent{
-			State: nextGhostState,
-		})
-	}
-
 	if gameState.IsFrightMode {
 		gameState.FrightFrames--
 		if gameState.FrightFrames <= 0 {
 			event.FrightModeEnded.Publish(w, event.FrightModeEndedEvent{})
 		}
+		return
+	}
+
+	gameState.WaveFrames++
+	nextGhostState := config.GetGhostWaveState(gameState.Level, gameState.WaveFrames)
+	if nextGhostState != gameState.GhostState {
+		event.GhostStateChanged.Publish(w, event.GhostStateChangedEvent{
+			State: nextGhostState,
+		})
 	}
 }

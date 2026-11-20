@@ -17,6 +17,7 @@ type GameStateData struct {
 	HighScore        int
 	Level            int
 	FrameCount       int
+	WaveFrames       int
 	DotsEaten        int
 	DotsRemaining    int
 	IsFrightMode     bool
@@ -47,6 +48,7 @@ func (g *GameStateData) SetLevel(level int) {
 func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.SetLevel(level)
 	g.FrameCount = 0
+	g.WaveFrames = 0
 	g.DotsEaten = 0
 	g.DotsRemaining = dotsRemaining
 	g.IsFrightMode = false
@@ -69,6 +71,7 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 // high score, and remaining lives.
 func (g *GameStateData) ResetForNextLife() {
 	g.FrameCount = 0
+	g.WaveFrames = 0
 	g.IsFrightMode = false
 	g.FrightFlashes = 0
 	g.FrightFrames = 0

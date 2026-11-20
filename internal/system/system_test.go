@@ -300,6 +300,45 @@ func TestFrightModeExpirationRestoresGhostWaveState(t *testing.T) {
 	}
 }
 
+func TestFrightModePausesScatterChaseWaveTimer(t *testing.T) {
+	w, _, _ := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	scatterEnd := config.SecondsToFrames(7)
+	gs.GhostState = config.Scatter
+	gs.WaveFrames = scatterEnd
+	gs.IsFrightMode = true
+	gs.FrightFrames = 3
+
+	gameStateSys := system.NewGameStateSystem()
+	for range 2 {
+		gameStateSys.Update(w)
+		events.ProcessAllEvents(w)
+		if gs.WaveFrames != scatterEnd {
+			t.Fatalf("WaveFrames advanced during fright: got %d, want %d", gs.WaveFrames, scatterEnd)
+		}
+		if gs.GhostState != config.Scatter {
+			t.Fatalf("GhostState transitioned during fright: got %v, want Scatter", gs.GhostState)
+		}
+	}
+
+	// 3rd tick ends fright mode; wave timer stays paused on the expiration frame.
+	gameStateSys.Update(w)
+	events.ProcessAllEvents(w)
+	if gs.IsFrightMode {
+		t.Fatalf("expected FrightMode to end")
+	}
+	if gs.GhostState != config.Scatter || gs.WaveFrames != scatterEnd {
+		t.Fatalf("unexpected state right after fright end: state=%v waveFrames=%d", gs.GhostState, gs.WaveFrames)
+	}
+
+	// Next tick resumes the wave timer and crosses scatterEnd -> Chase.
+	gameStateSys.Update(w)
+	events.ProcessAllEvents(w)
+	if gs.WaveFrames != scatterEnd+1 || gs.GhostState != config.Chase {
+		t.Fatalf("wave timer did not resume after fright: state=%v waveFrames=%d", gs.GhostState, gs.WaveFrames)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 
@@ -332,7 +371,7 @@ func TestGhostWaveChangeReversesActiveGhosts(t *testing.T) {
 	blinky.Reverse = false
 
 	// Jump right before Scatter->Chase boundary on level 1.
-	gs.FrameCount = config.SecondsToFrames(7)
+	gs.WaveFrames = config.SecondsToFrames(7)
 	gs.GhostState = config.Scatter
 
 	gameStateSys := system.NewGameStateSystem()
