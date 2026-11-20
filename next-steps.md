@@ -246,11 +246,11 @@ a ...
 - [x] `ml/pyproject.toml`: `gymnasium`, `numpy`; `[train]` extra with `torch`, `stable-baselines3`, `sb3-contrib`, `tensorboard`. `ml/README.md` with build, venv, sanity-check, and training commands.
 
 ### Step 3.2 — `ml/pacfan_env.py`
-- [ ] `PacFanEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.
-- [ ] `reset(seed=...)` forwards the Gymnasium seed as the game seed; with no seed given, draw one from the env's RNG so episodes differ (Decision 6).
-- [ ] `action_masks()` from `state.player.legal` (for `MaskablePPO`); context-manager cleanup; surface child stderr if the process dies.
-- [ ] Observation encoders: spatial grid `(C, 31, 28)` float32 (walls/door, dots, power, tunnels, player, per-ghost dangerous / frightened / eyes, fruit, plus a small scalar vector) and a BFS feature vector (path distance and first step to nearest dot, power pellet, fruit, each ghost). See `scriptable.md` §5.1.
-- [ ] Reward wrapper: default `0.01 × score delta`; optional death penalty, level-clear bonus, step penalty.
+- [x] `PacFanEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.
+- [x] `reset(seed=...)` forwards the Gymnasium seed as the game seed; with no seed given, draw one from the env's RNG so episodes differ (Decision 6).
+- [x] `action_masks()` from `state.player.legal` (for `MaskablePPO`); context-manager cleanup; surface child stderr if the process dies.
+- [x] Observation encoders: spatial grid `(C, 31, 28)` float32 (walls/door, dots, power, tunnels, player, per-ghost dangerous / frightened / eyes, fruit, plus a small scalar vector) and a BFS feature vector (path distance and first step to nearest dot, power pellet, fruit, each ghost). See `scriptable.md` §5.1.
+- [x] Reward wrapper: default `0.01 × score delta`; optional death penalty, level-clear bonus, step penalty.
 
 ### Step 3.3 — Validation and zero-ML baselines
 - [ ] `ml/tests/test_env.py`: `check_env`, same seed + same actions → same trajectory, `AsyncVectorEnv` with several workers.
