@@ -339,6 +339,33 @@ func TestFrightModePausesScatterChaseWaveTimer(t *testing.T) {
 	}
 }
 
+func TestPowerUpReversesGhostsOnNoFrightLevels(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.SetLevel(19) // FrightenedFrames == FrightTimeNA (-1)
+	gs.DotsRemaining = 10
+
+	blinky := component.Ghost.Get(ghosts[0])
+	blinky.State = config.Chase
+	blinky.Reverse = false
+	pinky := component.Ghost.Get(ghosts[2])
+	pinky.State = config.InHouse
+	pinky.Reverse = false
+
+	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 1, Y: 1})
+	events.ProcessAllEvents(w)
+
+	if gs.IsFrightMode || gs.FrightFrames != 0 {
+		t.Fatalf("expected no fright mode on level 19, got IsFrightMode=%v FrightFrames=%d", gs.IsFrightMode, gs.FrightFrames)
+	}
+	if blinky.State != config.Chase || !blinky.Reverse {
+		t.Fatalf("expected Blinky to stay Chase with Reverse=true, got state=%v reverse=%v", blinky.State, blinky.Reverse)
+	}
+	if pinky.Reverse {
+		t.Fatalf("expected InHouse Pinky not to set Reverse=true")
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 

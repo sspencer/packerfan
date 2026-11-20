@@ -75,6 +75,15 @@ func RegisterEventHandlers(w donburi.World) {
 					g.Reverse = true
 				}
 			}
+		} else {
+			// On no-fright levels (17, 19+), energizers still reverse active ghosts
+			// without turning them blue or edible.
+			for ghostEntry := range ghostQuery.Iter(w) {
+				g := component.Ghost.Get(ghostEntry)
+				if g.State == config.Chase || g.State == config.Scatter {
+					g.Reverse = true
+				}
+			}
 		}
 	})
 
