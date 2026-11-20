@@ -704,6 +704,22 @@ func TestGhostExitsHouseHeadingLeftByDefaultAndRightIfReversed(t *testing.T) {
 	}
 }
 
+func TestEatenGhostMovesAtDoubleSpeed(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	blinky := ghosts[0]
+	component.Actor.Get(blinky).IsEaten = true
+	component.Ghost.Get(blinky).State = config.Eaten
+	component.Ghost.Get(blinky).PixelsMoved = config.Tile
+	tr := component.Transform.Get(blinky)
+	tr.Pos = config.Vector{X: 2*config.Tile + 1, Y: 10 * config.Tile}
+	tr.Dir = config.Right
+
+	system.NewGhostSystem().Update(w)
+	if tr.Pos.X != 2*config.Tile+3 {
+		t.Fatalf("expected eaten eyes to move 2 px/frame along straightaway: got X=%d, want %d", tr.Pos.X, 2*config.Tile+3)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 

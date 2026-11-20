@@ -45,8 +45,9 @@ const (
 	Speed85  uint32 = 0x80000001 // start of fast mode
 	Speed90  uint32 = 0x80000101
 	Speed95  uint32 = 0x80000421
-	Speed100 uint32 = 0x80001111
-	Speed105 uint32 = 0x80002492
+	Speed100   uint32 = 0x80001111
+	Speed105   uint32 = 0x80002492
+	SpeedEaten uint32 = 0x8000FFFF // 2 px/frame (2x base speed) for eaten ghost eyes
 
 	SpeedNA      uint32 = 0
 	FrightTimeNA        = -1

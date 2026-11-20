@@ -267,7 +267,7 @@ func ghostSpeed(
 	}
 
 	if ghost.State == config.Eaten || ghost.State == config.EnteringHouse {
-		return config.Speed80
+		return config.SpeedEaten
 	}
 
 	if inTunnel || ghost.State == config.InHouse || ghost.State == config.LeavingHouse {
