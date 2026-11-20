@@ -81,7 +81,7 @@ func (s *GhostSystem) Update(w donburi.World) {
 			updateGhostInHouse(maze, house, gameState, actor, transform, motion, ghost, isPreferred, forceRelease)
 			continue
 		case config.LeavingHouse:
-			updateGhostLeavingHouse(maze, house, gameState, prng, actor, transform, motion, ghost)
+			updateGhostLeavingHouse(maze, house, gameState, actor, transform, motion, ghost)
 			continue
 		case config.EnteringHouse:
 			updateGhostEnteringHouse(maze, gameState, actor, transform, motion, ghost)
@@ -333,7 +333,6 @@ func updateGhostLeavingHouse(
 	maze *component.MazeData,
 	house component.GhostHouse,
 	gameState *component.GameStateData,
-	prng *component.PRNGData,
 	actor *component.ActorData,
 	transform *component.TransformData,
 	motion *component.MotionData,
@@ -367,7 +366,12 @@ func updateGhostLeavingHouse(
 	ghost.FrightenedInHouse = false
 	ghost.HasNextDir = false
 	ghost.PixelsMoved = config.Tile
-	transform.Dir = chooseRandomDirection(prng, transform.Dir, []config.Direction{config.Right, config.Left})
+	if ghost.Reverse {
+		transform.Dir = config.Right
+		ghost.Reverse = false
+	} else {
+		transform.Dir = config.Left
+	}
 	if ghost.AIKind == component.ClydeAI {
 		gameState.ElroySuspended = false
 	}

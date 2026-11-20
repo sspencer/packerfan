@@ -244,17 +244,6 @@ func chooseFrightenedDirectionAt(
 	return curDir
 }
 
-func chooseRandomDirection(prng *component.PRNGData, fallback config.Direction, allowedDirs []config.Direction) config.Direction {
-	preferred := prng.PreferredDirection()
-	for range config.DirCount {
-		if slices.Contains(allowedDirs, preferred) {
-			return preferred
-		}
-		preferred = preferred.ClockwiseNext()
-	}
-	return fallback
-}
-
 func isCruiseElroy(gameState *component.GameStateData, ghost *component.GhostData) bool {
 	return ghost.AIKind == component.BlinkyAI &&
 		!gameState.ElroySuspended &&

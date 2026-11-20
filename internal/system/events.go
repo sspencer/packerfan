@@ -153,8 +153,11 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState.GhostState = ev.State
 		for ghostEntry := range ghostQuery.Iter(w) {
 			g := component.Ghost.Get(ghostEntry)
-			if g.State == config.Chase || g.State == config.Scatter {
+			switch g.State {
+			case config.Chase, config.Scatter:
 				g.State = gameState.GhostState
+				g.Reverse = true
+			case config.InHouse, config.LeavingHouse:
 				g.Reverse = true
 			}
 		}

@@ -672,6 +672,38 @@ func TestGhostInHouseExitsFrightenedWhileEnergizerActive(t *testing.T) {
 	}
 }
 
+func TestGhostExitsHouseHeadingLeftByDefaultAndRightIfReversed(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Scatter
+	gs.Spec.GhostTunnelSpeed = config.Speed80
+	house := component.MustFindMaze(w).GhostHouse()
+
+	pinkyEntry := ghosts[2]
+	pinky := component.Ghost.Get(pinkyEntry)
+	pinky.State = config.LeavingHouse
+	component.Transform.Get(pinkyEntry).Pos = config.Vector{X: house.Entrance.X, Y: house.Entrance.Y + 1}
+
+	ghostSys := system.NewGhostSystem()
+	ghostSys.Update(w)
+	if got := component.Transform.Get(pinkyEntry).Dir; got != config.Left {
+		t.Fatalf("expected default exit direction Left, got %v", got)
+	}
+
+	// If a wave change reversed the ghost while inside the house, it exits heading Right.
+	inkyEntry := ghosts[1]
+	inky := component.Ghost.Get(inkyEntry)
+	inky.State = config.LeavingHouse
+	component.Transform.Get(inkyEntry).Pos = config.Vector{X: house.Entrance.X, Y: house.Entrance.Y + 1}
+	event.GhostStateChanged.Publish(w, event.GhostStateChangedEvent{State: config.Chase})
+	events.ProcessAllEvents(w)
+
+	ghostSys.Update(w)
+	if got := component.Transform.Get(inkyEntry).Dir; got != config.Right {
+		t.Fatalf("expected reversed house exit direction Right, got %v", got)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 
