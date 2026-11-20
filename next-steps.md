@@ -243,7 +243,7 @@ a ...
 **Goal:** standard RL libraries train against `pacfan-headless`, and a first policy visibly learns.
 
 ### Step 3.1 — `ml/` scaffold
-- [ ] `ml/pyproject.toml`: `gymnasium`, `numpy`; `[train]` extra with `torch`, `stable-baselines3`, `sb3-contrib`, `tensorboard`. `ml/README.md` with build, venv, sanity-check, and training commands.
+- [x] `ml/pyproject.toml`: `gymnasium`, `numpy`; `[train]` extra with `torch`, `stable-baselines3`, `sb3-contrib`, `tensorboard`. `ml/README.md` with build, venv, sanity-check, and training commands.
 
 ### Step 3.2 — `ml/pacfan_env.py`
 - [ ] `PacFanEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.

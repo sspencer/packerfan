@@ -44,5 +44,13 @@ notes/
 /pacfan
 /pacfan-headless
 
+# Python ML workspace & training outputs
+ml/.venv/
+ml/*.egg-info/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+runs/
+
 .DS_Store
 .codegraph
