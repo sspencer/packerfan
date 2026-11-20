@@ -17,7 +17,7 @@ func computeChaseTarget(
 ) config.Vector {
 	switch ghost.AIKind {
 	case component.BlinkyAI:
-		return playerTransform.Pos
+		return playerTransform.Pos.ToCenterTile().ToPixel()
 
 	case component.PinkyAI:
 		vx, vy := 0, 0
@@ -32,7 +32,7 @@ func computeChaseTarget(
 		default: // Left
 			vx = -4
 		}
-		playerTile := playerTransform.Pos.ToTile()
+		playerTile := playerTransform.Pos.ToCenterTile()
 		return config.Vector{X: playerTile.X + vx, Y: playerTile.Y + vy}.ToPixel()
 
 	case component.InkyAI:
@@ -48,19 +48,19 @@ func computeChaseTarget(
 		default: // Left
 			vx = -2
 		}
-		playerTile := playerTransform.Pos.ToTile()
+		playerTile := playerTransform.Pos.ToCenterTile()
 		pivot := config.Vector{X: playerTile.X + vx, Y: playerTile.Y + vy}
 		if blinkyTransform == nil {
 			return pivot.ToPixel()
 		}
-		blinkyTile := blinkyTransform.Pos.ToTile()
+		blinkyTile := blinkyTransform.Pos.ToCenterTile()
 		dx := pivot.X - blinkyTile.X
 		dy := pivot.Y - blinkyTile.Y
 		return config.Vector{X: blinkyTile.X + 2*dx, Y: blinkyTile.Y + 2*dy}.ToPixel()
 
 	case component.ClydeAI:
-		pv := playerTransform.Pos.ToTile()
-		sv := ghostTransform.Pos.ToTile()
+		pv := playerTransform.Pos.ToCenterTile()
+		sv := ghostTransform.Pos.ToCenterTile()
 		if pv.DistanceSq(sv) >= 64 {
 			return pv.ToPixel()
 		}

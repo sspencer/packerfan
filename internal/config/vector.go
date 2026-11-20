@@ -10,6 +10,11 @@ func (v Vector) ToTile() Vector {
 	return Vector{X: v.X / Tile, Y: v.Y / Tile}
 }
 
+// ToCenterTile converts an actor's pixel position to the tile containing its center.
+func (v Vector) ToCenterTile() Vector {
+	return Vector{X: (v.X + Half) / Tile, Y: (v.Y + Half) / Tile}
+}
+
 func (v Vector) ToPixel() Vector {
 	return Vector{X: v.X * Tile, Y: v.Y * Tile}
 }

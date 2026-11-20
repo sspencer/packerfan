@@ -110,15 +110,14 @@ func (s *PlayerSystem) Update(w donburi.World) {
 		}
 
 		// Eat dots/powerups using center-aligned tile coordinates.
-		ctx := (transform.Pos.X + config.Half) / config.Tile
-		cty := (transform.Pos.Y + config.Half) / config.Tile
-		if maze.InBounds(ctx, cty) {
-			tile := maze.GetCell(ctx, cty)
+		centerTile := transform.Pos.ToCenterTile()
+		if maze.InBounds(centerTile.X, centerTile.Y) {
+			tile := maze.GetCell(centerTile.X, centerTile.Y)
 			switch tile {
 			case component.Dot:
-				event.DotEaten.Publish(w, event.DotEatenEvent{X: ctx, Y: cty})
+				event.DotEaten.Publish(w, event.DotEatenEvent{X: centerTile.X, Y: centerTile.Y})
 			case component.Power:
-				event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: ctx, Y: cty})
+				event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: centerTile.X, Y: centerTile.Y})
 			}
 		}
 

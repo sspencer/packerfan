@@ -221,10 +221,8 @@ func TestGhostChaseTargetsMatchArcadeRules(t *testing.T) {
 		t.Errorf("Pinky target = %v, want %v", got, wantPinky)
 	}
 
-	// Inky: pivot = (10-2, 10-2) = (8,8); Blinky was at tile (12,12) before moving 1px ->
-	// Note Blinky runs first and moves 1px, still tile (11 or 12) depending on dir!
-	// Verify Inky computed a valid reflection relative to Blinky's current tile.
-	blinkyTile := component.Transform.Get(blinkyEntry).Pos.ToTile()
+	// Inky: pivot = (10-2, 10-2) = (8,8); Blinky moved 1px from (12,12) so its center tile is still (12,12).
+	blinkyTile := component.Transform.Get(blinkyEntry).Pos.ToCenterTile()
 	pivot := config.Vector{X: 8, Y: 8}
 	wantInky := config.Vector{
 		X: blinkyTile.X + 2*(pivot.X-blinkyTile.X),
@@ -470,6 +468,28 @@ func TestGhostScatterTargetsMatchDossier(t *testing.T) {
 		if got != want[id] {
 			t.Errorf("%s scatter target tile = %v, want %v", id, got, want[id])
 		}
+	}
+}
+
+func TestGhostChaseTargetingUsesPlayerCenterTile(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Chase
+
+	// Player is 6 pixels past tile (10,10) -> center lies in tile (11,10).
+	component.Transform.Get(player).Pos = config.Vector{X: 10*config.Tile + 6, Y: 10 * config.Tile}
+	component.Transform.Get(player).Dir = config.Right
+
+	blinkyEntry := ghosts[0]
+	component.Transform.Get(blinkyEntry).Pos = config.Vector{X: 5 * config.Tile, Y: 10 * config.Tile}
+	component.Ghost.Get(blinkyEntry).State = config.Chase
+
+	system.NewGhostSystem().Update(w)
+
+	got := component.Ghost.Get(blinkyEntry).Target.ToTile()
+	want := config.Vector{X: 11, Y: 10}
+	if got != want {
+		t.Fatalf("Blinky target tile = %v, want center-aligned player tile %v", got, want)
 	}
 }
 
