@@ -229,10 +229,10 @@ a ...
 - [x] Makefile: `build-headless`; extend `check-headless-deps` to `./cmd/pacfan-headless ./internal/api`.
 
 ### Step 2.4 — Tests and benchmark
-- [ ] Round-trip `hello → reset → step… → close` through `ServeNDJSON`; malformed JSON; unknown command; step before reset.
-- [ ] Client-side maze reconstruction: apply `eaten` to the `hello` maze for a whole game and compare with `observe {maze:true}` at every step.
-- [ ] Record → replay in a fresh `Env` → identical `HashWorld` on every tick, both modes. Check in 2–3 tiny `.pfr` fixtures recorded on the tracked `game.png` (dots, ghost eaten, fruit, death, level clear) so rule regressions fail `go test ./...`.
-- [ ] `BenchmarkNDJSONStep`: end-to-end steps/sec and bytes per step response.
+- [x] Round-trip `hello → reset → step… → close` through `ServeNDJSON`; malformed JSON; unknown command; step before reset.
+- [x] Client-side maze reconstruction: apply `eaten` to the `hello` maze for a whole game and compare with `observe {maze:true}` at every step.
+- [x] Record → replay in a fresh `Env` → identical `HashWorld` on every tick, both modes. Check in 2–3 tiny `.pfr` fixtures recorded on the tracked `game.png` (dots, ghost eaten, fruit, death, level clear) so rule regressions fail `go test ./...`.
+- [x] `BenchmarkNDJSONStep`: end-to-end steps/sec and bytes per step response.
 
 **Done when:** `go list -deps ./cmd/pacfan-headless | grep -E 'raylib|audio|scene'` is empty, a shell pipe can play a game to game over, and `pacfan-headless -verify` passes on the checked-in fixtures.
 
