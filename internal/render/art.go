@@ -1,8 +1,10 @@
 package render
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
+	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
@@ -35,12 +37,40 @@ void main()
 }
 `
 
+// Paths of the graphical assets NewArt loads from the embedded filesystem.
+const (
+	fontAssetPath   = "assets/text.png"
+	gameAssetPath   = "assets/game.png"
+	shaderAssetPath = "assets/chroma_key.fs"
+)
+
+// RequiredAssets lists every file NewArt reads from the embedded filesystem.
+var RequiredAssets = []string{fontAssetPath, gameAssetPath, shaderAssetPath}
+
+// CheckAssets verifies that every file in RequiredAssets exists in assetsFS.
+// It returns an error naming each missing file, or nil if all are present.
+// Call it before NewArt so a missing asset is reported clearly instead of
+// panicking mid-load.
+func CheckAssets(assetsFS fs.FS) error {
+	var missing []string
+	for _, path := range RequiredAssets {
+		info, err := fs.Stat(assetsFS, path)
+		if err != nil || info.IsDir() {
+			missing = append(missing, path)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return errors.New("missing required asset file(s):\n  " + strings.Join(missing, "\n  "))
+}
+
 // NewArt loads all graphical assets from the provided embedded filesystem.
 func NewArt(assetsFS fs.FS) *Art {
-	fontTexture := loadTexture(assetsFS, "assets/text.png")
-	gameTexture := loadTexture(assetsFS, "assets/game.png")
+	fontTexture := loadTexture(assetsFS, fontAssetPath)
+	gameTexture := loadTexture(assetsFS, gameAssetPath)
 	gameImage := rl.LoadImageFromTexture(gameTexture)
-	shader := loadShader(assetsFS, "assets/chroma_key.fs")
+	shader := loadShader(assetsFS, shaderAssetPath)
 	flashShader := rl.LoadShaderFromMemory("", flashFragmentShader)
 
 	return &Art{

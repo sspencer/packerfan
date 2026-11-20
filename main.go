@@ -3,12 +3,15 @@ package main
 import (
 	"embed"
 	"flag"
+	"fmt"
+	"os"
 	"runtime/debug"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 
 	"pacfan/internal/config"
 	"pacfan/internal/game"
+	"pacfan/internal/render"
 )
 
 //go:embed assets
@@ -25,6 +28,18 @@ func main() {
 	flag.Parse()
 
 	zoom = max(1, min(zoom, 10))
+
+	// Assets are embedded at build time, so check them before opening a window.
+	if err := render.CheckAssets(assetsFS); err != nil {
+		fmt.Fprintf(os.Stderr, `error: %v
+
+The game artwork is not included in this repository for copyright reasons.
+Place the required PNG files in the assets/ directory (see assets/README.md
+for the expected format), then rebuild: the assets are embedded into the
+binary at build time, so adding them without rebuilding has no effect.
+`, err)
+		os.Exit(1)
+	}
 
 	rl.SetTraceLogLevel(rl.LogWarning)
 	rl.InitWindow(
