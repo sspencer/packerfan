@@ -1,16 +1,16 @@
 package scene
 
-import (
-	"pacfan/internal/audio"
-	"pacfan/internal/system"
-)
+import "pacfan/internal/audio"
 
 // GameOverScene freezes gameplay, displays the GAME OVER banner over the maze,
-// and after at least one second allows any key press to restart from Level 1.
+// and returns to AttractScene (where the player can choose 1 or 2 player mode)
+// either automatically after GameOverDuration (~3s) or on any key press after
+// GameOverRestartDelay (~1s).
 type GameOverScene struct {
 	ctx          *Context
 	elapsed      int
 	restartDelay int
+	duration     int
 }
 
 func NewGameOverScene(ctx *Context) *GameOverScene {
@@ -21,34 +21,19 @@ func (s *GameOverScene) Enter() {
 	s.ctx.audio().SetLoop(audio.LoopNone)
 	s.elapsed = 0
 	s.restartDelay = s.ctx.gameOverRestartDelay()
+	s.duration = s.ctx.gameOverDuration()
 }
 
 func (s *GameOverScene) Update() {
 	anyKey := false
-	start1P := false
-	start2P := false
 	if s.ctx.Input != nil {
 		s.ctx.Input.Sample()
 		anyKey = s.ctx.Input.AnyKeyPressed()
-		start1P = s.ctx.Input.Start1PPressed()
-		start2P = s.ctx.Input.Start2PPressed()
 	}
 
 	s.elapsed++
-	if s.elapsed < s.restartDelay {
-		return
-	}
-
-	switch {
-	case start1P:
-		system.StartNewGame(s.ctx.World, 1, s.ctx.IsPixelLit)
-		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
-	case start2P:
-		system.StartNewGame(s.ctx.World, 2, s.ctx.IsPixelLit)
-		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
-	case anyKey:
-		system.RestartGame(s.ctx.World, s.ctx.IsPixelLit)
-		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
+	if s.elapsed >= s.duration || (s.elapsed >= s.restartDelay && anyKey) {
+		s.ctx.Manager.Transition(NewAttractScene(s.ctx))
 	}
 }
 

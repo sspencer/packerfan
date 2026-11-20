@@ -34,11 +34,11 @@ go run . -pacman -zoom 4
 
 ### Controls
 
-- **1 / 2** (on Attract / Game Over screen): Start a 1-player or 2-player game
+- **1 / 2** (on Attract screen): Start a 1-player or 2-player game
 - **Enter / Space** (on Attract screen): Start with the selected player count
 - **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume gameplay
-- **Any Key** (on the Game Over screen, after a 1-second delay): Start a new game from Level 1 (preserving High Score)
+- **Any Key** (on the Game Over screen, after a 1-second delay): Return to the Attract screen to pick 1P or 2P (or returns automatically after 3 seconds)
 
 ### Useful Make Targets
 

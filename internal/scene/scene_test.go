@@ -664,7 +664,7 @@ func TestLosingLastLifeTransitionsToGameOverScene(t *testing.T) {
 	}
 }
 
-func TestGameOverRestartsOnAnyKeyAfterOneSecond(t *testing.T) {
+func TestGameOverReturnsToAttractScreenAfterDelayOrTimeout(t *testing.T) {
 	ctx, input, _, player, ghosts := newSceneHarness(t, false)
 	gs := component.MustFindGameState(ctx.World)
 	maze := component.MustFindMaze(ctx.World)
@@ -674,6 +674,7 @@ func TestGameOverRestartsOnAnyKeyAfterOneSecond(t *testing.T) {
 	maze.Level = 3
 	gs.Lives = 0
 	gs.Score = 7500
+	gs.PlayerScores[0] = 7500
 	gs.HighScore = 9000
 	gs.GameOver = true
 	component.Transform.Get(player).Pos = config.Vector{X: 40, Y: 40}
@@ -681,31 +682,38 @@ func TestGameOverRestartsOnAnyKeyAfterOneSecond(t *testing.T) {
 
 	ctx.Manager.Start(scene.NewGameOverScene(ctx))
 
-	// Pressing any key during the first 60 frames (< 1 second at 61 FPS) must NOT restart.
+	// Pressing any key during the first 60 frames (< 1 second) must NOT leave GameOverScene.
 	input.state = system.InputState{AnyKeyPressed: true}
 	for i := range config.GameOverRestartDelay - 1 {
 		ctx.Manager.Update()
 		if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
-			t.Fatalf("restarted too early on frame %d (before 1s delay)", i+1)
+			t.Fatalf("left GameOverScene too early on frame %d (before 1s delay)", i+1)
 		}
 	}
 
-	// Once 1 full second has elapsed (frame 61), pressing no key still stays in GameOverScene.
+	// At frame 61 without a key press, still in GameOverScene until timeout.
 	input.state = system.InputState{AnyKeyPressed: false}
 	ctx.Manager.Update()
 	if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
-		t.Fatalf("restarted without a key press")
+		t.Fatalf("left GameOverScene without key press before timeout")
 	}
 
-	// Now pressing any key restarts the game cleanly into ReadyScene on Level 1.
+	// Pressing any key after 1s returns to AttractScene (where 1P/2P can be chosen).
 	input.state = system.InputState{AnyKeyPressed: true}
 	ctx.Manager.Update()
-	if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
-		t.Fatalf("expected transition to ReadyScene on key press after 1s, got %T", ctx.Manager.Current())
+	if _, ok := ctx.Manager.Current().(*scene.AttractScene); !ok {
+		t.Fatalf("expected transition to AttractScene on key press after 1s, got %T", ctx.Manager.Current())
 	}
-	if gs.Level != 1 || maze.Level != 1 || maze.GetIndex() != 0 {
-		t.Fatalf("expected Level 1 (maze index 0) after restart, got level=%d mazeLevel=%d index=%d",
-			gs.Level, maze.Level, maze.GetIndex())
+
+	// From AttractScene, pressing "2" starts a fresh 2-player game on Level 1 preserving HighScore.
+	input.state = system.InputState{Start2PPressed: true}
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
+		t.Fatalf("expected transition to ReadyScene after selecting 2P, got %T", ctx.Manager.Current())
+	}
+	if gs.PlayerCount != 2 || gs.Level != 1 || maze.Level != 1 || maze.GetIndex() != 0 {
+		t.Fatalf("expected 2P Level 1 (maze index 0), got players=%d level=%d mazeLevel=%d index=%d",
+			gs.PlayerCount, gs.Level, maze.Level, maze.GetIndex())
 	}
 	if gs.Lives != config.InitialLives || gs.Score != 0 || gs.HighScore != 9000 || gs.GameOver {
 		t.Fatalf("unexpected GameState after restart: Lives=%d Score=%d HighScore=%d GameOver=%v",
@@ -713,6 +721,20 @@ func TestGameOverRestartsOnAnyKeyAfterOneSecond(t *testing.T) {
 	}
 	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
 		t.Fatalf("player did not reset to spawn: got %v, want %v", got, want)
+	}
+
+	// Also verify GameOverScene automatically returns to AttractScene after GameOverDuration with no input.
+	input.state = system.InputState{}
+	ctx.Manager.Start(scene.NewGameOverScene(ctx))
+	for i := range config.GameOverDuration - 1 {
+		ctx.Manager.Update()
+		if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
+			t.Fatalf("auto-transitioned too early on frame %d", i+1)
+		}
+	}
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.AttractScene); !ok {
+		t.Fatalf("expected automatic transition to AttractScene after GameOverDuration, got %T", ctx.Manager.Current())
 	}
 }
 

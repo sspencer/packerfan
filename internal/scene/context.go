@@ -93,6 +93,8 @@ type Context struct {
 	PlayerDyingPostFrames int
 	// GameOverRestartDelay overrides config.GameOverRestartDelay when > 0.
 	GameOverRestartDelay int
+	// GameOverDuration overrides config.GameOverDuration when > 0.
+	GameOverDuration int
 	// IntermissionFactory optionally overrides how intermission scenes are created.
 	// Return nil to skip an intermission and proceed directly to ReadyScene.
 	IntermissionFactory func(ctx *Context, act int) Scene
@@ -159,6 +161,13 @@ func (c *Context) gameOverRestartDelay() int {
 		return c.GameOverRestartDelay
 	}
 	return config.GameOverRestartDelay
+}
+
+func (c *Context) gameOverDuration() int {
+	if c.GameOverDuration > 0 {
+		return c.GameOverDuration
+	}
+	return config.GameOverDuration
 }
 
 func (c *Context) newIntermissionScene(act int) Scene {

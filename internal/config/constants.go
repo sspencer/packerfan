@@ -30,6 +30,7 @@ const (
 	PlayerDyingFrameTicks       = 7
 	PlayerDyingPostFrames       = 30
 	GameOverRestartDelay        = 61
+	GameOverDuration            = 183
 	TargetFPS                   = 61
 	ArcadeFPS                   = 60.606061
 )
