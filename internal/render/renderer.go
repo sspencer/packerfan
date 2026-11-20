@@ -109,10 +109,11 @@ func (r *Renderer) drawMaze(maze *component.MazeData) {
 	for y := range config.GameHeight {
 		for x := range config.GameWidth {
 			tile := maze.Grid[y][x]
-			if tile == component.Dot {
+			switch tile {
+			case component.Dot:
 				rec := rl.Rectangle{X: float32(x) * config.Tile, Y: float32(y) * config.Tile, Width: config.Tile, Height: config.Tile}
 				rl.DrawTexturePro(r.art.Texture, dotSrc, rec, rl.Vector2{}, 0, rl.White)
-			} else if tile == component.Power {
+			case component.Power:
 				rec := rl.Rectangle{X: float32(x) * config.Tile, Y: float32(y) * config.Tile, Width: config.Tile, Height: config.Tile}
 				rl.DrawTexturePro(r.art.Texture, powerSrc, rec, rl.Vector2{}, 0, rl.White)
 			}

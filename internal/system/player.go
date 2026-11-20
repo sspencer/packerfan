@@ -114,9 +114,10 @@ func (s *PlayerSystem) Update(w donburi.World) {
 		cty := (transform.Pos.Y + config.Half) / config.Tile
 		if maze.InBounds(ctx, cty) {
 			tile := maze.GetCell(ctx, cty)
-			if tile == component.Dot {
+			switch tile {
+			case component.Dot:
 				event.DotEaten.Publish(w, event.DotEatenEvent{X: ctx, Y: cty})
-			} else if tile == component.Power {
+			case component.Power:
 				event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: ctx, Y: cty})
 			}
 		}

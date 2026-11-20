@@ -60,14 +60,15 @@ func MoveActor(transform *component.TransformData, motion *component.MotionData,
 		}
 
 		if motion.CornerSnap {
-			if transform.Dir == config.Up || transform.Dir == config.Down {
+			switch transform.Dir {
+			case config.Up, config.Down:
 				targetX := (transform.Pos.X + config.Half) / config.Tile * config.Tile
 				if transform.Pos.X < targetX {
 					transform.Pos.X++
 				} else if transform.Pos.X > targetX {
 					transform.Pos.X--
 				}
-			} else if transform.Dir == config.Left || transform.Dir == config.Right {
+			case config.Left, config.Right:
 				targetY := (transform.Pos.Y + config.Half) / config.Tile * config.Tile
 				if transform.Pos.Y < targetY {
 					transform.Pos.Y++
