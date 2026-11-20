@@ -29,6 +29,8 @@ type GameStateData struct {
 	GhostEatenEntity donburi.Entity
 	GhostEatenScore  int
 	LevelComplete    bool
+	PlayerDying      bool
+	GameOver         bool
 	Spec             config.LevelSpecTable
 	GhostState       config.GhostState
 }
@@ -58,6 +60,26 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.GhostEatenScore = 0
 	g.GhostState = config.Scatter
 	g.LevelComplete = false
+	g.PlayerDying = false
+	g.GameOver = false
+}
+
+// ResetForNextLife resets wave timing, frightened state, and transient popup
+// state when respawning on the same level while preserving level, dots, score,
+// high score, and remaining lives.
+func (g *GameStateData) ResetForNextLife() {
+	g.FrameCount = 0
+	g.IsFrightMode = false
+	g.FrightFlashes = 0
+	g.FrightFrames = 0
+	g.NumGhostsEaten = 0
+	g.GhostEatenPause = 0
+	g.GhostEatenX = 0
+	g.GhostEatenY = 0
+	g.GhostEatenEntity = donburi.Null
+	g.GhostEatenScore = 0
+	g.GhostState = config.Scatter
+	g.PlayerDying = false
 }
 
 var GameState = donburi.NewComponentType[GameStateData]()

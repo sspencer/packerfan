@@ -44,3 +44,25 @@ func AdvanceToNextLevel(w donburi.World, isPixelLit func(x, y int) bool) int {
 	ResetActors(w)
 	return nextLevel
 }
+
+// ConsumeLifeAndRespawn decrements Lives after the player is eaten. If lives
+// remain, it resets round timers, PRNG, and actor positions on the current
+// level (keeping dots and score intact) and returns true. Otherwise it marks
+// GameOver and returns false.
+func ConsumeLifeAndRespawn(w donburi.World) bool {
+	gameState := component.MustFindGameState(w)
+	if gameState.Lives > 0 {
+		gameState.Lives--
+	}
+	gameState.PlayerDying = false
+	if gameState.Lives <= 0 {
+		gameState.Lives = 0
+		gameState.GameOver = true
+		return false
+	}
+
+	gameState.ResetForNextLife()
+	component.MustFindPRNG(w).Reset()
+	ResetActors(w)
+	return true
+}

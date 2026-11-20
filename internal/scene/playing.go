@@ -18,6 +18,10 @@ func (s *PlayingScene) Update() {
 	s.ctx.Pipeline.Update(s.ctx.World)
 
 	gameState := component.MustFindGameState(s.ctx.World)
+	if gameState.PlayerDying {
+		s.ctx.Manager.Transition(NewPacmanDyingScene(s.ctx))
+		return
+	}
 	if gameState.LevelComplete {
 		s.ctx.Manager.Transition(NewRoundClearedScene(s.ctx))
 		return

@@ -39,7 +39,7 @@ func (p *Pipeline) Update(w donburi.World) {
 	p.input.ApplyPause(w)
 
 	gameState := component.MustFindGameState(w)
-	if gameState.Paused || gameState.LevelComplete {
+	if gameState.Paused || gameState.LevelComplete || gameState.PlayerDying || gameState.GameOver {
 		return
 	}
 
@@ -57,7 +57,7 @@ func (p *Pipeline) Update(w donburi.World) {
 	p.collision.Update(w)
 	events.ProcessAllEvents(w)
 
-	if gameState.GhostEatenPause > 0 || gameState.LevelComplete {
+	if gameState.GhostEatenPause > 0 || gameState.LevelComplete || gameState.PlayerDying {
 		return
 	}
 

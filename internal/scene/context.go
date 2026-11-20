@@ -10,11 +10,14 @@ import (
 // DrawOptions controls presentation overlays and visibility flags passed from
 // the active scene to the renderer.
 type DrawOptions struct {
-	ShowReady      bool
-	HidePlayer     bool
-	HideGhosts     bool
-	FlashMaze      bool
-	ShowGhostScore bool
+	ShowReady        bool
+	ShowGameOver     bool
+	HidePlayer       bool
+	HideGhosts       bool
+	FlashMaze        bool
+	ShowGhostScore   bool
+	PlayerDying      bool
+	PlayerDeathFrame int
 }
 
 // IntermissionSprite describes a single spritesheet sprite drawn during an intermission.
@@ -54,6 +57,12 @@ type Context struct {
 	RoundClearedHoldFrames int
 	// RoundClearedFlashes overrides config.RoundClearedFlashes when > 0.
 	RoundClearedFlashes int
+	// PlayerDyingHoldFrames overrides config.PlayerDyingHoldFrames when > 0.
+	PlayerDyingHoldFrames int
+	// PlayerDyingFrameTicks overrides config.PlayerDyingFrameTicks when > 0.
+	PlayerDyingFrameTicks int
+	// PlayerDyingPostFrames overrides config.PlayerDyingPostFrames when > 0.
+	PlayerDyingPostFrames int
 	// IntermissionFactory optionally overrides how intermission scenes are created.
 	// Return nil to skip an intermission and proceed directly to ReadyScene.
 	IntermissionFactory func(ctx *Context, act int) Scene
@@ -78,6 +87,27 @@ func (c *Context) roundClearedFlashes() int {
 		return c.RoundClearedFlashes
 	}
 	return config.RoundClearedFlashes
+}
+
+func (c *Context) playerDyingHoldFrames() int {
+	if c.PlayerDyingHoldFrames > 0 {
+		return c.PlayerDyingHoldFrames
+	}
+	return config.PlayerDyingHoldFrames
+}
+
+func (c *Context) playerDyingFrameTicks() int {
+	if c.PlayerDyingFrameTicks > 0 {
+		return c.PlayerDyingFrameTicks
+	}
+	return config.PlayerDyingFrameTicks
+}
+
+func (c *Context) playerDyingPostFrames() int {
+	if c.PlayerDyingPostFrames > 0 {
+		return c.PlayerDyingPostFrames
+	}
+	return config.PlayerDyingPostFrames
 }
 
 func (c *Context) newIntermissionScene(act int) Scene {

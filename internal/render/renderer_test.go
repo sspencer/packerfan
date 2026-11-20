@@ -66,3 +66,45 @@ func TestGhostScoreSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
+	if _, ok := render.PlayerDeathSprite(true, -1); ok {
+		t.Fatalf("expected ok=false for negative death frame")
+	}
+	if _, ok := render.PlayerDeathSprite(true, config.PlayerDyingFrameCount); ok {
+		t.Fatalf("expected ok=false for out-of-range death frame")
+	}
+
+	path := filepath.Join("..", "..", "assets", "game.png")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Skipf("spritesheet %s not present: %v", path, err)
+	}
+	defer f.Close()
+
+	img, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("decode spritesheet: %v", err)
+	}
+
+	for _, pacmanMode := range []bool{true, false} {
+		for frame := range config.PlayerDyingFrameCount {
+			origin, ok := render.PlayerDeathSprite(pacmanMode, frame)
+			if !ok {
+				t.Fatalf("PlayerDeathSprite(pacman=%v, frame=%d) returned ok=false", pacmanMode, frame)
+			}
+			litCount := 0
+			for dy := range config.Sprite {
+				for dx := range config.Sprite {
+					r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
+					if r > 0 || g > 0 || b > 0 {
+						litCount++
+					}
+				}
+			}
+			if litCount == 0 {
+				t.Errorf("PlayerDeathSprite(pacman=%v, frame=%d) at %v has no lit pixels", pacmanMode, frame, origin)
+			}
+		}
+	}
+}

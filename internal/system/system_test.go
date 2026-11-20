@@ -845,3 +845,131 @@ func TestAdvanceToNextLevelResetsRoundAndActors(t *testing.T) {
 		t.Fatalf("expected level to clamp at 255, got %d", got)
 	}
 }
+
+func TestCollideHitboxBoundary(t *testing.T) {
+	tests := []struct {
+		name   string
+		dx, dy float32
+		want   bool
+	}{
+		{"dead center", 0, 0, true},
+		{"slightly before center horizontal", 5, 0, true},
+		{"slightly before center vertical", 0, -5, true},
+		{"slightly before center diagonal", 5, 5, true},
+		{"edge graze horizontal", 6, 0, false},
+		{"edge graze vertical", 0, 6, false},
+		{"adjacent tile", float32(config.Tile), 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := system.Collide(100, 100, 100+tt.dx, 100+tt.dy); got != tt.want {
+				t.Errorf("Collide offset (%v,%v) = %v, want %v", tt.dx, tt.dy, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
+	for _, state := range []config.GhostState{
+		config.Eaten,
+		config.InHouse,
+		config.LeavingHouse,
+		config.EnteringHouse,
+	} {
+		w, player, ghosts := newTestWorld(t)
+		blinky := ghosts[0]
+		component.Ghost.Get(blinky).State = state
+
+		pos := config.Vector{X: 80, Y: 80}
+		component.Transform.Get(player).Pos = pos
+		component.Transform.Get(blinky).Pos = pos
+
+		system.NewCollisionSystem().Update(w)
+		events.ProcessAllEvents(w)
+
+		if component.MustFindGameState(w).PlayerDying || component.Actor.Get(player).IsEaten {
+			t.Fatalf("ghost in state %v must not eat player", state)
+		}
+	}
+
+	for _, state := range []config.GhostState{config.Chase, config.Scatter} {
+		w, player, ghosts := newTestWorld(t)
+		blinky := ghosts[0]
+		component.Ghost.Get(blinky).State = state
+
+		// Overlap slightly before dead center (5px offset).
+		component.Transform.Get(player).Pos = config.Vector{X: 80, Y: 80}
+		component.Transform.Get(blinky).Pos = config.Vector{X: 85, Y: 80}
+
+		system.NewCollisionSystem().Update(w)
+		events.ProcessAllEvents(w)
+
+		if !component.MustFindGameState(w).PlayerDying {
+			t.Fatalf("expected PlayerDying=true when colliding with %v ghost", state)
+		}
+		if !component.Actor.Get(player).IsEaten {
+			t.Fatalf("expected player IsEaten=true when colliding with %v ghost", state)
+		}
+	}
+}
+
+func TestConsumeLifeAndRespawnPreservesDotsAndHandlesGameOver(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	maze := component.MustFindMaze(w)
+	prng := component.MustFindPRNG(w)
+
+	gs.SetLevel(2)
+	gs.Lives = 2
+	gs.Score = 5400
+	gs.HighScore = 6000
+	gs.DotsEaten = 120
+	gs.DotsRemaining = 80
+	gs.FrameCount = 900
+	gs.GhostState = config.Chase
+	gs.PlayerDying = true
+	maze.SetCell(5, 5, component.Dot)
+	prng.NextByte()
+
+	component.Actor.Get(player).IsEaten = true
+	component.Transform.Get(player).Pos = config.Vector{X: 64, Y: 64}
+	component.Transform.Get(player).Dir = config.Down
+	component.Transform.Get(ghosts[0]).Pos = config.Vector{X: 64, Y: 64}
+	component.Ghost.Get(ghosts[0]).State = config.Chase
+
+	// First death: 2 -> 1 life remaining, respawn on same level.
+	if ok := system.ConsumeLifeAndRespawn(w); !ok {
+		t.Fatalf("expected ConsumeLifeAndRespawn=true with 1 life remaining")
+	}
+	if gs.Lives != 1 || gs.GameOver || gs.PlayerDying {
+		t.Fatalf("after 1st death: Lives=%d GameOver=%v PlayerDying=%v", gs.Lives, gs.GameOver, gs.PlayerDying)
+	}
+	if gs.Level != 2 || gs.Score != 5400 || gs.HighScore != 6000 || gs.DotsEaten != 120 || gs.DotsRemaining != 80 {
+		t.Fatalf("level/score/dots not preserved on respawn: %+v", gs)
+	}
+	if maze.GetCell(5, 5) != component.Dot {
+		t.Fatalf("maze dot unexpectedly altered on respawn")
+	}
+	if gs.FrameCount != 0 || gs.GhostState != config.Scatter || prng.Index != 0 {
+		t.Fatalf("wave/PRNG state not reset on respawn: frame=%d ghostState=%v prng=%d", gs.FrameCount, gs.GhostState, prng.Index)
+	}
+	if component.Actor.Get(player).IsEaten {
+		t.Fatalf("expected player IsEaten=false after respawn")
+	}
+	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
+		t.Fatalf("player Pos = %v, want spawn %v", got, want)
+	}
+	if got, want := component.Transform.Get(ghosts[0]).Pos, component.Spawn.Get(ghosts[0]).StartPos; got != want {
+		t.Fatalf("Blinky Pos = %v, want spawn %v", got, want)
+	}
+
+	// Second death: 1 -> 0 lives remaining -> Game Over.
+	gs.PlayerDying = true
+	if ok := system.ConsumeLifeAndRespawn(w); ok {
+		t.Fatalf("expected ConsumeLifeAndRespawn=false when losing last life")
+	}
+	if gs.Lives != 0 || !gs.GameOver || gs.PlayerDying {
+		t.Fatalf("after last life: Lives=%d GameOver=%v PlayerDying=%v", gs.Lives, gs.GameOver, gs.PlayerDying)
+	}
+}

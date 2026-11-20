@@ -53,6 +53,10 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 		rl.BeginShaderMode(r.art.Shader)
 		DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
 		rl.EndShaderMode()
+	} else if opts.ShowGameOver {
+		rl.BeginShaderMode(r.art.Shader)
+		DrawText(r.art.Font, "GAME OVER", 9, 17, rl.Red)
+		rl.EndShaderMode()
 	}
 	rl.EndMode2D()
 
@@ -66,7 +70,11 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	showGhostScore := opts.ShowGhostScore || gameState.GhostEatenPause > 0
 	if !opts.HidePlayer && !showGhostScore {
 		for entry := range r.playerQuery.Iter(w) {
-			r.drawPlayer(gameState, component.Transform.Get(entry), component.Animation.Get(entry))
+			if opts.PlayerDying {
+				r.drawPlayerDeath(gameState, component.Transform.Get(entry), opts.PlayerDeathFrame)
+			} else {
+				r.drawPlayer(gameState, component.Transform.Get(entry), component.Animation.Get(entry))
+			}
 		}
 	}
 
@@ -229,6 +237,33 @@ func (r *Renderer) drawPlayer(
 	}
 
 	r.drawSprite(transform.Pos, sprite, anim.FrameIndex)
+}
+
+// PlayerDeathSprite returns the top-left spritesheet pixel coordinates in
+// assets/game.png for a non-looping player death frame (0..PlayerDyingFrameCount-1).
+// Classic Pac-Man uses the 11-frame collapse+starburst row at Y=992; Ms. Pac-Man
+// spins through her 4 directional sprites (Down, Left, Up, Right).
+func PlayerDeathSprite(pacmanMode bool, frame int) (config.Vector, bool) {
+	if frame < 0 || frame >= config.PlayerDyingFrameCount {
+		return config.Vector{}, false
+	}
+	if pacmanMode {
+		return config.Vector{X: 504 + frame*config.Sprite, Y: 992}, true
+	}
+	spinRows := [4]int{48, 16, 32, 0} // Down, Left, Up, Right
+	return config.Vector{X: 472, Y: spinRows[frame%len(spinRows)]}, true
+}
+
+func (r *Renderer) drawPlayerDeath(
+	gameState *component.GameStateData,
+	transform *component.TransformData,
+	frame int,
+) {
+	sprite, ok := PlayerDeathSprite(gameState.PacmanMode, frame)
+	if !ok {
+		return
+	}
+	r.drawSprite(transform.Pos, sprite, 0)
 }
 
 func (r *Renderer) drawGhost(

@@ -87,6 +87,9 @@ func newSceneHarness(t *testing.T, pacmanMode bool) (*scene.Context, *stubInput,
 		ReadyDuration:          5,
 		RoundClearedHoldFrames: 4,
 		RoundClearedFlashes:    2,
+		PlayerDyingHoldFrames:  3,
+		PlayerDyingFrameTicks:  2,
+		PlayerDyingPostFrames:  2,
 	}
 	mgr := scene.NewManager(nil)
 	ctx.Manager = mgr
@@ -446,5 +449,133 @@ func TestRealSpritesheetLevelProgressionIfPresent(t *testing.T) {
 	}
 	if gs.Level != 3 || maze.GetIndex() != 1 || gs.DotsRemaining == 0 {
 		t.Fatalf("unexpected Level 3 state: level=%d index=%d dots=%d", gs.Level, maze.GetIndex(), gs.DotsRemaining)
+	}
+}
+
+func TestGhostEatsPlayerPlaysDeathAnimationAndRespawns(t *testing.T) {
+	ctx, input, drawer, player, ghosts := newSceneHarness(t, true)
+	gs := component.MustFindGameState(ctx.World)
+	gs.Lives = 3
+	gs.Score = 500
+	gs.DotsEaten = 20
+	gs.DotsRemaining = 80
+
+	blinky := ghosts[0]
+	component.Ghost.Get(blinky).State = config.Chase
+	hitPos := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	component.Transform.Get(player).Pos = hitPos
+	component.Transform.Get(blinky).Pos = config.Vector{X: hitPos.X + 4, Y: hitPos.Y}
+
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+
+	// Collision frame transitions immediately into PacmanDyingScene and freezes actors.
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.PacmanDyingScene); !ok {
+		t.Fatalf("expected PacmanDyingScene after ghost eats player, got %T", ctx.Manager.Current())
+	}
+	if got := component.Transform.Get(player).Pos; got != hitPos {
+		t.Fatalf("player moved on death frame: got %v, want %v", got, hitPos)
+	}
+
+	// Space pause halts the death animation timer.
+	input.state = system.InputState{PausePressed: true}
+	ctx.Manager.Update()
+	if !gs.Paused {
+		t.Fatalf("expected pause during PacmanDyingScene")
+	}
+	input.state = system.InputState{PausePressed: true}
+	ctx.Manager.Update() // unpauses and advances 1 frame
+	input.state = system.InputState{}
+
+	// Run through remaining death frames and verify hold -> 11 non-looping frames -> post-blank.
+	seenHold := false
+	seenPostBlank := false
+	maxDeathFrame := -1
+	totalDeath := ctx.PlayerDyingHoldFrames + config.PlayerDyingFrameCount*ctx.PlayerDyingFrameTicks + ctx.PlayerDyingPostFrames
+	for range totalDeath - 1 {
+		ctx.Manager.Draw()
+		opts := drawer.worldCalls[len(drawer.worldCalls)-1]
+		switch {
+		case !opts.HideGhosts && !opts.PlayerDying && !opts.HidePlayer:
+			seenHold = true
+		case opts.PlayerDying && opts.HideGhosts:
+			if opts.PlayerDeathFrame < maxDeathFrame {
+				t.Fatalf("death animation looped backwards: %d -> %d", maxDeathFrame, opts.PlayerDeathFrame)
+			}
+			maxDeathFrame = opts.PlayerDeathFrame
+		case opts.HidePlayer && opts.HideGhosts:
+			seenPostBlank = true
+		}
+		ctx.Manager.Update()
+	}
+
+	if !seenHold || !seenPostBlank || maxDeathFrame != config.PlayerDyingFrameCount-1 {
+		t.Fatalf("incomplete death phases: hold=%v postBlank=%v maxFrame=%d (want %d)",
+			seenHold, seenPostBlank, maxDeathFrame, config.PlayerDyingFrameCount-1)
+	}
+
+	// Respawned into ReadyScene with 2 lives left, preserved dots/score, and reset positions.
+	if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
+		t.Fatalf("expected ReadyScene after losing 1 life, got %T", ctx.Manager.Current())
+	}
+	if gs.Lives != 2 || gs.GameOver || gs.PlayerDying {
+		t.Fatalf("unexpected state after respawn: Lives=%d GameOver=%v PlayerDying=%v", gs.Lives, gs.GameOver, gs.PlayerDying)
+	}
+	if gs.Score != 500 || gs.DotsEaten != 20 || gs.DotsRemaining != 80 {
+		t.Fatalf("progress lost on respawn: Score=%d DotsEaten=%d DotsRemaining=%d", gs.Score, gs.DotsEaten, gs.DotsRemaining)
+	}
+	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
+		t.Fatalf("player did not respawn at start: got %v, want %v", got, want)
+	}
+	if got, want := component.Transform.Get(blinky).Pos, component.Spawn.Get(blinky).StartPos; got != want {
+		t.Fatalf("Blinky did not reset to start: got %v, want %v", got, want)
+	}
+}
+
+func TestLosingLastLifeTransitionsToGameOverScene(t *testing.T) {
+	ctx, _, drawer, player, ghosts := newSceneHarness(t, false)
+	gs := component.MustFindGameState(ctx.World)
+	gs.Lives = 1
+
+	blinky := ghosts[0]
+	component.Ghost.Get(blinky).State = config.Scatter
+	pos := config.Vector{X: 12 * config.Tile, Y: 10 * config.Tile}
+	component.Transform.Get(player).Pos = pos
+	component.Transform.Get(blinky).Pos = pos
+
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+	ctx.Manager.Update()
+
+	if _, ok := ctx.Manager.Current().(*scene.PacmanDyingScene); !ok {
+		t.Fatalf("expected PacmanDyingScene, got %T", ctx.Manager.Current())
+	}
+
+	totalDeath := ctx.PlayerDyingHoldFrames + config.PlayerDyingFrameCount*ctx.PlayerDyingFrameTicks + ctx.PlayerDyingPostFrames
+	for range totalDeath {
+		ctx.Manager.Update()
+	}
+
+	if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
+		t.Fatalf("expected GameOverScene after losing last life, got %T", ctx.Manager.Current())
+	}
+	if gs.Lives != 0 || !gs.GameOver {
+		t.Fatalf("expected Lives=0 GameOver=true, got Lives=%d GameOver=%v", gs.Lives, gs.GameOver)
+	}
+
+	// GameOverScene stays frozen permanently and renders GAME OVER with actors hidden.
+	frameBefore := gs.FrameCount
+	for range 20 {
+		ctx.Manager.Update()
+		ctx.Manager.Draw()
+	}
+	if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
+		t.Fatalf("GameOverScene unexpectedly transitioned to %T", ctx.Manager.Current())
+	}
+	if gs.FrameCount != frameBefore {
+		t.Fatalf("FrameCount advanced during GameOverScene: %d -> %d", frameBefore, gs.FrameCount)
+	}
+	last := drawer.worldCalls[len(drawer.worldCalls)-1]
+	if !last.ShowGameOver || !last.HidePlayer || !last.HideGhosts {
+		t.Fatalf("unexpected GameOver draw options: %+v", last)
 	}
 }

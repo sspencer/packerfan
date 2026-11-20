@@ -72,10 +72,11 @@ func (s *CollisionSystem) Update(w donburi.World) {
 	}
 }
 
-// Collide reports whether two 16x16 sprites overlap after applying a 20% inset
-// on each side so collisions feel fair.
+// Collide reports whether two 16x16 sprites overlap within their inner 6x6 core
+// hitbox (5px inset per side). This triggers slightly before exact center so
+// adjacent-tile grazes do not count as hits while preventing head-on pass-throughs.
 func Collide(px, py, gx, gy float32) bool {
-	const inset = float32(config.Sprite) * 0.20
+	const inset = float32(5)
 	const box = float32(config.Sprite) - 2.0*inset
 
 	pLeft := px + inset

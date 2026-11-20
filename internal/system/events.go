@@ -1,8 +1,6 @@
 package system
 
 import (
-	"fmt"
-
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
@@ -106,12 +104,21 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState.GhostEatenY = ev.Y
 		gameState.GhostEatenEntity = ev.Entity
 		gameState.GhostEatenScore = points
-
-		fmt.Println("Player ate ghost: ", ev.ID.String())
 	})
 
-	event.PlayerEaten.Subscribe(w, func(_ donburi.World, _ event.PlayerEatenEvent) {
-		fmt.Println("Ghost ate player")
+	event.PlayerEaten.Subscribe(w, func(w donburi.World, ev event.PlayerEatenEvent) {
+		if !w.Valid(ev.Entity) {
+			return
+		}
+		entry := w.Entry(ev.Entity)
+		actor := component.Actor.Get(entry)
+		if actor.IsEaten {
+			return
+		}
+		actor.IsEaten = true
+
+		gameState := component.MustFindGameState(w)
+		gameState.PlayerDying = true
 	})
 
 	event.GhostStateChanged.Subscribe(w, func(w donburi.World, ev event.GhostStateChangedEvent) {
@@ -146,6 +153,5 @@ func RegisterEventHandlers(w donburi.World) {
 			return
 		}
 		gameState.LevelComplete = true
-		fmt.Println("Level complete!")
 	})
 }

@@ -18,6 +18,10 @@ const (
 	RoundClearedHoldFrames      = 61
 	RoundClearedFlashHalfFrames = 14
 	RoundClearedFlashes         = 4
+	PlayerDyingHoldFrames       = 61
+	PlayerDyingFrameCount       = 11
+	PlayerDyingFrameTicks       = 7
+	PlayerDyingPostFrames       = 30
 	TargetFPS                   = 61
 	ArcadeFPS                   = 60.606061
 )
