@@ -80,29 +80,26 @@ func (s *GhostSystem) Update(w donburi.World) {
 				if isCruiseElroy(gameState, ghost) && playerTransform != nil {
 					target = computeChaseTarget(ghost, transform, playerTransform, blinkyTransform)
 				}
-				updateGhostTarget(maze, prng, transform, ghost, target)
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, target)
 			}
 		case config.Chase:
 			if IsCentered(transform.Pos) && playerTransform != nil {
 				target := computeChaseTarget(ghost, transform, playerTransform, blinkyTransform)
-				updateGhostTarget(maze, prng, transform, ghost, target)
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, target)
 			}
 		case config.Frightened:
 			if IsCentered(transform.Pos) {
-				dir := chooseGhostDirection(maze, prng, transform, ghost)
-				if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
-					transform.Dir = dir
-					ghost.PixelsMoved = 0
-				}
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, config.Vector{})
 			}
 		case config.Eaten:
 			if transform.Pos == house.Entrance {
 				ghost.State = config.EnteringHouse
+				ghost.HasNextDir = false
 				transform.Dir = config.Down
 				continue
 			}
 			if IsCentered(transform.Pos) {
-				updateGhostTarget(maze, prng, transform, ghost, house.Entrance)
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, house.Entrance)
 			}
 		default:
 			fmt.Printf("unhandled %q state for ghost %s\n", ghost.State.String(), actor.ID.String())
@@ -115,6 +112,7 @@ func (s *GhostSystem) Update(w donburi.World) {
 		if ghost.State == config.Eaten && crossedHorizontalPoint(oldPos, transform.Pos, house.Entrance) {
 			transform.Pos = house.Entrance
 			ghost.State = config.EnteringHouse
+			ghost.HasNextDir = false
 			transform.Dir = config.Down
 			continue
 		}
@@ -205,19 +203,56 @@ func updateGhostAnimation(anim *component.AnimationData) {
 	}
 }
 
-func updateGhostTarget(
+// updateGhostTurnWithLookahead applies any reversal or previously planned
+// one-tile-ahead direction at the current centered tile, then precomputes the
+// turn to execute when the ghost reaches the next tile.
+func updateGhostTurnWithLookahead(
 	maze *component.MazeData,
 	prng *component.PRNGData,
 	transform *component.TransformData,
 	ghost *component.GhostData,
 	target config.Vector,
 ) {
+	curTile := transform.Pos.ToTile()
 	ghost.Target = target
-	dir := chooseGhostDirection(maze, prng, transform, ghost)
-	if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
-		transform.Dir = dir
-		ghost.PixelsMoved = 0
+
+	switch {
+	case ghost.Reverse:
+		ghost.Reverse = false
+		ghost.HasNextDir = false
+		if ghost.PixelsMoved >= config.Tile {
+			transform.Dir = transform.Dir.Opposite()
+			ghost.PixelsMoved = 0
+		}
+	case ghost.HasNextDir && curTile == ghost.PlannedTile:
+		dir := ghost.NextDir
+		ghost.HasNextDir = false
+		if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
+			transform.Dir = dir
+			ghost.PixelsMoved = 0
+		}
+	default:
+		ghost.HasNextDir = false
+		dir := chooseDirectionAt(maze, prng, curTile, transform.Dir, ghost.State, target)
+		if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
+			transform.Dir = dir
+			ghost.PixelsMoved = 0
+		}
 	}
+
+	nextTile := curTile.AddDir(transform.Dir)
+	if nextTile.X < 0 {
+		nextTile.X += config.GameWidth
+	} else if nextTile.X >= config.GameWidth {
+		nextTile.X -= config.GameWidth
+	}
+	if !isValidGhostTile(maze, ghost.State, nextTile, transform.Dir) {
+		return
+	}
+
+	ghost.NextDir = chooseDirectionAt(maze, prng, nextTile, transform.Dir, ghost.State, target)
+	ghost.PlannedTile = nextTile
+	ghost.HasNextDir = true
 }
 
 func updateGhostEnteringHouse(
@@ -309,6 +344,7 @@ func updateGhostLeavingHouse(
 
 	// Reached the corridor above the door: enter active wave state.
 	ghost.State = gameState.GhostState
+	ghost.HasNextDir = false
 	ghost.PixelsMoved = config.Tile
 	transform.Dir = chooseRandomDirection(prng, transform.Dir, []config.Direction{config.Right, config.Left})
 	if ghost.AIKind == component.ClydeAI {

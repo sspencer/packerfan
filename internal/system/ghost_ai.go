@@ -123,32 +123,28 @@ func isValidGhostTile(maze *component.MazeData, state config.GhostState, t confi
 	return true
 }
 
-func chooseGhostDirection(
+func chooseDirectionAt(
 	maze *component.MazeData,
 	prng *component.PRNGData,
-	transform *component.TransformData,
-	ghost *component.GhostData,
+	curTile config.Vector,
+	curDir config.Direction,
+	state config.GhostState,
+	target config.Vector,
 ) config.Direction {
-	if ghost.Reverse {
-		ghost.Reverse = false
-		return transform.Dir.Opposite()
+	if state == config.Frightened {
+		return chooseFrightenedDirectionAt(maze, prng, curTile, curDir, state)
 	}
 
-	if ghost.State == config.Frightened {
-		return chooseFrightenedDirection(maze, prng, transform, ghost)
-	}
-
-	bestDir := transform.Dir
+	bestDir := curDir
 	minDist := math.MaxInt
-	targetTile := ghost.Target.ToTile()
-	curTile := transform.Pos.ToTile()
+	targetTile := target.ToTile()
 
 	for _, dir := range config.GhostPriorityDirs {
-		if dir == transform.Dir.Opposite() {
+		if dir == curDir.Opposite() {
 			continue
 		}
 		nextTile := curTile.AddDir(dir)
-		if !isValidGhostTile(maze, ghost.State, nextTile, dir) {
+		if !isValidGhostTile(maze, state, nextTile, dir) {
 			continue
 		}
 		if d := nextTile.DistanceSq(targetTile); d < minDist {
@@ -160,30 +156,30 @@ func chooseGhostDirection(
 	return bestDir
 }
 
-func chooseFrightenedDirection(
+func chooseFrightenedDirectionAt(
 	maze *component.MazeData,
 	prng *component.PRNGData,
-	transform *component.TransformData,
-	ghost *component.GhostData,
+	tile config.Vector,
+	curDir config.Direction,
+	state config.GhostState,
 ) config.Direction {
-	tile := transform.Pos.ToTile()
 	var allowedDirs []config.Direction
 
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Right), config.Right) {
+	if isValidGhostTile(maze, state, tile.AddDir(config.Right), config.Right) {
 		allowedDirs = append(allowedDirs, config.Right)
 	}
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Left), config.Left) {
+	if isValidGhostTile(maze, state, tile.AddDir(config.Left), config.Left) {
 		allowedDirs = append(allowedDirs, config.Left)
 	}
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Up), config.Up) {
+	if isValidGhostTile(maze, state, tile.AddDir(config.Up), config.Up) {
 		allowedDirs = append(allowedDirs, config.Up)
 	}
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Down), config.Down) {
+	if isValidGhostTile(maze, state, tile.AddDir(config.Down), config.Down) {
 		allowedDirs = append(allowedDirs, config.Down)
 	}
 
 	preferred := prng.PreferredDirection()
-	reverse := transform.Dir.Opposite()
+	reverse := curDir.Opposite()
 
 	for range config.DirCount {
 		if slices.Contains(allowedDirs, preferred) && preferred != reverse {
@@ -192,7 +188,7 @@ func chooseFrightenedDirection(
 		preferred = preferred.ClockwiseNext()
 	}
 
-	return transform.Dir
+	return curDir
 }
 
 func chooseRandomDirection(prng *component.PRNGData, fallback config.Direction, allowedDirs []config.Direction) config.Direction {

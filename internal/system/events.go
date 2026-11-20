@@ -100,6 +100,7 @@ func RegisterEventHandlers(w donburi.World) {
 		ghost := component.Ghost.Get(entry)
 		ghost.State = config.Eaten
 		ghost.Reverse = false
+		ghost.HasNextDir = false
 
 		gameState := component.MustFindGameState(w)
 		gameState.NumGhostsEaten++
@@ -152,6 +153,7 @@ func RegisterEventHandlers(w donburi.World) {
 			g := component.Ghost.Get(ghostEntry)
 			if g.State == config.Frightened {
 				g.State = gameState.GhostState
+				g.HasNextDir = false
 			}
 		}
 	})

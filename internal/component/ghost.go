@@ -26,6 +26,9 @@ type GhostData struct {
 	EatenTarget   config.Vector
 	PixelsMoved   int
 	Reverse       bool
+	NextDir       config.Direction
+	PlannedTile   config.Vector
+	HasNextDir    bool
 	SpriteRow     int
 }
 
@@ -54,5 +57,7 @@ func ResetGhost(entry *donburi.Entry) {
 	ghost.Target = config.Vector{}
 	ghost.PixelsMoved = config.Tile
 	ghost.Reverse = false
+	ghost.HasNextDir = false
+	ghost.PlannedTile = config.Vector{}
 	ResetToStart(entry)
 }

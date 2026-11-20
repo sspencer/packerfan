@@ -493,6 +493,51 @@ func TestGhostChaseTargetingUsesPlayerCenterTile(t *testing.T) {
 	}
 }
 
+func TestGhostOneTileAheadLookahead(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Chase
+	gs.Spec.GhostSpeed = config.Speed80 // 1 px/frame
+
+	// Build a corridor along Y=10 from X=8..10 with a T-intersection at (10,10)
+	// branching Up (10,9) and Down (10,11), wall to the right at (11,10).
+	maze := component.MustFindMaze(w)
+	maze.SetCell(9, 9, component.Wall)
+	maze.SetCell(9, 11, component.Wall)
+	maze.SetCell(11, 10, component.Wall)
+
+	blinkyEntry := ghosts[0]
+	blinkyTr := component.Transform.Get(blinkyEntry)
+	blinkyGhost := component.Ghost.Get(blinkyEntry)
+	blinkyGhost.State = config.Chase
+	blinkyGhost.PixelsMoved = config.Tile
+	blinkyTr.Pos = config.Vector{X: 9 * config.Tile, Y: 10 * config.Tile}
+	blinkyTr.Dir = config.Right
+
+	// Player is initially ABOVE the intersection -> lookahead at (9,10) plans Up for (10,10).
+	component.Transform.Get(player).Pos = config.Vector{X: 10 * config.Tile, Y: 4 * config.Tile}
+
+	ghostSys := system.NewGhostSystem()
+	ghostSys.Update(w) // At (9,10): plans NextDir=Up for (10,10), steps 1px right to X=73.
+	if !blinkyGhost.HasNextDir || blinkyGhost.PlannedTile != (config.Vector{X: 10, Y: 10}) || blinkyGhost.NextDir != config.Up {
+		t.Fatalf("expected lookahead NextDir=Up for (10,10), got has=%v tile=%v dir=%v",
+			blinkyGhost.HasNextDir, blinkyGhost.PlannedTile, blinkyGhost.NextDir)
+	}
+
+	// Move player BELOW the intersection while Blinky is mid-tile between (9,10) and (10,10).
+	component.Transform.Get(player).Pos = config.Vector{X: 10 * config.Tile, Y: 20 * config.Tile}
+
+	// Advance 7 more ticks to reach (10,10) and execute the precomputed turn.
+	for range 7 {
+		ghostSys.Update(w)
+	}
+	// On the next tick at (10,10), Blinky must still execute the pre-planned Up turn.
+	ghostSys.Update(w)
+	if blinkyTr.Dir != config.Up {
+		t.Fatalf("expected Blinky to honor pre-planned Up turn at (10,10), got %v", blinkyTr.Dir)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 
