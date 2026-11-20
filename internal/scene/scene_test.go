@@ -507,7 +507,7 @@ func TestGhostEatsPlayerPlaysDeathAnimationAndRespawns(t *testing.T) {
 	component.Ghost.Get(blinky).State = config.Chase
 	hitPos := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
 	component.Transform.Get(player).Pos = hitPos
-	component.Transform.Get(blinky).Pos = config.Vector{X: hitPos.X + 4, Y: hitPos.Y}
+	component.Transform.Get(blinky).Pos = config.Vector{X: hitPos.X + 3, Y: hitPos.Y}
 
 	ctx.Manager.Start(scene.NewPlayingScene(ctx))
 

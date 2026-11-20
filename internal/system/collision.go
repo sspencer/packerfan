@@ -35,18 +35,13 @@ func (s *CollisionSystem) Update(w donburi.World) {
 
 	playerActor := component.Actor.Get(playerEntry)
 	playerTransform := component.Transform.Get(playerEntry)
-	px := float32(playerTransform.Pos.X)
-	py := float32(playerTransform.Pos.Y)
 
 	for ghostEntry := range s.ghostQuery.Iter(w) {
 		ghostActor := component.Actor.Get(ghostEntry)
 		ghostTransform := component.Transform.Get(ghostEntry)
 		ghost := component.Ghost.Get(ghostEntry)
 
-		gx := float32(ghostTransform.Pos.X)
-		gy := float32(ghostTransform.Pos.Y)
-
-		if !Collide(px, py, gx, gy) {
+		if !SameTileCollide(playerTransform.Pos, ghostTransform.Pos) {
 			continue
 		}
 
@@ -70,6 +65,12 @@ func (s *CollisionSystem) Update(w donburi.World) {
 			break
 		}
 	}
+}
+
+// SameTileCollide reports whether two actors occupy the same center-aligned
+// 8x8 maze tile, matching the original arcade Pac-Man collision rule.
+func SameTileCollide(pPos, gPos config.Vector) bool {
+	return pPos.ToCenterTile() == gPos.ToCenterTile()
 }
 
 // Collide reports whether two 16x16 sprites overlap within their inner 6x6 core

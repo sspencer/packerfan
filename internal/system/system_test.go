@@ -1514,6 +1514,28 @@ func TestCollideHitboxBoundary(t *testing.T) {
 	}
 }
 
+func TestSameTileCollide(t *testing.T) {
+	base := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile} // center tile (10,10): X,Y in [76..83]
+	tests := []struct {
+		name string
+		b    config.Vector
+		want bool
+	}{
+		{"identical", base, true},
+		{"same tile +3px", config.Vector{X: base.X + 3, Y: base.Y + 3}, true},
+		{"same tile -4px", config.Vector{X: base.X - 4, Y: base.Y - 4}, true},
+		{"next tile +4px", config.Vector{X: base.X + 4, Y: base.Y}, false},
+		{"prev tile -5px", config.Vector{X: base.X - 5, Y: base.Y}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := system.SameTileCollide(base, tt.b); got != tt.want {
+				t.Errorf("SameTileCollide(%v, %v) = %v, want %v", base, tt.b, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 	for _, state := range []config.GhostState{
 		config.Eaten,
@@ -1542,9 +1564,9 @@ func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 		blinky := ghosts[0]
 		component.Ghost.Get(blinky).State = state
 
-		// Overlap slightly before dead center (5px offset).
+		// Same center-aligned tile (80 and 83 both occupy tile 10).
 		component.Transform.Get(player).Pos = config.Vector{X: 80, Y: 80}
-		component.Transform.Get(blinky).Pos = config.Vector{X: 85, Y: 80}
+		component.Transform.Get(blinky).Pos = config.Vector{X: 83, Y: 80}
 
 		system.NewCollisionSystem().Update(w)
 		events.ProcessAllEvents(w)
