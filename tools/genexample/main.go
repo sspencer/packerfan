@@ -1,5 +1,5 @@
 // Command genexample generates placeholder spritesheets for local development:
-// assets/game-example.png and assets/text-example.png. Every sprite, maze, and
+// assets/game.png and assets/text.png. Every sprite, maze, and
 // glyph is drawn as a simple shape at the coordinates the game reads (see
 // assets/README.md).
 //
@@ -9,7 +9,7 @@
 //
 // Usage:
 //
-//	go run ./tools/genexample assets/game-example.png assets/text-example.png
+//	go run ./tools/genexample assets/game.png assets/text.png
 package main
 
 import (
@@ -578,7 +578,7 @@ func savePNG(path string) {
 
 func main() {
 	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: genexample <out game-example.png> <out text-example.png>")
+		fmt.Fprintln(os.Stderr, "usage: genexample <out game.png> <out text.png>")
 		os.Exit(2)
 	}
 	gameOut, textOut := os.Args[1], os.Args[2]
@@ -616,7 +616,7 @@ func main() {
 	}
 	fmt.Println("tile mismatches:", mismatch)
 
-	// text-example.png
+	// text.png
 	img = image.NewRGBA(image.Rect(0, 0, 128, 224))
 	rect(0, 0, 128, 224, black)
 	for i := range 15 {

@@ -64,7 +64,7 @@ The ECS and scene packages already have no Raylib imports, and scenes already ta
 
 `MazeData.LoadLevel` builds the tile grid by sampling spritesheet pixels through an `isPixelLit` callback, and today that callback comes from `render.Art`, which loads the PNG through Raylib.
 
-- Add a small pure-Go package (for example `internal/sheet`) that decodes `assets/game.png` (or `game-example.png`) with `image/png` from an `fs.FS` and returns `isPixelLit(x, y int) bool`. The tests already contain this logic; it just needs a shared home.
+- Add a small pure-Go package (for example `internal/sheet`) that decodes the game spritesheet (`assets/game-real.png` when present, otherwise the placeholder `assets/game.png`, as chosen by `render.GameAssetPath`) with `image/png` from an `fs.FS` and returns `isPixelLit(x, y int) bool`. The tests already contain this logic; it just needs a shared home.
 - Decode the sheet **once per process** and share the read-only pixel data across all environments.
 - Better still, parse each of the five maze grids once and cache the result, so a level reset copies a 28×31 grid instead of sampling about 55,000 pixels.
 
@@ -175,7 +175,7 @@ One tick is a handful of systems over 5 entities and a 868-tile grid. I would me
 magic "PFR1" | format version
 header (JSON, length-prefixed):
   game version (git commit), mode (Ms. Pac-Man / Pac-Man), start level,
-  PRNG seed, timing profile, art used (-ex or real), recorded at,
+  PRNG seed, timing profile, art used (real or placeholder), recorded at,
   run id, agent checkpoint, episode number
 inputs: varint pairs (direction, ticks held) until the end of the game
 checkpoints: every 600 ticks, a 64-bit hash of the world state

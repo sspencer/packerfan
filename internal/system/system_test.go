@@ -16,6 +16,16 @@ import (
 	"pacfan/internal/system"
 )
 
+// spritesheetPath returns assets/game-real.png if it exists, otherwise the
+// tracked placeholder assets/game.png, matching the game's own load order.
+func spritesheetPath() string {
+	real := filepath.Join("..", "..", "assets", "game-real.png")
+	if _, err := os.Stat(real); err == nil {
+		return real
+	}
+	return filepath.Join("..", "..", "assets", "game.png")
+}
+
 type stubInput struct {
 	state system.InputState
 }
@@ -851,7 +861,7 @@ func TestWorldIsolationNoGlobalStateLeakage(t *testing.T) {
 }
 
 func TestMazeLoadLevelFromSpritesheetIfPresent(t *testing.T) {
-	path := filepath.Join("..", "..", "assets", "game.png")
+	path := spritesheetPath()
 	f, err := os.Open(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
@@ -954,7 +964,7 @@ func TestEatenGhostEntersHouseRegeneratesAndLeaves(t *testing.T) {
 }
 
 func TestEatenGhostNavigationOnRealMazesIfPresent(t *testing.T) {
-	path := filepath.Join("..", "..", "assets", "game.png")
+	path := spritesheetPath()
 	f, err := os.Open(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
@@ -1079,7 +1089,7 @@ func TestGhostHouseGeometryDerivedFromDoorTiles(t *testing.T) {
 }
 
 func TestGhostHouseGeometryOnRealMazesIfPresent(t *testing.T) {
-	path := filepath.Join("..", "..", "assets", "game.png")
+	path := spritesheetPath()
 	f, err := os.Open(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)

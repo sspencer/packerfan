@@ -2,20 +2,19 @@
 
 Arcade dot-eating maze game with ghosts built in Go using [Raylib](https://github.com/gen2brain/raylib-go) and the [Donburi](https://github.com/yohamta/donburi) Entity Component System (ECS). Supports both **Ms. Pac-Man** (default) and classic **Pac-Man** (`-pacman`) mazes, sprites, death animations, and intermissions.
 
-![Ms. Pac-Man gameplay using the placeholder example artwork (-ex)](docs/example-screenshot.png)
+![Ms. Pac-Man gameplay using the placeholder example artwork](docs/example-screenshot.png)
 
-*Gameplay with the placeholder example artwork (`go run . -ex`).*
+*Gameplay with the placeholder example artwork included in the repository.*
 
 See [Documentation](#documentation) for the architecture overview, asset format reference, and scripting API design.
 
 ## Prerequisites
 
 - **Go 1.27+** (see [go.mod](go.mod))
-- **Local artwork assets**: For copyright reasons, the original artwork is not included in this repository. To run the game with it, place compatible `assets/game.png` and `assets/text.png` files locally (originally sourced from [The Spriters Resource](https://www.spriters-resource.com/); see [assets/README.md](assets/README.md) for expected dimensions and layout).
+- **Artwork**: The repository includes placeholder spritesheets `assets/game.png` and `assets/text.png`, so the game runs out of the box. They use simple shapes and original maze layouts, drawn at the same positions as the real artwork. Regenerate them with `go run ./tools/genexample assets/game.png assets/text.png`.
+- **Original artwork (optional)**: For copyright reasons, the original artwork is not included in this repository. To use it, place compatible `assets/game-real.png` and `assets/text-real.png` files locally (originally sourced from [The Spriters Resource](https://www.spriters-resource.com/); see [assets/README.md](assets/README.md) for expected dimensions and layout) and rebuild. Each `*-real.png` file that exists is loaded in place of its placeholder.
 
-> **No artwork?** Run with `-ex` to use the placeholder spritesheets `assets/game-example.png` and `assets/text-example.png` included in the repository. They use simple shapes and original maze layouts, drawn at the same positions as the real artwork. Regenerate them with `go run ./tools/genexample assets/game-example.png assets/text-example.png`.
-
-> **Note**: `go test ./...` runs headlessly without Raylib or artwork, skipping only spritesheet-backed validation checks when `assets/game.png` is absent.
+> **Note**: `go test ./...` runs headlessly without Raylib. Spritesheet-backed validation checks use `assets/game-real.png` when present, otherwise `assets/game.png`.
 
 ## Running the Game
 
@@ -37,7 +36,6 @@ go run . -pacman -zoom 4
 | `-pacman` | `false` | Use classic Pac-Man maze, sprites, death animation, and intermissions instead of Ms. Pac-Man |
 | `-players` | `1` | Default player count on the attract screen (`1` or `2`) |
 | `-mute` | `false` | Disable arcade audio playback |
-| `-ex` | `false` | Use the placeholder example artwork (`assets/game-example.png`, `assets/text-example.png`) instead of `assets/game.png` and `assets/text.png` |
 
 ### Controls
 

@@ -2,22 +2,27 @@
 
 For copyright reasons, the original sprite artwork, bitmap fonts, and sound effects are not included in this repository (they are excluded via `.gitignore`). Placeholder example artwork is included instead (see [Tracked Assets](#tracked-assets)).
 
-At build time, `main.go` embeds the `assets/` directory with `//go:embed assets`, and `internal/render/art.go` loads `assets/game.png`, `assets/text.png`, and `assets/chroma_key.fs` on startup. To build and run the game locally, you must supply compatible `game.png` and `text.png` files.
+At build time, `main.go` embeds the `assets/` directory with `//go:embed assets`, and `internal/render/art.go` loads the spritesheets and `assets/chroma_key.fs` on startup. For each spritesheet it loads the original artwork if present, otherwise the tracked placeholder:
 
-> **Headless tests**: Running `go test ./...` does not require these PNG files. Tests that validate sprite coordinates or maze parsing against `assets/game.png` automatically skip when the file is absent.
+- Game atlas: `assets/game-real.png`, falling back to `assets/game.png`.
+- Font: `assets/text-real.png`, falling back to `assets/text.png`.
+
+> **Headless tests**: Tests that validate sprite coordinates or maze parsing read `assets/game-real.png` when present, otherwise `assets/game.png`.
 
 ---
 
 ## Tracked Assets
 
 - **`chroma_key.fs`**: GLSL 330 fragment shader used by `internal/render` to discard near-black pixels (`keyColor = (0, 0, 0)`, `threshold = 0.05`) when drawing sprites and bitmap-font overlays.
-- **`game-example.png`** and **`text-example.png`**: Placeholder stand-ins for `game.png` and `text.png`, loaded instead of them when the game runs with `-ex`. Every sprite and glyph is a simple shape drawn at the coordinates listed below. The five mazes are original layouts that keep the arcade ghost house, Pac-Man start position, tunnel rows, and exact dot and power-pellet pixel masks. Regenerate them with `go run ./tools/genexample assets/game-example.png assets/text-example.png` (`.gitignore` tracks `*-example.png`).
+- **`game.png`** and **`text.png`**: Placeholder stand-ins for the original artwork, loaded when `game-real.png` or `text-real.png` is absent. Every sprite and glyph is a simple shape drawn at the coordinates listed below. The five mazes are original layouts that keep the arcade ghost house, Pac-Man start position, tunnel rows, and exact dot and power-pellet pixel masks. Regenerate them with `go run ./tools/genexample assets/game.png assets/text.png`.
 
 ---
 
-## Required Local Assets (Not Included)
+## Optional Original Artwork (Not Included)
 
-### `assets/game.png` (`680×1240` PNG)
+`.gitignore` excludes `game-real.png` and `text-real.png`. Both follow the layout below, which the placeholders share.
+
+### `assets/game-real.png` (`680×1240` PNG)
 
 Main maze atlas and spritesheet.
 
@@ -43,7 +48,7 @@ Main maze atlas and spritesheet.
   - **Intermissions**: Ms. Pac-Man cutscene sprites at `y = 144, 160` and 32×32 clapperboard frames at `x = 456, y = 208`; classic Pac-Man 32×32 giant Pac-Man frames at `x = 504, y = 1008`.
   - **Classic Pac-Man**: `16×16`, 3 frames per direction at `x = 456`, `y = 992, 1008, 1024, 1040` (Right, Left, Up, Down), plus the 11-frame collapse/starburst death animation at `x = 504..664, y = 992`.
 
-### `assets/text.png` (`128×224` PNG)
+### `assets/text-real.png` (`128×224` PNG)
 
 8×8 arcade bitmap font used for the HUD, `"READY!"`, `"GAME OVER"`, and intermission titles (original source unknown). `internal/render/font.go` uppercases input strings and indexes 8×8 glyph cells as follows:
 

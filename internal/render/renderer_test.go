@@ -10,6 +10,16 @@ import (
 	"pacfan/internal/render"
 )
 
+// spritesheetPath returns assets/game-real.png if it exists, otherwise the
+// tracked placeholder assets/game.png, matching the game's own load order.
+func spritesheetPath() string {
+	real := filepath.Join("..", "..", "assets", "game-real.png")
+	if _, err := os.Stat(real); err == nil {
+		return real
+	}
+	return filepath.Join("..", "..", "assets", "game.png")
+}
+
 func TestGhostScoreSpriteMapping(t *testing.T) {
 	tests := []struct {
 		score  int
@@ -34,7 +44,7 @@ func TestGhostScoreSpriteMapping(t *testing.T) {
 }
 
 func TestGhostScoreSpritesPresentInSpritesheetIfPresent(t *testing.T) {
-	path := filepath.Join("..", "..", "assets", "game.png")
+	path := spritesheetPath()
 	f, err := os.Open(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
@@ -75,7 +85,7 @@ func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 		t.Fatalf("expected ok=false for out-of-range death frame")
 	}
 
-	path := filepath.Join("..", "..", "assets", "game.png")
+	path := spritesheetPath()
 	f, err := os.Open(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
@@ -110,7 +120,7 @@ func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 }
 
 func TestBonusFruitAndScoreSpritesInSpritesheetIfPresent(t *testing.T) {
-	path := filepath.Join("..", "..", "assets", "game.png")
+	path := spritesheetPath()
 	f, err := os.Open(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)

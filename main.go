@@ -4,7 +4,6 @@ import (
 	"embed"
 	"flag"
 	"fmt"
-	"io/fs"
 	"os"
 	"runtime/debug"
 	"strings"
@@ -28,40 +27,25 @@ func main() {
 	var pacman bool
 	var players int
 	var mute bool
-	var example bool
 	flag.IntVar(&zoom, "zoom", 3, "zoom level")
 	flag.BoolVar(&pacman, "pacman", false, "pacman mode")
 	flag.IntVar(&players, "players", 1, "default number of players (1 or 2)")
 	flag.BoolVar(&mute, "mute", false, "disable audio playback")
-	flag.BoolVar(&example, "ex", false, "use the placeholder assets/game-example.png and assets/text-example.png artwork")
 	flag.Parse()
 
 	zoom = max(1, min(zoom, 10))
 	players = max(1, min(players, 2))
 
-	var gameFS fs.FS = assetsFS
-	if example {
-		gameFS = render.ExampleArtFS(assetsFS)
-	}
-
 	// Assets are embedded at build time, so check them before opening a window.
-	if err := render.CheckAssets(gameFS); err != nil {
-		if example {
-			fmt.Fprintf(os.Stderr, `error: %v
-
--ex reads assets/game-example.png and assets/text-example.png in place of
-assets/game.png and assets/text.png. Generate them with
-  go run ./tools/genexample assets/game-example.png assets/text-example.png
-then rebuild: the assets are embedded into the binary at build time.
-`, err)
-			os.Exit(1)
-		}
+	if err := render.CheckAssets(assetsFS); err != nil {
 		fmt.Fprintf(os.Stderr, `error: %v
 
-The game artwork is not included in this repository for copyright reasons.
-Place the required PNG files in the assets/ directory (see assets/README.md
-for the expected format), then rebuild: the assets are embedded into the
-binary at build time, so adding them without rebuilding has no effect.
+The placeholder artwork assets/game.png and assets/text.png is tracked in the
+repository; regenerate it with
+  go run ./tools/genexample assets/game.png assets/text.png
+To use the original artwork instead, place assets/game-real.png and
+assets/text-real.png locally (see assets/README.md for the expected format).
+Rebuild afterwards: the assets are embedded into the binary at build time.
 `, err)
 		os.Exit(1)
 	}
@@ -99,7 +83,7 @@ and rebuild to enable missing sounds, or pass -mute to silence this warning.
 		Zoom:       float32(zoom),
 		Players:    players,
 		Mute:       mute,
-	}, gameFS)
+	}, assetsFS)
 	defer engine.Unload()
 
 	clock := config.NewArcadeClock()
