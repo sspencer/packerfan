@@ -165,3 +165,31 @@ func TestBonusFruitAndScoreSpritesInSpritesheetIfPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestFrightenedGhostFlashCount(t *testing.T) {
+	tests := []struct {
+		name        string
+		totalFrames int
+		flashes     int
+	}{
+		{"level 1 (6s, 5 flashes)", config.SecondsToFrames(6), 5},
+		{"level 9 (1s, 3 flashes)", config.SecondsToFrames(1), 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pulses := 0
+			prevWhite := false
+			for f := tt.totalFrames; f >= 1; f-- {
+				white := render.FrightenedGhostFlashWhite(f, tt.flashes)
+				if white && !prevWhite {
+					pulses++
+				}
+				prevWhite = white
+			}
+			if pulses != tt.flashes {
+				t.Errorf("white flash pulses = %d, want %d", pulses, tt.flashes)
+			}
+		})
+	}
+}

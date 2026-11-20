@@ -290,15 +290,13 @@ func (r *Renderer) drawGhost(
 		frameIndex = 0
 	case ghost.State == config.Frightened ||
 		(ghost.FrightenedInHouse && gameState.IsFrightMode && (ghost.State == config.InHouse || ghost.State == config.LeavingHouse)):
-		const flashFrames = 14
 		const blueX = 584
 		const whiteX = 616
 
-		sprite.X = whiteX
 		sprite.Y = 64
-
-		n := gameState.FrightFrames/flashFrames + 1
-		if n%2 == 0 || gameState.FrightFrames >= gameState.FrightFlashes*flashFrames {
+		if FrightenedGhostFlashWhite(gameState.FrightFrames, gameState.FrightFlashes) {
+			sprite.X = whiteX
+		} else {
 			sprite.X = blueX
 		}
 	default:
@@ -307,6 +305,22 @@ func (r *Renderer) drawGhost(
 	}
 
 	r.drawSprite(transform.Pos, sprite, frameIndex)
+}
+
+// FrightenedGhostFlashWhite reports whether a frightened ghost should render
+// in its white warning sprite on the given remaining fright frame count.
+// Each flash consists of a 14-frame blue half-cycle and a 14-frame white half-cycle,
+// producing exactly frightFlashes white pulses as frightFrames counts down to 1.
+func FrightenedGhostFlashWhite(frightFrames, frightFlashes int) bool {
+	const flashHalfFrames = 14
+	if frightFrames <= 0 || frightFlashes <= 0 {
+		return false
+	}
+	if frightFrames > 2*frightFlashes*flashHalfFrames {
+		return false
+	}
+	slot := (frightFrames - 1) / flashHalfFrames
+	return slot%2 == 0
 }
 
 // GhostScoreSprite returns the top-left spritesheet pixel coordinates in
