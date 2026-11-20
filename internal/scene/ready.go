@@ -6,14 +6,18 @@ import (
 )
 
 // ReadyScene displays the maze and "READY!" prompt while holding gameplay until
-// the pre-round delay elapses. On a fresh game start (NewGameStartReadyScene),
-// it first runs an intro stage showing "PLAYER ONE" + "READY!" with actors hidden
-// before revealing actors for the second "READY!" beat.
+// the pre-round delay elapses.
+//   - NewReadyScene: single-stage "READY!" with actors visible (same-player respawn / next level).
+//   - NewPlayerTurnReadyScene: single-stage "PLAYER ONE"/"PLAYER TWO" + "READY!" with actors
+//     visible and no start jingle (2-player turn switches).
+//   - NewGameStartReadyScene: two-stage arcade intro — Stage 1 plays SoundStart with
+//     "PLAYER ONE" + "READY!" and actors hidden, then Stage 2 reveals actors with "READY!".
 type ReadyScene struct {
-	ctx            *Context
-	showPlayerOne  bool
-	introRemaining int
-	remaining      int
+	ctx              *Context
+	playStartIntro   bool
+	showPlayerBanner bool
+	introRemaining   int
+	remaining        int
 }
 
 // NewReadyScene creates a single-stage "READY!" scene (used for respawns and
@@ -22,19 +26,29 @@ func NewReadyScene(ctx *Context) *ReadyScene {
 	return &ReadyScene{ctx: ctx}
 }
 
+// NewPlayerTurnReadyScene creates a single-stage ready screen showing the active
+// player banner ("PLAYER ONE" / "PLAYER TWO") and "READY!" with actors visible
+// and without replaying the game-start jingle (used on 2-player turn switches).
+func NewPlayerTurnReadyScene(ctx *Context) *ReadyScene {
+	return &ReadyScene{
+		ctx:              ctx,
+		showPlayerBanner: true,
+	}
+}
+
 // NewGameStartReadyScene creates the two-stage arcade game-start sequence:
-// Stage 1 shows "PLAYER ONE" + "READY!" with actors hidden; Stage 2 reveals
-// actors with "READY!" before entering PlayingScene.
+// Stage 1 shows "PLAYER ONE" + "READY!" with actors hidden and plays SoundStart;
+// Stage 2 reveals actors with "READY!" before entering PlayingScene.
 func NewGameStartReadyScene(ctx *Context) *ReadyScene {
 	return &ReadyScene{
-		ctx:           ctx,
-		showPlayerOne: true,
+		ctx:            ctx,
+		playStartIntro: true,
 	}
 }
 
 func (s *ReadyScene) Enter() {
 	s.ctx.audio().SetLoop(audio.LoopNone)
-	if s.showPlayerOne {
+	if s.playStartIntro {
 		s.introRemaining = s.ctx.playerOneDuration()
 		s.ctx.audio().Play(audio.SoundStart)
 	} else {
@@ -81,7 +95,10 @@ func (s *ReadyScene) Draw() {
 		})
 		return
 	}
-	s.ctx.Drawer.DrawWorld(s.ctx.World, DrawOptions{ShowReady: true})
+	s.ctx.Drawer.DrawWorld(s.ctx.World, DrawOptions{
+		ShowPlayerOne: s.showPlayerBanner,
+		ShowReady:     true,
+	})
 }
 
 func (s *ReadyScene) Exit() {}

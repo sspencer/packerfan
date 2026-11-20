@@ -934,4 +934,12 @@ func TestAudioEventsAndSceneLoopTransitions(t *testing.T) {
 	if !rec.hasSound(audio.SoundIntermission2) {
 		t.Fatalf("expected SoundIntermission2, played=%v", rec.played)
 	}
+
+	// 2-player turn switch ReadyScene shows banner with actors visible and does NOT replay SoundStart.
+	rec.played = nil
+	ctx.Manager.Start(scene.NewPlayerTurnReadyScene(ctx))
+	ctx.Manager.Draw()
+	if rec.hasSound(audio.SoundStart) {
+		t.Fatalf("2P turn switch replayed SoundStart unexpectedly: %v", rec.played)
+	}
 }

@@ -52,7 +52,7 @@ func (s *PacmanDyingScene) Update() {
 
 	alive, switched := system.ConsumeLifeOrSwitchPlayer(s.ctx.World, s.ctx.IsPixelLit)
 	if switched {
-		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
+		s.ctx.Manager.Transition(NewPlayerTurnReadyScene(s.ctx))
 		return
 	}
 	if alive {
