@@ -275,13 +275,14 @@ func (r *Renderer) drawGhost(
 	var sprite config.Vector
 	frameIndex := anim.FrameIndex
 
-	switch ghost.State {
-	case config.Eaten, config.EnteringHouse:
+	switch {
+	case ghost.State == config.Eaten || ghost.State == config.EnteringHouse:
 		// Eye sprites are single-frame (16px apart: Right, Left, Up, Down).
 		sprite.X = []int{584, 600, 616, 632}[transform.Dir]
 		sprite.Y = 80
 		frameIndex = 0
-	case config.Frightened:
+	case ghost.State == config.Frightened ||
+		(ghost.FrightenedInHouse && gameState.IsFrightMode && (ghost.State == config.InHouse || ghost.State == config.LeavingHouse)):
 		const flashFrames = 14
 		const blueX = 584
 		const whiteX = 616

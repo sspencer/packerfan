@@ -621,6 +621,57 @@ func TestGhostHousePersonalGlobalCountersAndInactivityTimer(t *testing.T) {
 	}
 }
 
+func TestGhostInHouseExitsFrightenedWhileEnergizerActive(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.DotsRemaining = 100
+	gs.GhostState = config.Chase
+
+	pinkyEntry := ghosts[2]
+	pinky := component.Ghost.Get(pinkyEntry)
+	blinkyEntry := ghosts[0]
+	blinky := component.Ghost.Get(blinkyEntry)
+
+	// Eat a power pellet while Pinky is InHouse and Blinky is EnteringHouse (regenerating).
+	blinky.State = config.EnteringHouse
+	blinky.EatenTarget = component.MustFindMaze(w).GhostHouse().Center
+	component.Transform.Get(blinkyEntry).Pos = blinky.EatenTarget
+
+	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 1, Y: 1})
+	events.ProcessAllEvents(w)
+
+	if !pinky.FrightenedInHouse {
+		t.Fatalf("expected Pinky (InHouse) to be flagged FrightenedInHouse=true")
+	}
+	if blinky.FrightenedInHouse {
+		t.Fatalf("expected Blinky (EnteringHouse) to stay FrightenedInHouse=false")
+	}
+
+	// Place Pinky right below the exit and advance -> should exit into Frightened.
+	house := component.MustFindMaze(w).GhostHouse()
+	pinky.State = config.LeavingHouse
+	component.Transform.Get(pinkyEntry).Pos = config.Vector{X: house.Entrance.X, Y: house.Entrance.Y + 1}
+	gs.Spec.GhostTunnelSpeed = config.Speed80
+
+	ghostSys := system.NewGhostSystem()
+	ghostSys.Update(w)
+	if pinky.State != config.Frightened || pinky.FrightenedInHouse {
+		t.Fatalf("expected Pinky to exit into Frightened with flag cleared, got state=%v flag=%v",
+			pinky.State, pinky.FrightenedInHouse)
+	}
+
+	// Blinky regenerates from EnteringHouse -> LeavingHouse -> exits into normal Chase (not Frightened).
+	for range 40 {
+		ghostSys.Update(w)
+		if blinky.State == config.Chase || blinky.State == config.Frightened {
+			break
+		}
+	}
+	if blinky.State != config.Chase {
+		t.Fatalf("expected regenerated Blinky to exit in Chase (not Frightened), got %v", blinky.State)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 

@@ -294,6 +294,7 @@ func updateGhostEnteringHouse(
 	// and immediately begin exiting the house.
 	actor.IsEaten = false
 	ghost.Reverse = false
+	ghost.FrightenedInHouse = false
 	ghost.PixelsMoved = 0
 	ghost.State = config.LeavingHouse
 }
@@ -356,8 +357,14 @@ func updateGhostLeavingHouse(
 		}
 	}
 
-	// Reached the corridor above the door: enter active wave state.
-	ghost.State = gameState.GhostState
+	// Reached the corridor above the door: enter Frightened if marked while in
+	// house and fright mode is still active; otherwise enter the active wave state.
+	if ghost.FrightenedInHouse && gameState.IsFrightMode {
+		ghost.State = config.Frightened
+	} else {
+		ghost.State = gameState.GhostState
+	}
+	ghost.FrightenedInHouse = false
 	ghost.HasNextDir = false
 	ghost.PixelsMoved = config.Tile
 	transform.Dir = chooseRandomDirection(prng, transform.Dir, []config.Direction{config.Right, config.Left})

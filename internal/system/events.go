@@ -83,9 +83,13 @@ func RegisterEventHandlers(w donburi.World) {
 			gameState.FrightFlashes = gameState.Spec.FrightenedFlashes
 			for ghostEntry := range ghostQuery.Iter(w) {
 				g := component.Ghost.Get(ghostEntry)
-				if g.State == config.Chase || g.State == config.Scatter || g.State == config.Frightened {
+				switch g.State {
+				case config.Chase, config.Scatter, config.Frightened:
 					g.State = config.Frightened
 					g.Reverse = true
+					g.FrightenedInHouse = false
+				case config.InHouse, config.LeavingHouse:
+					g.FrightenedInHouse = true
 				}
 			}
 		} else {
@@ -164,6 +168,7 @@ func RegisterEventHandlers(w donburi.World) {
 
 		for ghostEntry := range ghostQuery.Iter(w) {
 			g := component.Ghost.Get(ghostEntry)
+			g.FrightenedInHouse = false
 			if g.State == config.Frightened {
 				g.State = gameState.GhostState
 				g.HasNextDir = false
