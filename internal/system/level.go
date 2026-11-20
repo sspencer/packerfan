@@ -5,6 +5,7 @@ import (
 	"github.com/yohamta/donburi/filter"
 
 	"pacfan/internal/component"
+	"pacfan/internal/config"
 )
 
 // ResetActors restores the player and all ghosts to their initial spawn state.
@@ -31,6 +32,32 @@ func ResetGhostDotCounters(w donburi.World) {
 	)
 	for entry := range ghostQuery.Iter(w) {
 		component.Ghost.Get(entry).DotCounter = 0
+	}
+}
+
+func snapshotGhostDotCounters(w donburi.World) [4]int {
+	var counters [4]int
+	ghostQuery := donburi.NewQuery(
+		filter.Contains(component.GhostTag, component.Ghost),
+	)
+	for entry := range ghostQuery.Iter(w) {
+		g := component.Ghost.Get(entry)
+		if idx := int(g.AIKind); idx >= 0 && idx < len(counters) {
+			counters[idx] = g.DotCounter
+		}
+	}
+	return counters
+}
+
+func restoreGhostDotCounters(w donburi.World, counters [4]int) {
+	ghostQuery := donburi.NewQuery(
+		filter.Contains(component.GhostTag, component.Ghost),
+	)
+	for entry := range ghostQuery.Iter(w) {
+		g := component.Ghost.Get(entry)
+		if idx := int(g.AIKind); idx >= 0 && idx < len(counters) {
+			g.DotCounter = counters[idx]
+		}
 	}
 }
 
@@ -61,21 +88,83 @@ func AdvanceToNextLevel(w donburi.World, isPixelLit func(x, y int) bool) int {
 // level (keeping dots and score intact) and returns true. Otherwise it marks
 // GameOver and returns false.
 func ConsumeLifeAndRespawn(w donburi.World) bool {
+	alive, _ := ConsumeLifeOrSwitchPlayer(w, nil)
+	return alive
+}
+
+// ConsumeLifeOrSwitchPlayer decrements the active player's lives after death.
+// In 2-player mode, if the other player still has lives remaining, it snapshots
+// the active player's board/progress and switches to the other player (loading
+// a fresh Level 1 board on Player 2's first turn or restoring their saved board).
+// Returns (alive, switchedPlayer).
+func ConsumeLifeOrSwitchPlayer(w donburi.World, isPixelLit func(x, y int) bool) (bool, bool) {
 	gameState := component.MustFindGameState(w)
+	maze := component.MustFindMaze(w)
+
 	if gameState.Lives > 0 {
 		gameState.Lives--
 	}
 	gameState.PlayerDying = false
+
+	// Save the outgoing player's post-death state (with post-death Elroy/global-counter flags).
+	if gameState.Lives > 0 {
+		gameState.ElroySuspended = true
+		gameState.UseGlobalDotCounter = true
+		gameState.GlobalDotCounter = 0
+	}
+	gameState.SaveActivePlayer(maze, snapshotGhostDotCounters(w))
+
+	// In 2-player mode, alternate to the other player if they still have lives.
+	if gameState.PlayerCount == 2 {
+		other := 1 - gameState.ActivePlayer
+		if gameState.Players[other].Lives > 0 {
+			if !gameState.Players[other].Started {
+				gameState.ActivePlayer = other
+				gameState.Players[other].Started = true
+				dotsRemaining := 0
+				if isPixelLit != nil {
+					dotsRemaining = maze.LoadLevel(1, isPixelLit)
+				} else {
+					maze.Level = 1
+					dotsRemaining = gameState.DotsEaten + gameState.DotsRemaining
+				}
+				gameState.Score = 0
+				gameState.PlayerScores[other] = 0
+				gameState.Lives = config.InitialLives
+				gameState.ExtraLifeAwarded = false
+				gameState.ResetForNextLevel(1, dotsRemaining)
+				component.MustFindPRNG(w).Reset()
+				ResetActors(w)
+				ResetGhostDotCounters(w)
+				return true, true
+			}
+
+			counters := gameState.LoadActivePlayer(other, maze)
+			component.MustFindPRNG(w).Reset()
+			ResetActors(w)
+			restoreGhostDotCounters(w, counters)
+			return true, true
+		}
+	}
+
 	if gameState.Lives <= 0 {
 		gameState.Lives = 0
 		gameState.GameOver = true
-		return false
+		return false, false
 	}
 
 	gameState.ResetForNextLife()
 	component.MustFindPRNG(w).Reset()
 	ResetActors(w)
-	return true
+	return true, false
+}
+
+// StartNewGame initializes a 1-player or 2-player game from Level 1 while
+// preserving HighScore, Zoom, and PacmanMode.
+func StartNewGame(w donburi.World, playerCount int, isPixelLit func(x, y int) bool) {
+	gameState := component.MustFindGameState(w)
+	gameState.PlayerCount = max(1, min(playerCount, 2))
+	RestartGame(w, isPixelLit)
 }
 
 // RestartGame resets the world to Level 1 with full lives, zero score (keeping

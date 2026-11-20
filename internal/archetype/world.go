@@ -11,11 +11,17 @@ import (
 func CreateGameState(w donburi.World, pacmanMode bool, zoom float32) *donburi.Entry {
 	entry := w.Entry(w.Create(component.GameState))
 	state := component.GameStateData{
-		Zoom:       zoom,
-		PacmanMode: pacmanMode,
-		Level:      1,
-		Lives:      config.InitialLives,
-		GhostState: config.Scatter,
+		Zoom:        zoom,
+		PacmanMode:  pacmanMode,
+		PlayerCount: 1,
+		Level:       1,
+		Lives:       config.InitialLives,
+		GhostState:  config.Scatter,
+	}
+	state.Players[0] = component.PlayerSession{
+		Lives:   config.InitialLives,
+		Level:   1,
+		Started: true,
 	}
 	state.SetLevel(1)
 	component.GameState.SetValue(entry, state)

@@ -170,6 +170,11 @@ func (m *MazeData) GetCell(x, y int) Cell {
 	return m.Grid[y][x]
 }
 
+// InvalidateHouseCache forces GhostHouse() to recompute from the current Grid.
+func (m *MazeData) InvalidateHouseCache() {
+	m.houseDirty = true
+}
+
 // GhostHouse returns the ghost-house geometry derived from the maze's Door
 // tiles, falling back to DefaultGhostHouse when the grid contains no Door cells.
 func (m *MazeData) GhostHouse() GhostHouse {

@@ -53,7 +53,7 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	if opts.ShowPlayerOne || opts.ShowReady || opts.ShowGameOver {
 		rl.BeginShaderMode(r.art.Shader)
 		if opts.ShowPlayerOne {
-			DrawText(r.art.Font, "PLAYER ONE", 9, 11, rl.SkyBlue)
+			DrawText(r.art.Font, gameState.ActivePlayerName(), 9, 11, rl.SkyBlue)
 		}
 		if opts.ShowReady {
 			DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
@@ -153,6 +153,96 @@ func (r *Renderer) DrawIntermission(w donburi.World, view scene.IntermissionView
 	}
 }
 
+// DrawAttract renders the arcade title / character roll-call, scoring legend,
+// animated chase demo, and 1P/2P selection prompt.
+func (r *Renderer) DrawAttract(w donburi.World, view scene.AttractView) {
+	gameState := component.MustFindGameState(w)
+
+	zeroV := rl.Vector2{}
+	halfV := rl.Vector2{X: config.Half, Y: config.Half}
+	zoom := gameState.Zoom
+
+	// Top HUD (shows both 1UP and 2UP on the attract screen).
+	textCamera := rl.NewCamera2D(rl.Vector2{X: 0, Y: 2 * zoom}, zeroV, 0, zoom)
+	rl.BeginMode2D(textCamera)
+	DrawText(r.art.Font, "1UP", 3, 0, rl.White)
+	DrawText(r.art.Font, "HIGH SCORE", 9, 0, rl.White)
+	DrawText(r.art.Font, "2UP", 22, 0, rl.White)
+	rl.EndMode2D()
+
+	textCamera.Offset.Y = 3 * zoom
+	rl.BeginMode2D(textCamera)
+	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.PlayerScores[0]), 0, 1, rl.White)
+	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, rl.White)
+	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.PlayerScores[1]), 20, 1, rl.White)
+	rl.EndMode2D()
+
+	// Text overlay pass
+	mazeCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, zeroV, 0, zoom)
+	rl.BeginMode2D(mazeCamera)
+	rl.BeginShaderMode(r.art.Shader)
+
+	DrawText(r.art.Font, "CHARACTER / NICKNAME", 7, 2, rl.White)
+	castColors := [4]rl.Color{rl.Red, rl.Pink, rl.SkyBlue, rl.Orange}
+	for i, row := range view.Cast {
+		yTile := 5 + i*3
+		c := castColors[row.ColorID%len(castColors)]
+		DrawText(r.art.Font, row.Label, 7, yTile, c)
+		DrawText(r.art.Font, row.Nickname, 18, yTile, c)
+	}
+
+	if view.ShowLegend {
+		DrawText(r.art.Font, "10 PTS", 12, 22, rl.White)
+		DrawText(r.art.Font, "50 PTS", 12, 24, rl.White)
+	}
+
+	p1Color := rl.White
+	p2Color := rl.White
+	if view.SelectedPlayer == 2 {
+		p2Color = rl.Yellow
+	} else {
+		p1Color = rl.Yellow
+	}
+	DrawText(r.art.Font, "PRESS 1 - 1 PLAYER", 5, 27, p1Color)
+	DrawText(r.art.Font, "PRESS 2 - 2 PLAYERS", 5, 29, p2Color)
+
+	rl.EndShaderMode()
+	rl.EndMode2D()
+
+	// Sprites pass (cast portraits, legend pellets, demo chase sprites)
+	spriteCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, halfV, 0, zoom)
+	rl.BeginMode2D(spriteCamera)
+	rl.BeginShaderMode(r.art.Shader)
+
+	for i, row := range view.Cast {
+		pos := config.Vector{X: 4 * config.Tile, Y: (5 + i*3) * config.Tile}
+		r.drawSprite(pos, config.Vector{X: 456, Y: row.SpriteRow}, 0)
+	}
+
+	if view.ShowLegend {
+		dotSrc := rl.Rectangle{X: config.Tile, Y: 125 * config.Tile, Width: config.Tile, Height: config.Tile}
+		powSrc := rl.Rectangle{X: config.Tile, Y: 127 * config.Tile, Width: config.Tile, Height: config.Tile}
+		rl.DrawTexturePro(r.art.Texture, dotSrc, rl.Rectangle{X: 10*config.Tile + config.Half, Y: 22*config.Tile + config.Half, Width: config.Tile, Height: config.Tile}, rl.Vector2{}, 0, rl.White)
+		rl.DrawTexturePro(r.art.Texture, powSrc, rl.Rectangle{X: 10*config.Tile + config.Half, Y: 24*config.Tile + config.Half, Width: config.Tile, Height: config.Tile}, rl.Vector2{}, 0, rl.White)
+	}
+
+	if view.ShowPellet && view.PelletBlink {
+		powSrc := rl.Rectangle{X: config.Tile, Y: 127 * config.Tile, Width: config.Tile, Height: config.Tile}
+		rl.DrawTexturePro(r.art.Texture, powSrc, rl.Rectangle{X: float32(view.PelletPos.X), Y: float32(view.PelletPos.Y), Width: config.Tile, Height: config.Tile}, rl.Vector2{}, 0, rl.White)
+	}
+
+	for _, sp := range view.Sprites {
+		size := sp.Size
+		if size <= 0 {
+			size = config.Sprite
+		}
+		r.drawSizedSprite(sp.Pos, sp.Src, sp.Frame, size)
+	}
+
+	rl.EndShaderMode()
+	rl.EndMode2D()
+}
+
 func (r *Renderer) drawHUD(gameState *component.GameStateData) {
 	zeroV := rl.Vector2{}
 	zoom := gameState.Zoom
@@ -160,17 +250,33 @@ func (r *Renderer) drawHUD(gameState *component.GameStateData) {
 	// Top HUD labels
 	textCamera := rl.NewCamera2D(rl.Vector2{X: 0, Y: 2 * zoom}, zeroV, 0, zoom)
 	rl.BeginMode2D(textCamera)
-	if OneUpVisible(gameState.FrameCount, gameState.GameOver) {
+	if OneUpVisible(gameState.FrameCount, gameState.GameOver || gameState.ActivePlayer != 0) {
 		DrawText(r.art.Font, "1UP", 3, 0, rl.White)
 	}
 	DrawText(r.art.Font, "HIGH SCORE", 9, 0, rl.White)
+	if gameState.PlayerCount == 2 {
+		if OneUpVisible(gameState.FrameCount, gameState.GameOver || gameState.ActivePlayer != 1) {
+			DrawText(r.art.Font, "2UP", 22, 0, rl.White)
+		}
+	}
 	rl.EndMode2D()
 
 	// Top HUD scores
 	textCamera.Offset.Y = 3 * zoom
 	rl.BeginMode2D(textCamera)
-	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.Score), 0, 1, rl.White)
+	p1Score := gameState.PlayerScores[0]
+	if gameState.ActivePlayer == 0 {
+		p1Score = gameState.Score
+	}
+	DrawText(r.art.Font, fmt.Sprintf("%7d", p1Score), 0, 1, rl.White)
 	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, rl.White)
+	if gameState.PlayerCount == 2 {
+		p2Score := gameState.PlayerScores[1]
+		if gameState.ActivePlayer == 1 {
+			p2Score = gameState.Score
+		}
+		DrawText(r.art.Font, fmt.Sprintf("%7d", p2Score), 20, 1, rl.White)
+	}
 	rl.EndMode2D()
 
 	// Bottom HUD remaining lives and level bonus symbols

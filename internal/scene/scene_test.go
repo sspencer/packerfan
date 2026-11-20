@@ -26,6 +26,7 @@ func (s *stubInput) Sample() system.InputState {
 type recordingDrawer struct {
 	worldCalls        []scene.DrawOptions
 	intermissionCalls []scene.IntermissionView
+	attractCalls      []scene.AttractView
 }
 
 func (d *recordingDrawer) DrawWorld(_ donburi.World, opts scene.DrawOptions) {
@@ -34,6 +35,10 @@ func (d *recordingDrawer) DrawWorld(_ donburi.World, opts scene.DrawOptions) {
 
 func (d *recordingDrawer) DrawIntermission(_ donburi.World, view scene.IntermissionView) {
 	d.intermissionCalls = append(d.intermissionCalls, view)
+}
+
+func (d *recordingDrawer) DrawAttract(_ donburi.World, view scene.AttractView) {
+	d.attractCalls = append(d.attractCalls, view)
 }
 
 type spyScene struct {
@@ -706,5 +711,109 @@ func TestGameOverRestartsOnAnyKeyAfterOneSecond(t *testing.T) {
 	}
 	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
 		t.Fatalf("player did not reset to spawn: got %v, want %v", got, want)
+	}
+}
+
+func TestAttractScene1PAnd2PStartAndDemoCycle(t *testing.T) {
+	ctx, input, drawer, _, _ := newSceneHarness(t, true)
+	ctx.DefaultPlayers = 2
+	ctx.Manager.Start(scene.NewAttractScene(ctx))
+
+	// Advance through cast reveal and demo chase phases.
+	for range 400 {
+		ctx.Manager.Draw()
+		ctx.Manager.Update()
+	}
+	if len(drawer.attractCalls) != 400 {
+		t.Fatalf("expected 400 attract draws, got %d", len(drawer.attractCalls))
+	}
+	last := drawer.attractCalls[len(drawer.attractCalls)-1]
+	if len(last.Cast) != 4 || !last.ShowLegend || len(last.Sprites) == 0 || last.SelectedPlayer != 2 {
+		t.Fatalf("unexpected attract view at frame 400: cast=%d legend=%v sprites=%d selected=%d",
+			len(last.Cast), last.ShowLegend, len(last.Sprites), last.SelectedPlayer)
+	}
+
+	// Pressing "2" starts a 2-player game into the two-stage ReadyScene.
+	input.state = system.InputState{Start2PPressed: true}
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
+		t.Fatalf("expected ReadyScene after pressing 2, got %T", ctx.Manager.Current())
+	}
+	gs := component.MustFindGameState(ctx.World)
+	if gs.PlayerCount != 2 || gs.ActivePlayer != 0 {
+		t.Fatalf("expected 2-player mode starting at Player 1, got count=%d active=%d", gs.PlayerCount, gs.ActivePlayer)
+	}
+
+	// Pressing "1" from AttractScene starts a 1-player game.
+	ctx.Manager.Start(scene.NewAttractScene(ctx))
+	input.state = system.InputState{Start1PPressed: true}
+	ctx.Manager.Update()
+	if gs.PlayerCount != 1 {
+		t.Fatalf("expected 1-player mode after pressing 1, got count=%d", gs.PlayerCount)
+	}
+}
+
+func TestTwoPlayerAlternatesOnDeathWithIndependentBoards(t *testing.T) {
+	ctx, _, _, player, ghosts := newSceneHarness(t, true)
+	maze := component.MustFindMaze(ctx.World)
+	// Seed a simple board with two dots so Player 1 can eat one and leave the other.
+	maze.SetCell(10, 10, component.Dot)
+	maze.SetCell(11, 10, component.Dot)
+
+	gs := component.MustFindGameState(ctx.World)
+	system.StartNewGame(ctx.World, 2, nil)
+	gs.DotsRemaining = 2
+	gs.Lives = 2
+	gs.Players[0].Lives = 2
+	gs.Players[1].Lives = 1
+
+	// Player 1 eats dot at (10,10) and earns 10 points.
+	maze.SetCell(10, 10, component.Empty)
+	gs.AddScore(10)
+	gs.DotsEaten = 1
+	gs.DotsRemaining = 1
+
+	// Player 1 dies -> switches to Player 2 (first turn).
+	blinky := ghosts[0]
+	component.Ghost.Get(blinky).State = config.Chase
+	pos := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	component.Transform.Get(player).Pos = pos
+	component.Transform.Get(blinky).Pos = pos
+
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+	ctx.Manager.Update() // enters PacmanDyingScene
+	totalDeath := ctx.PlayerDyingHoldFrames + config.PlayerDyingFrameCount*ctx.PlayerDyingFrameTicks + ctx.PlayerDyingPostFrames
+	for range totalDeath {
+		ctx.Manager.Update()
+	}
+
+	if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
+		t.Fatalf("expected ReadyScene for Player 2, got %T", ctx.Manager.Current())
+	}
+	if gs.ActivePlayer != 1 || gs.ActivePlayerName() != "PLAYER TWO" {
+		t.Fatalf("expected ActivePlayer=1 (PLAYER TWO), got %d (%s)", gs.ActivePlayer, gs.ActivePlayerName())
+	}
+	if gs.Score != 0 || gs.PlayerScores[0] != 10 {
+		t.Fatalf("expected P2 score=0 and P1 score=10, got score=%d scores=%v", gs.Score, gs.PlayerScores)
+	}
+
+	// Player 2 scores 50 points, then loses their last life -> switches back to Player 1 with P1's saved board!
+	gs.AddScore(50)
+	gs.Lives = 1
+	component.Ghost.Get(blinky).State = config.Chase
+	component.Transform.Get(player).Pos = pos
+	component.Transform.Get(blinky).Pos = pos
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+	ctx.Manager.Update()
+	for range totalDeath {
+		ctx.Manager.Update()
+	}
+
+	if gs.ActivePlayer != 0 || gs.Score != 10 || gs.PlayerScores[1] != 50 {
+		t.Fatalf("expected switch back to P1 (score 10, P2 score 50), got active=%d score=%d scores=%v",
+			gs.ActivePlayer, gs.Score, gs.PlayerScores)
+	}
+	if maze.GetCell(10, 10) != component.Empty || maze.GetCell(11, 10) != component.Dot {
+		t.Fatalf("P1 maze board was not preserved across P2 turn")
 	}
 }

@@ -36,21 +36,43 @@ type IntermissionView struct {
 	Sprites  []IntermissionSprite
 }
 
+// AttractCastRow describes one ghost entry on the arcade attract roll-call screen.
+type AttractCastRow struct {
+	SpriteRow int
+	Label     string
+	Nickname  string
+	ColorID   int // 0=Red, 1=Pink, 2=Cyan, 3=Orange
+}
+
+// AttractView describes the visual state of one attract/title screen frame.
+type AttractView struct {
+	Frame          int
+	SelectedPlayer int // 1 or 2
+	ShowLegend     bool
+	ShowPellet     bool
+	PelletBlink    bool
+	PelletPos      config.Vector
+	Cast           []AttractCastRow
+	Sprites        []IntermissionSprite
+}
+
 // Drawer decouples scene presentation from Raylib so scenes can be tested headlessly.
 type Drawer interface {
 	DrawWorld(w donburi.World, opts DrawOptions)
 	DrawIntermission(w donburi.World, view IntermissionView)
+	DrawAttract(w donburi.World, view AttractView)
 }
 
 // Context bundles the shared ECS world, systems, renderer, and level-loading
 // callbacks used by all scenes in a game session.
 type Context struct {
-	Manager    *Manager
-	World      donburi.World
-	Input      *system.InputSystem
-	Pipeline   *system.Pipeline
-	Drawer     Drawer
-	IsPixelLit func(x, y int) bool
+	Manager        *Manager
+	World          donburi.World
+	Input          *system.InputSystem
+	Pipeline       *system.Pipeline
+	Drawer         Drawer
+	IsPixelLit     func(x, y int) bool
+	DefaultPlayers int
 
 	// PlayerOneDuration overrides config.ReadyDuration for the initial
 	// "PLAYER ONE" stage of NewGameStartReadyScene when > 0 (useful in tests).

@@ -29,9 +29,12 @@ go run . -pacman -zoom 4
 | --- | --- | --- |
 | `-zoom` | `3` | Integer display scale factor (clamped to `1..10`) |
 | `-pacman` | `false` | Use classic Pac-Man maze, sprites, death animation, and intermissions instead of Ms. Pac-Man |
+| `-players` | `1` | Default player count on the attract screen (`1` or `2`) |
 
 ### Controls
 
+- **1 / 2** (on Attract / Game Over screen): Start a 1-player or 2-player game
+- **Enter / Space** (on Attract screen): Start with the selected player count
 - **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume gameplay
 - **Any Key** (on the Game Over screen, after a 1-second delay): Start a new game from Level 1 (preserving High Score)

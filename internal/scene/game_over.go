@@ -21,9 +21,13 @@ func (s *GameOverScene) Enter() {
 
 func (s *GameOverScene) Update() {
 	anyKey := false
+	start1P := false
+	start2P := false
 	if s.ctx.Input != nil {
 		s.ctx.Input.Sample()
 		anyKey = s.ctx.Input.AnyKeyPressed()
+		start1P = s.ctx.Input.Start1PPressed()
+		start2P = s.ctx.Input.Start2PPressed()
 	}
 
 	s.elapsed++
@@ -31,7 +35,14 @@ func (s *GameOverScene) Update() {
 		return
 	}
 
-	if anyKey {
+	switch {
+	case start1P:
+		system.StartNewGame(s.ctx.World, 1, s.ctx.IsPixelLit)
+		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
+	case start2P:
+		system.StartNewGame(s.ctx.World, 2, s.ctx.IsPixelLit)
+		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
+	case anyKey:
 		system.RestartGame(s.ctx.World, s.ctx.IsPixelLit)
 		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
 	}

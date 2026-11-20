@@ -6,12 +6,46 @@ import (
 	"pacfan/internal/config"
 )
 
+// PlayerSession stores per-player round state for 1-player or 2-player alternating play.
+type PlayerSession struct {
+	Score               int
+	Lives               int
+	ExtraLifeAwarded    bool
+	Level               int
+	DotsEaten           int
+	DotsRemaining       int
+	FruitSpawnedCount   int
+	ElroySuspended      bool
+	UseGlobalDotCounter bool
+	GlobalDotCounter    int
+	GhostDotCounters    [4]int
+	MazeGrid            Cells
+	Started             bool
+}
+
+// CloneCells returns a deep copy of a 2D maze cell grid.
+func CloneCells(grid Cells) Cells {
+	if len(grid) == 0 {
+		return nil
+	}
+	cp := make(Cells, len(grid))
+	for y := range grid {
+		cp[y] = make([]Cell, len(grid[y]))
+		copy(cp[y], grid[y])
+	}
+	return cp
+}
+
 // GameStateData is the singleton world resource holding round metrics, timers,
 // difficulty specs, and global ghost wave state.
 type GameStateData struct {
 	Zoom                float32
 	PacmanMode          bool
 	Paused              bool
+	PlayerCount         int
+	ActivePlayer        int
+	PlayerScores        [2]int
+	Players             [2]PlayerSession
 	Lives               int
 	ExtraLifeAwarded    bool
 	Score               int
@@ -54,6 +88,9 @@ func (g *GameStateData) AddScore(points int) {
 		return
 	}
 	g.Score += points
+	if g.ActivePlayer >= 0 && g.ActivePlayer < len(g.PlayerScores) {
+		g.PlayerScores[g.ActivePlayer] = g.Score
+	}
 	if g.Score > g.HighScore {
 		g.HighScore = g.Score
 	}
@@ -61,6 +98,82 @@ func (g *GameStateData) AddScore(points int) {
 		g.ExtraLifeAwarded = true
 		g.Lives++
 	}
+}
+
+// ActivePlayerName returns "PLAYER ONE" or "PLAYER TWO" for banner overlays.
+func (g *GameStateData) ActivePlayerName() string {
+	if g.ActivePlayer == 1 {
+		return "PLAYER TWO"
+	}
+	return "PLAYER ONE"
+}
+
+// SaveActivePlayer snapshots the active player's progress into Players[ActivePlayer].
+func (g *GameStateData) SaveActivePlayer(maze *MazeData, ghostDotCounters [4]int) {
+	idx := g.ActivePlayer
+	if idx < 0 || idx >= len(g.Players) {
+		return
+	}
+	g.PlayerScores[idx] = g.Score
+	g.Players[idx] = PlayerSession{
+		Score:               g.Score,
+		Lives:               g.Lives,
+		ExtraLifeAwarded:    g.ExtraLifeAwarded,
+		Level:               g.Level,
+		DotsEaten:           g.DotsEaten,
+		DotsRemaining:       g.DotsRemaining,
+		FruitSpawnedCount:   g.FruitSpawnedCount,
+		ElroySuspended:      g.ElroySuspended,
+		UseGlobalDotCounter: g.UseGlobalDotCounter,
+		GlobalDotCounter:    g.GlobalDotCounter,
+		GhostDotCounters:    ghostDotCounters,
+		MazeGrid:            CloneCells(maze.Grid),
+		Started:             true,
+	}
+}
+
+// LoadActivePlayer restores Players[idx] into the live GameState and Maze.
+func (g *GameStateData) LoadActivePlayer(idx int, maze *MazeData) [4]int {
+	g.ActivePlayer = idx
+	slot := g.Players[idx]
+	g.Score = slot.Score
+	g.PlayerScores[idx] = slot.Score
+	g.Lives = slot.Lives
+	g.ExtraLifeAwarded = slot.ExtraLifeAwarded
+	g.SetLevel(max(1, slot.Level))
+	g.DotsEaten = slot.DotsEaten
+	g.DotsRemaining = slot.DotsRemaining
+	g.FruitSpawnedCount = slot.FruitSpawnedCount
+	g.ElroySuspended = slot.ElroySuspended
+	g.UseGlobalDotCounter = slot.UseGlobalDotCounter
+	g.GlobalDotCounter = slot.GlobalDotCounter
+	g.FrameCount = 0
+	g.WaveFrames = 0
+	g.IsFrightMode = false
+	g.FrightFlashes = 0
+	g.FrightFrames = 0
+	g.NumGhostsEaten = 0
+	g.GhostEatenPause = 0
+	g.GhostEatenX = 0
+	g.GhostEatenY = 0
+	g.GhostEatenEntity = donburi.Null
+	g.GhostEatenScore = 0
+	g.GhostState = config.Scatter
+	g.LevelComplete = false
+	g.PlayerDying = false
+	g.GameOver = false
+	g.FramesSinceLastDot = 0
+	g.FruitActive = false
+	g.FruitTimer = 0
+	g.FruitScoreTimer = 0
+	g.FruitScoreValue = 0
+
+	if len(slot.MazeGrid) > 0 {
+		maze.Level = g.Level
+		maze.Grid = CloneCells(slot.MazeGrid)
+		maze.InvalidateHouseCache()
+	}
+	return slot.GhostDotCounters
 }
 
 // SetLevel updates the active level number and loads its speed/timing specification.
@@ -131,8 +244,21 @@ func (g *GameStateData) ResetForNextLife() {
 }
 
 // ResetForNewGame resets the session back to level 1 with full lives and zero
-// score while preserving HighScore, Zoom, and PacmanMode.
+// score while preserving HighScore, Zoom, PacmanMode, and PlayerCount.
 func (g *GameStateData) ResetForNewGame(dotsRemaining int) {
+	if g.PlayerCount < 1 || g.PlayerCount > 2 {
+		g.PlayerCount = 1
+	}
+	g.ActivePlayer = 0
+	g.PlayerScores = [2]int{}
+	g.Players = [2]PlayerSession{}
+	for i := range g.PlayerCount {
+		g.Players[i] = PlayerSession{
+			Lives: config.InitialLives,
+			Level: 1,
+		}
+	}
+	g.Players[0].Started = true
 	g.Lives = config.InitialLives
 	g.ExtraLifeAwarded = false
 	g.Score = 0
