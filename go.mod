@@ -2,7 +2,10 @@ module pacfan
 
 go 1.26
 
-require github.com/gen2brain/raylib-go/raylib v0.55.1
+require (
+	github.com/gen2brain/raylib-go/raylib v0.55.1
+	github.com/yohamta/donburi v1.15.8
+)
 
 require (
 	github.com/ebitengine/purego v0.10.0 // indirect

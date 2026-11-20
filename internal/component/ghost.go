@@ -1,0 +1,44 @@
+package component
+
+import (
+	"github.com/yohamta/donburi"
+
+	"pacfan/internal/config"
+)
+
+// GhostAIKind selects which classic arcade targeting & house-exit rule a ghost uses.
+type GhostAIKind int
+
+const (
+	BlinkyAI GhostAIKind = iota
+	PinkyAI
+	InkyAI
+	ClydeAI
+)
+
+// GhostData stores ghost-specific state, navigation targets, and sprite metadata.
+type GhostData struct {
+	AIKind        GhostAIKind
+	State         config.GhostState
+	StartState    config.GhostState
+	Target        config.Vector
+	ScatterTarget config.Vector
+	EatenTarget   config.Vector
+	PixelsMoved   int
+	Reverse       bool
+	SpriteRow     int
+}
+
+var (
+	GhostTag = donburi.NewTag().SetName("Ghost")
+	Ghost    = donburi.NewComponentType[GhostData]()
+)
+
+// ResetGhost restores a ghost's transform, state, and movement counters to spawn defaults.
+func ResetGhost(entry *donburi.Entry) {
+	ghost := Ghost.Get(entry)
+	ghost.State = ghost.StartState
+	ghost.PixelsMoved = 0
+	ghost.Reverse = false
+	ResetToStart(entry)
+}

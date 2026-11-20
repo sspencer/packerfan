@@ -1,42 +1,21 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"runtime/debug"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
+
+	"pacfan/internal/config"
+	"pacfan/internal/game"
 )
 
-const (
-	GameWidth       = 28
-	GameHeight      = 31
-	TopOffset       = 3
-	ScreenWidth     = GameWidth
-	ScreenHeight    = GameHeight + 5
-	Tile            = 8
-	Sprite          = 16
-	Half            = Tile / 2
-	PelletScore     = 10
-	PelletPause     = 1
-	PowerScore      = 50
-	PowerPause      = 3
-	GhostEatenPause = 61
-)
-
-var (
-	art        *Art
-	game       *Game
-	maze       *Maze
-	player     *Player
-	blinky     *Ghost
-	inky       *Ghost
-	pinky      *Ghost
-	clyde      *Ghost
-	eventStack *EventStack
-)
+//go:embed assets
+var assetsFS embed.FS
 
 func main() {
-	// less GC
+	// Reduce GC frequency during the 61 FPS arcade loop.
 	debug.SetGCPercent(200)
 
 	var zoom int
@@ -48,32 +27,26 @@ func main() {
 	zoom = max(1, min(zoom, 10))
 
 	rl.SetTraceLogLevel(rl.LogWarning)
-	rl.InitWindow(ScreenWidth*Tile*int32(zoom), ScreenHeight*Tile*int32(zoom), "Pacman")
+	rl.InitWindow(
+		config.ScreenWidth*config.Tile*int32(zoom),
+		config.ScreenHeight*config.Tile*int32(zoom),
+		"Pacman",
+	)
 	defer rl.CloseWindow()
 
-	rl.SetTargetFPS(61) // arcade game was clocked to 60.606061
-	initPrng()
-	art = NewArt()
-	game = NewGame(pacman, float32(zoom))
-	maze = NewMaze(pacman)
-	eventStack = NewEventStack()
-	game.setLevel(1)
-	maze.setLevel(1)
-	player = NewPlayer()
-	blinky = NewBlinky()
-	inky = NewInky()
-	pinky = NewPinky()
-	clyde = NewClyde()
+	rl.SetTargetFPS(config.TargetFPS) // arcade game was clocked to 60.606061
 
-	//fmt.Println(maze.String())
+	engine := game.NewEngine(game.Options{
+		PacmanMode: pacman,
+		Zoom:       float32(zoom),
+	}, assetsFS)
+	defer engine.Unload()
 
 	for !rl.WindowShouldClose() {
-		updateGame()
+		engine.Update()
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
-		drawGame()
+		engine.Draw()
 		rl.EndDrawing()
 	}
-
-	art.unload()
 }
