@@ -77,6 +77,16 @@ type StepResult struct {
 	MazeIndex    int
 }
 
+// TickInfo describes a single executed simulation tick passed to a tick hook.
+type TickInfo struct {
+	Action       Action
+	Tick         int
+	Died         bool
+	LevelCleared bool
+	Terminated   bool
+	Truncated    bool
+}
+
 // Env owns a Donburi ECS World and drives play-only arcade simulation
 // deterministically without scenes, audio, or Raylib.
 type Env struct {
@@ -92,7 +102,7 @@ type Env struct {
 	tickCount       int
 	done            bool
 	continueOnReset bool
-	onTick          func(action Action, tick int)
+	onTick          func(TickInfo)
 }
 
 // NewEnv constructs an Env and resets it to the initial playable state.
@@ -162,8 +172,15 @@ func (e *Env) GhostEntries() [4]*donburi.Entry {
 
 // SetTickHook installs an optional callback invoked after each individual sim tick
 // (used by replay recording).
-func (e *Env) SetTickHook(fn func(action Action, tick int)) {
+func (e *Env) SetTickHook(fn func(TickInfo)) {
 	e.onTick = fn
+}
+
+// ContinuingEpisodicLife reports whether the next Reset (without ForceFullReset
+// or mode/level change) will continue the current game on a remaining life.
+func (e *Env) ContinuingEpisodicLife() bool {
+	gs := component.MustFindGameState(e.world)
+	return e.continueOnReset && e.cfg.EpisodicLife && !gs.GameOver
 }
 
 // Reset starts a new episode. When EpisodicLife is enabled and the previous
@@ -378,9 +395,12 @@ func (e *Env) tick(action Action) (terminated, truncated bool) {
 	e.tickCount++
 
 	gs := component.MustFindGameState(e.world)
+	died := false
+	levelCleared := false
 
 	// Rule 1: PlayerDying -> ConsumeLifeOrSwitchPlayer (1-player only).
 	if gs.PlayerDying {
+		died = true
 		gs.PlayerCount = 1
 		alive, _ := system.ConsumeLifeOrSwitchPlayer(e.world, nil)
 		if !alive {
@@ -396,6 +416,7 @@ func (e *Env) tick(action Action) (terminated, truncated bool) {
 
 	// Rule 2: LevelComplete -> AdvanceToNextLevel (or terminate if EndOnLevelClear).
 	if !terminated && gs.LevelComplete {
+		levelCleared = true
 		if e.cfg.EndOnLevelClear {
 			e.done = true
 			e.continueOnReset = false
@@ -415,7 +436,14 @@ func (e *Env) tick(action Action) (terminated, truncated bool) {
 	}
 
 	if e.onTick != nil {
-		e.onTick(action, e.tickCount)
+		e.onTick(TickInfo{
+			Action:       action,
+			Tick:         e.tickCount,
+			Died:         died,
+			LevelCleared: levelCleared,
+			Terminated:   terminated,
+			Truncated:    truncated,
+		})
 	}
 
 	return terminated, truncated

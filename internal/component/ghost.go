@@ -60,6 +60,7 @@ func ResetGhost(entry *donburi.Entry) {
 	ghost.PixelsMoved = config.Tile
 	ghost.Reverse = false
 	ghost.FrightenedInHouse = false
+	ghost.NextDir = 0
 	ghost.HasNextDir = false
 	ghost.PlannedTile = config.Vector{}
 	ResetToStart(entry)
