@@ -48,12 +48,50 @@ func (c Cell) String() string {
 	}
 }
 
+// GhostHouse describes the pixel geometry of the ghost pen derived from the
+// maze's Door tiles (or standard arcade coordinates when no Door tiles exist).
+type GhostHouse struct {
+	Entrance     config.Vector // Corridor point directly above the house door
+	Center       config.Vector // Center slot inside the house
+	LeftSlot     config.Vector // Left home slot inside the house (Inky)
+	RightSlot    config.Vector // Right home slot inside the house (Clyde)
+	BounceTop    int           // Upper vertical bounce limit inside the house
+	BounceBottom int           // Lower vertical bounce limit inside the house
+}
+
+const (
+	defaultDoorLeftX  = 13
+	defaultDoorRightX = 14
+	defaultDoorRow    = 12
+)
+
+func ghostHouseFromDoor(minDoorX, maxDoorX, doorRow int) GhostHouse {
+	centerX := (minDoorX + maxDoorX) * config.Tile / 2
+	entranceY := (doorRow - 1) * config.Tile
+	centerY := (doorRow + 2) * config.Tile
+	return GhostHouse{
+		Entrance:     config.Vector{X: centerX, Y: entranceY},
+		Center:       config.Vector{X: centerX, Y: centerY},
+		LeftSlot:     config.Vector{X: centerX - 2*config.Tile, Y: centerY},
+		RightSlot:    config.Vector{X: centerX + 2*config.Tile, Y: centerY},
+		BounceTop:    centerY - config.Half,
+		BounceBottom: centerY + config.Half,
+	}
+}
+
+// DefaultGhostHouse returns the canonical arcade ghost-house geometry.
+func DefaultGhostHouse() GhostHouse {
+	return ghostHouseFromDoor(defaultDoorLeftX, defaultDoorRightX, defaultDoorRow)
+}
+
 // MazeData is the singleton world resource holding the 28x31 tile grid and
 // maze metadata for the active level.
 type MazeData struct {
 	Grid       Cells
 	Level      int
 	PacmanMode bool
+	house      GhostHouse
+	houseDirty bool
 }
 
 // NewMazeData allocates an empty GameWidth x GameHeight maze grid.
@@ -67,6 +105,7 @@ func NewMazeData(pacmanMode bool) MazeData {
 		Grid:       cells,
 		PacmanMode: pacmanMode,
 		Level:      1,
+		house:      DefaultGhostHouse(),
 	}
 }
 
@@ -121,11 +160,51 @@ func (m *MazeData) InBounds(x, y int) bool {
 }
 
 func (m *MazeData) SetCell(x, y int, c Cell) {
+	if m.Grid[y][x] == Door || c == Door {
+		m.houseDirty = true
+	}
 	m.Grid[y][x] = c
 }
 
 func (m *MazeData) GetCell(x, y int) Cell {
 	return m.Grid[y][x]
+}
+
+// GhostHouse returns the ghost-house geometry derived from the maze's Door
+// tiles, falling back to DefaultGhostHouse when the grid contains no Door cells.
+func (m *MazeData) GhostHouse() GhostHouse {
+	if !m.houseDirty && m.house.Entrance != (config.Vector{}) {
+		return m.house
+	}
+	m.house = m.computeGhostHouse()
+	m.houseDirty = false
+	return m.house
+}
+
+func (m *MazeData) computeGhostHouse() GhostHouse {
+	found := false
+	minX, maxX, doorRow := config.GameWidth, -1, 0
+	for y := range len(m.Grid) {
+		for x := range len(m.Grid[y]) {
+			if m.Grid[y][x] != Door {
+				continue
+			}
+			if !found {
+				found = true
+				doorRow = y
+			}
+			if x < minX {
+				minX = x
+			}
+			if x > maxX {
+				maxX = x
+			}
+		}
+	}
+	if !found {
+		return DefaultGhostHouse()
+	}
+	return ghostHouseFromDoor(minX, maxX, doorRow)
 }
 
 // IsGhostWall returns true for the special upward-restricted tiles in the
@@ -203,6 +282,9 @@ func (m *MazeData) LoadLevel(level int, isPixelLit func(x, y int) bool) int {
 	default:
 		m.setTunnels(4, 23, 14)
 	}
+
+	m.house = m.computeGhostHouse()
+	m.houseDirty = false
 
 	return dotsRemaining
 }

@@ -60,13 +60,14 @@ func spawnGhost(w donburi.World, spec ghostSpec) *donburi.Entry {
 
 // SpawnBlinky creates Blinky (red ghost) outside the ghost house in Scatter mode.
 func SpawnBlinky(w donburi.World) *donburi.Entry {
+	house := component.DefaultGhostHouse()
 	return spawnGhost(w, ghostSpec{
 		id:            component.Blinky,
 		aiKind:        component.BlinkyAI,
 		startDir:      config.Left,
-		startPos:      config.Vector{X: 14, Y: 11}.ToPixel().Sub(config.Half, 0),
+		startPos:      house.Entrance,
 		startState:    config.Scatter,
-		eatenTarget:   config.Vector{X: 14, Y: 14}.ToPixel().Sub(config.Half, 0),
+		eatenTarget:   house.Center,
 		scatterTarget: config.Vector{X: config.GameWidth, Y: -3}.ToPixel(),
 		spriteRow:     64,
 	})
@@ -74,13 +75,14 @@ func SpawnBlinky(w donburi.World) *donburi.Entry {
 
 // SpawnInky creates Inky (cyan ghost) inside the ghost house.
 func SpawnInky(w donburi.World) *donburi.Entry {
+	house := component.DefaultGhostHouse()
 	return spawnGhost(w, ghostSpec{
 		id:            component.Inky,
 		aiKind:        component.InkyAI,
 		startDir:      config.Up,
-		startPos:      config.Vector{X: 12, Y: 14}.ToPixel().Sub(config.Half, 0),
+		startPos:      house.LeftSlot,
 		startState:    config.InHouse,
-		eatenTarget:   config.Vector{X: 12, Y: 14}.ToPixel().Sub(config.Half, 0),
+		eatenTarget:   house.LeftSlot,
 		scatterTarget: config.Vector{X: config.GameWidth - 1, Y: config.GameHeight}.ToPixel(),
 		spriteRow:     96,
 	})
@@ -88,13 +90,14 @@ func SpawnInky(w donburi.World) *donburi.Entry {
 
 // SpawnPinky creates Pinky (pink ghost) inside the ghost house.
 func SpawnPinky(w donburi.World) *donburi.Entry {
+	house := component.DefaultGhostHouse()
 	return spawnGhost(w, ghostSpec{
 		id:            component.Pinky,
 		aiKind:        component.PinkyAI,
 		startDir:      config.Down,
-		startPos:      config.Vector{X: 14, Y: 14}.ToPixel().Sub(config.Half, 0),
+		startPos:      house.Center,
 		startState:    config.InHouse,
-		eatenTarget:   config.Vector{X: 14, Y: 14}.ToPixel().Sub(config.Half, 0),
+		eatenTarget:   house.Center,
 		scatterTarget: config.Vector{X: 2, Y: -3}.ToPixel(),
 		spriteRow:     80,
 	})
@@ -102,13 +105,14 @@ func SpawnPinky(w donburi.World) *donburi.Entry {
 
 // SpawnClyde creates Clyde (orange ghost) inside the ghost house.
 func SpawnClyde(w donburi.World) *donburi.Entry {
+	house := component.DefaultGhostHouse()
 	return spawnGhost(w, ghostSpec{
 		id:            component.Clyde,
 		aiKind:        component.ClydeAI,
 		startDir:      config.Up,
-		startPos:      config.Vector{X: 16, Y: 14}.ToPixel().Sub(config.Half, 0),
+		startPos:      house.RightSlot,
 		startState:    config.InHouse,
-		eatenTarget:   config.Vector{X: 16, Y: 14}.ToPixel().Sub(config.Half, 0),
+		eatenTarget:   house.RightSlot,
 		scatterTarget: config.Vector{X: 0, Y: config.GameHeight}.ToPixel(),
 		spriteRow:     112,
 	})

@@ -584,6 +584,178 @@ func TestEatenGhostNavigationOnRealMazesIfPresent(t *testing.T) {
 	}
 }
 
+func TestGhostHouseGeometryDerivedFromDoorTiles(t *testing.T) {
+	// Default geometry when no Door cells are present.
+	m := component.NewMazeData(false)
+	def := m.GhostHouse()
+	wantDef := component.DefaultGhostHouse()
+	if def != wantDef {
+		t.Fatalf("default GhostHouse = %+v, want %+v", def, wantDef)
+	}
+
+	// Shifting the Door tiles should update GhostHouse automatically.
+	m.SetCell(11, 10, component.Door)
+	m.SetCell(12, 10, component.Door)
+	shifted := m.GhostHouse()
+	wantEntrance := config.Vector{X: (11 + 12) * config.Tile / 2, Y: 9 * config.Tile}
+	wantCenter := config.Vector{X: wantEntrance.X, Y: 12 * config.Tile}
+	if shifted.Entrance != wantEntrance || shifted.Center != wantCenter {
+		t.Fatalf("shifted GhostHouse = %+v, want Entrance=%v Center=%v", shifted, wantEntrance, wantCenter)
+	}
+	if shifted.BounceTop != wantCenter.Y-config.Half || shifted.BounceBottom != wantCenter.Y+config.Half {
+		t.Fatalf("shifted bounce bounds = [%d,%d], want [%d,%d]",
+			shifted.BounceTop, shifted.BounceBottom, wantCenter.Y-config.Half, wantCenter.Y+config.Half)
+	}
+}
+
+func TestGhostHouseGeometryOnRealMazesIfPresent(t *testing.T) {
+	path := filepath.Join("..", "..", "assets", "game.png")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Skipf("spritesheet %s not present: %v", path, err)
+	}
+	defer f.Close()
+
+	img, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("decode spritesheet: %v", err)
+	}
+	isLit := func(x, y int) bool {
+		r, g, b, _ := img.At(x, y).RGBA()
+		return r > 0 || g > 0 || b > 0
+	}
+
+	cases := []struct {
+		name       string
+		pacmanMode bool
+		level      int
+	}{
+		{"MsPacman maze 0", false, 1},
+		{"MsPacman maze 1", false, 3},
+		{"MsPacman maze 2", false, 6},
+		{"MsPacman maze 3", false, 10},
+		{"Pacman maze 4", true, 1},
+	}
+
+	want := component.DefaultGhostHouse()
+	for _, tc := range cases {
+		m := component.NewMazeData(tc.pacmanMode)
+		m.LoadLevel(tc.level, isLit)
+		got := m.GhostHouse()
+		if got != want {
+			t.Errorf("%s: GhostHouse() = %+v, want %+v", tc.name, got, want)
+		}
+	}
+}
+
+func TestGhostHouseBounceAndExitReliableAtFastSpeeds(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Scatter
+	// Use a multi-pixel-per-frame speed (>1 px/frame) to stress-test clamping.
+	gs.Spec.GhostTunnelSpeed = config.Speed105
+
+	maze := component.MustFindMaze(w)
+	house := maze.GhostHouse()
+	ghostSys := system.NewGhostSystem()
+
+	// Clyde starts InHouse on Level 1 and will stay InHouse while DotsEaten==0 and FrameCount==0.
+	clydeEntry := ghosts[3]
+	clydeTr := component.Transform.Get(clydeEntry)
+	clydeGhost := component.Ghost.Get(clydeEntry)
+
+	// Even if placed outside bounce bounds with a horizontal direction, InHouse clamps safely.
+	clydeTr.Pos.Y = house.BounceTop - 3
+	clydeTr.Dir = config.Left
+
+	for range 60 {
+		ghostSys.Update(w)
+		if clydeGhost.State != config.InHouse {
+			t.Fatalf("expected Clyde to remain InHouse, got %v", clydeGhost.State)
+		}
+		if clydeTr.Pos.Y < house.BounceTop || clydeTr.Pos.Y > house.BounceBottom {
+			t.Fatalf("Clyde escaped bounce bounds [%d,%d]: pos=%v", house.BounceTop, house.BounceBottom, clydeTr.Pos)
+		}
+	}
+
+	// Release Clyde from an off-center bounce Y at fast speed: must center Y, center X, and exit cleanly.
+	clydeTr.Pos = config.Vector{X: house.RightSlot.X + 1, Y: house.BounceBottom}
+	gs.DotsEaten = 100
+	ghostSys.Update(w) // InHouse -> LeavingHouse
+	if clydeGhost.State != config.LeavingHouse {
+		t.Fatalf("expected Clyde to enter LeavingHouse, got %v", clydeGhost.State)
+	}
+
+	exited := false
+	for range 120 {
+		ghostSys.Update(w)
+		if clydeGhost.State == config.Scatter {
+			exited = true
+			break
+		}
+	}
+	if !exited {
+		t.Fatalf("Clyde failed to exit house at fast speed: state=%v pos=%v", clydeGhost.State, clydeTr.Pos)
+	}
+	if clydeTr.Pos != house.Entrance {
+		t.Fatalf("Clyde exited at %v, want %v", clydeTr.Pos, house.Entrance)
+	}
+}
+
+func TestEatenGhostCrossesEntranceWithoutOvershoot(t *testing.T) {
+	// Verify crossing detection from both left and right even with an odd X offset
+	// and a 2-pixel step across the entrance coordinate.
+	for _, tc := range []struct {
+		name     string
+		startX   int
+		startDir config.Direction
+	}{
+		{"from left across entrance", 107, config.Right},
+		{"from right across entrance", 109, config.Left},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w, _, ghosts := newTestWorld(t)
+			gs := component.MustFindGameState(w)
+			gs.GhostState = config.Chase
+
+			maze := component.MustFindMaze(w)
+			house := maze.GhostHouse()
+			for x := 10; x <= 17; x++ {
+				maze.SetCell(x, 10, component.Wall)
+				maze.SetCell(x, 12, component.Wall)
+				maze.SetCell(x, 16, component.Wall)
+			}
+			maze.SetCell(13, 12, component.Door)
+			maze.SetCell(14, 12, component.Door)
+
+			blinky := ghosts[0]
+			actor := component.Actor.Get(blinky)
+			tr := component.Transform.Get(blinky)
+			g := component.Ghost.Get(blinky)
+			actor.IsEaten = true
+			g.State = config.Eaten
+			g.PixelsMoved = config.Tile
+			tr.Pos = config.Vector{X: tc.startX, Y: house.Entrance.Y}
+			tr.Dir = tc.startDir
+
+			ghostSys := system.NewGhostSystem()
+			// Speed80 moves 1px/frame, so 2 frames guarantees crossing X=108 from 107 or 109.
+			for range 5 {
+				ghostSys.Update(w)
+				if g.State == config.EnteringHouse {
+					break
+				}
+			}
+			if g.State != config.EnteringHouse {
+				t.Fatalf("expected EnteringHouse after crossing entrance, got state=%v pos=%v", g.State, tr.Pos)
+			}
+			if tr.Pos.X != house.Entrance.X {
+				t.Fatalf("expected snapped X=%d, got %v", house.Entrance.X, tr.Pos)
+			}
+		})
+	}
+}
+
 func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 	gs := component.MustFindGameState(w)
