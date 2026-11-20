@@ -74,7 +74,7 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	}
 
 	system.RegisterEventHandlers(world)
-	system.RegisterAudioEventHandlers(world, audioPlayer)
+	audio.RegisterAudioEventHandlers(world, audioPlayer)
 
 	renderer := render.NewRenderer(art)
 	pipeline := system.NewPipeline(render.NewRaylibInput())

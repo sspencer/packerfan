@@ -1,7 +1,6 @@
 package main
 
 import (
-	"embed"
 	"flag"
 	"fmt"
 	"os"
@@ -10,14 +9,12 @@ import (
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 
+	"pacfan/assets"
 	"pacfan/internal/audio"
 	"pacfan/internal/config"
 	"pacfan/internal/game"
 	"pacfan/internal/render"
 )
-
-//go:embed assets
-var assetsFS embed.FS
 
 func main() {
 	// Reduce GC frequency during the 61 FPS arcade loop.
@@ -37,7 +34,7 @@ func main() {
 	players = max(1, min(players, 2))
 
 	// Assets are embedded at build time, so check them before opening a window.
-	if err := render.CheckAssets(assetsFS); err != nil {
+	if err := render.CheckAssets(assets.FS); err != nil {
 		fmt.Fprintf(os.Stderr, `error: %v
 
 The placeholder artwork assets/game.png and assets/text.png is tracked in the
@@ -52,7 +49,7 @@ Rebuild afterwards: the assets are embedded into the binary at build time.
 
 	// Verify optional audio assets before initializing audio; warn clearly if any are absent.
 	if !mute {
-		if missing := audio.MissingAssets(assetsFS, pacman); len(missing) > 0 {
+		if missing := audio.MissingAssets(assets.FS, pacman); len(missing) > 0 {
 			fmt.Fprintf(os.Stderr, `warning: missing optional audio file(s):
   %s
 
@@ -83,7 +80,7 @@ and rebuild to enable missing sounds, or pass -mute to silence this warning.
 		Zoom:       float32(zoom),
 		Players:    players,
 		Mute:       mute,
-	}, assetsFS)
+	}, assets.FS)
 	defer engine.Unload()
 
 	clock := config.NewArcadeClock()

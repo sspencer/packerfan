@@ -892,7 +892,7 @@ func TestAudioEventsAndSceneLoopTransitions(t *testing.T) {
 	ctx.Audio = rec
 	ctx.PlayerOneDuration = 1
 	ctx.ReadyDuration = 1
-	system.RegisterAudioEventHandlers(ctx.World, rec)
+	audio.RegisterAudioEventHandlers(ctx.World, rec)
 
 	// Attract -> start game plays Credit + Start jingle.
 	ctx.Manager.Start(scene.NewAttractScene(ctx))
@@ -963,7 +963,7 @@ func TestGhostEatenExtraLifeSoundPlaysImmediatelyOnCollisionFrame(t *testing.T) 
 	ctx, _, _, player, ghosts := newSceneHarness(t, true)
 	rec := &recordingAudio{}
 	ctx.Audio = rec
-	system.RegisterAudioEventHandlers(ctx.World, rec)
+	audio.RegisterAudioEventHandlers(ctx.World, rec)
 
 	gs := component.MustFindGameState(ctx.World)
 	gs.Score = 9900
