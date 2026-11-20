@@ -36,6 +36,9 @@ go run . -pacman -zoom 4
 | `-pacman` | `false` | Use classic Pac-Man maze, sprites, death animation, and intermissions instead of Ms. Pac-Man |
 | `-players` | `1` | Default player count on the attract screen (`1` or `2`) |
 | `-mute` | `false` | Disable arcade audio playback |
+| `-replay` | | Play back a recorded `.pfr` replay file, or every `.pfr` file in a directory (recursively, sorted) as a playlist, instead of starting a game |
+| `-replay-speed` | `1` | Starting replay playback speed multiplier (`0.25..16`) |
+| `-art` | | Override the game spritesheet PNG used in `-replay` mode (needed when the replay's mazes differ from the embedded artwork) |
 
 ### Controls
 
@@ -45,6 +48,23 @@ go run . -pacman -zoom 4
 - **Space**: Pause / resume gameplay
 - **M**: Mute / unmute audio
 - **Any Key** (on the Game Over screen, after a 1-second delay): Return to the Attract screen to pick 1P or 2P (or returns automatically after 3 seconds)
+
+### Replay Controls
+
+Replays (`.pfr` files) are recorded by the headless simulator, for example by the Python AI's evaluations. Watch one with:
+
+```sh
+go run . -replay path/to/game.pfr        # or a directory of .pfr files
+```
+
+- **Space**: Pause / resume playback
+- **Right Arrow** (while paused): Step forward one tick (hold to repeat)
+- **= / +**: Double the playback speed (up to 16x)
+- **-**: Halve the playback speed (down to 0.25x)
+- **N / P**: Next / previous file when playing a directory (wraps around)
+- **Esc** or close the window: Quit
+
+See [docs/headless.md](docs/headless.md#7-watching-and-verifying-replays) for the status bar, artwork selection, and verifying replays without a window.
 
 ### Useful Make Targets
 
