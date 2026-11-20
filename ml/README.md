@@ -2,6 +2,8 @@
 
 Python Gymnasium environment, zero-ML baselines, and `MaskablePPO` training scripts for the headless `pacfan-headless` Pac-Man / Ms. Pac-Man simulator.
 
+For how the headless server works, the full NDJSON API, `.pfr` replays, and every option of the scripts below, see [docs/headless.md](../docs/headless.md).
+
 ## 1. Build the headless Go server
 
 From the repository root:

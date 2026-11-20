@@ -2,7 +2,7 @@
 
 A step-by-step plan for a headless `pacfan` that machine-learning tools can drive to learn to play, grounded in the current codebase.
 
-[`scriptable.md`](scriptable.md) and [`machine.md`](machine.md) remain useful background (observation encodings, reward shaping, replay ideas). **Where they disagree with this document, this document wins.**
+[`docs/scriptable.md`](docs/scriptable.md) and [`docs/machine.md`](docs/machine.md) remain useful background (observation encodings, reward shaping, replay ideas). **Where they disagree with this document, this document wins.**
 
 ---
 
@@ -249,7 +249,7 @@ a ...
 - [x] `PacFanEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.
 - [x] `reset(seed=...)` forwards the Gymnasium seed as the game seed; with no seed given, draw one from the env's RNG so episodes differ (Decision 6).
 - [x] `action_masks()` from `state.player.legal` (for `MaskablePPO`); context-manager cleanup; surface child stderr if the process dies.
-- [x] Observation encoders: spatial grid `(C, 31, 28)` float32 (walls/door, dots, power, tunnels, player, per-ghost dangerous / frightened / eyes, fruit, plus a small scalar vector) and a BFS feature vector (path distance and first step to nearest dot, power pellet, fruit, each ghost). See `scriptable.md` §5.1.
+- [x] Observation encoders: spatial grid `(C, 31, 28)` float32 (walls/door, dots, power, tunnels, player, per-ghost dangerous / frightened / eyes, fruit, plus a small scalar vector) and a BFS feature vector (path distance and first step to nearest dot, power pellet, fruit, each ghost). See `docs/scriptable.md` §5.1.
 - [x] Reward wrapper: default `0.01 × score delta`; optional death penalty, level-clear bonus, step penalty.
 
 ### Step 3.3 — Validation and zero-ML baselines

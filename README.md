@@ -69,8 +69,10 @@ make help       # List all available targets
 | --- | --- |
 | [docs/ecs.md](docs/ecs.md) | Architecture overview: project layout, Donburi entities and components, the world-scoped event bus, the scene state machine, the game loop and simulation pipeline, and the audio and rendering pipeline. |
 | [assets/README.md](assets/README.md) | Asset reference: the files the game embeds, the `game.png` maze and sprite atlas layout, the `text.png` font layout, the placeholder example artwork, and the optional WAV audio files. |
-| [machine.md](machine.md) | Plan for running the game headlessly so a machine-learning agent can play far faster than real time, with deterministic input-log replays (`.pfr` files) for watching the agent improve in the normal game window. |
-| [scriptable.md](scriptable.md) | Design proposal (not yet implemented) for a scripting and machine-learning API: operating modes, a wire protocol for observing state and sending controls, observation and reward design, an implementation plan, and an example Python Gymnasium client. |
+| [docs/headless.md](docs/headless.md) | Headless simulator guide: how `pacfan-headless` works, the NDJSON API with a client example, recording, verifying and watching `.pfr` replays, and running the Python Gymnasium environment, baselines and PPO training. |
+| [ml/README.md](ml/README.md) | Python AI quick start: building the headless server, setting up the virtual environment, running the tests and zero-ML baselines, and training and evaluating MaskablePPO agents. |
+| [docs/machine.md](docs/machine.md) | Plan for running the game headlessly so a machine-learning agent can play far faster than real time, with deterministic input-log replays (`.pfr` files) for watching the agent improve in the normal game window. |
+| [docs/scriptable.md](docs/scriptable.md) | Design proposal (not yet implemented) for a scripting and machine-learning API: operating modes, a wire protocol for observing state and sending controls, observation and reward design, an implementation plan, and an example Python Gymnasium client. |
 
 ---
 
