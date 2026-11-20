@@ -290,7 +290,7 @@ class PacFanEnv(gym.Env[Any, int]):
             "state": self._last_state,
             "action_mask": self.action_masks(),
             "maze_hash": self.hello_info.get("maze_hash", ""),
-            "art": self.hello_info.get("art", {}),
+            "art": dict(self.hello_info.get("art", {})),
         }
         return obs, info
 
