@@ -171,3 +171,21 @@ func GetGhostWaveState(level, frameCount int) GhostState {
 
 	return Chase
 }
+
+// IntermissionForLevel returns the 1-based arcade intermission act number (1, 2, or 3)
+// to play after completing completedLevel, or 0 if gameplay proceeds directly to the next level.
+func IntermissionForLevel(completedLevel int, pacmanMode bool) int {
+	switch completedLevel {
+	case 2:
+		return 1
+	case 5:
+		return 2
+	case 9, 13, 17:
+		return 3
+	default:
+		if !pacmanMode && completedLevel > 17 && (completedLevel-9)%4 == 0 {
+			return 3
+		}
+		return 0
+	}
+}

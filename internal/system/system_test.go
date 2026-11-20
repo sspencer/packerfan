@@ -347,7 +347,7 @@ func TestGhostWaveChangeReversesActiveGhosts(t *testing.T) {
 	}
 }
 
-func TestLevelCompletedPausesGame(t *testing.T) {
+func TestLevelCompletedMarksLevelComplete(t *testing.T) {
 	w, _, _ := newTestWorld(t)
 	gs := component.MustFindGameState(w)
 	gs.DotsRemaining = 0
@@ -356,8 +356,11 @@ func TestLevelCompletedPausesGame(t *testing.T) {
 	gameStateSys.Update(w)
 	events.ProcessAllEvents(w)
 
-	if !gs.Paused {
-		t.Fatalf("expected game to pause when DotsRemaining reaches 0")
+	if !gs.LevelComplete {
+		t.Fatalf("expected LevelComplete=true when DotsRemaining reaches 0")
+	}
+	if gs.Paused {
+		t.Fatalf("expected user Paused flag to remain false on LevelCompleted")
 	}
 }
 
@@ -670,7 +673,7 @@ func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 	}
 }
 
-func TestGhostEatenPausesSimulationForOneSecond(t *testing.T) {
+func TestGhostEatenPausesSimulationForHalfSecond(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 	gs := component.MustFindGameState(w)
 
@@ -688,7 +691,7 @@ func TestGhostEatenPausesSimulationForOneSecond(t *testing.T) {
 	input := &stubInput{}
 	pipeline := system.NewPipeline(input)
 
-	// Frame 0: collision triggers GhostEatenPause = 61; actors must not move this frame.
+	// Frame 0: collision triggers GhostEatenPause = 30 (~0.5s); actors must not move this frame.
 	pipeline.Update(w)
 	if gs.GhostEatenPause != config.GhostEatenPause {
 		t.Fatalf("after collision frame: GhostEatenPause = %d, want %d", gs.GhostEatenPause, config.GhostEatenPause)
@@ -721,7 +724,7 @@ func TestGhostEatenPausesSimulationForOneSecond(t *testing.T) {
 			gs.Paused, gs.GhostEatenPause, config.GhostEatenPause-1)
 	}
 
-	// Remaining 59 frozen frames keep popup active and gameplay frozen (total 61 drawn frames = 1 second).
+	// Remaining frozen frames keep popup active and gameplay frozen (total 30 drawn frames = 0.5 seconds).
 	for i := range config.GhostEatenPause - 2 {
 		pipeline.Update(w)
 		if gs.GhostEatenPause <= 0 {
@@ -745,13 +748,13 @@ func TestGhostEatenPausesSimulationForOneSecond(t *testing.T) {
 		t.Fatalf("before final tick: GhostEatenPause = %d, want 1", gs.GhostEatenPause)
 	}
 
-	// Next tick ends the 1-second freeze and immediately resumes simulation.
+	// Next tick ends the 0.5-second freeze and immediately resumes simulation.
 	pipeline.Update(w)
 	if gs.GhostEatenPause != 0 {
-		t.Fatalf("after 1s freeze: GhostEatenPause = %d, want 0", gs.GhostEatenPause)
+		t.Fatalf("after 0.5s freeze: GhostEatenPause = %d, want 0", gs.GhostEatenPause)
 	}
 	if gs.GhostEatenEntity != donburi.Null || gs.GhostEatenScore != 0 {
-		t.Fatalf("after 1s freeze: expected cleared popup state, got entity=%v score=%d",
+		t.Fatalf("after 0.5s freeze: expected cleared popup state, got entity=%v score=%d",
 			gs.GhostEatenEntity, gs.GhostEatenScore)
 	}
 	if gs.FrameCount != frozenFrameCount+1 {
@@ -765,5 +768,80 @@ func TestGhostEatenPausesSimulationForOneSecond(t *testing.T) {
 	}
 	if got := component.Transform.Get(blinky).Pos; got == pos {
 		t.Fatalf("expected eaten ghost eyes to resume moving after freeze, stayed at %v", got)
+	}
+}
+
+func TestAdvanceToNextLevelResetsRoundAndActors(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	prng := component.MustFindPRNG(w)
+
+	// Dirty all round state and actor positions.
+	gs.Score = 12340
+	gs.HighScore = 15000
+	gs.Lives = 2
+	gs.FrameCount = 500
+	gs.DotsEaten = 244
+	gs.DotsRemaining = 0
+	gs.IsFrightMode = true
+	gs.FrightFrames = 120
+	gs.FrightFlashes = 5
+	gs.NumGhostsEaten = 3
+	gs.GhostEatenPause = 30
+	gs.GhostEatenEntity = ghosts[0].Entity()
+	gs.GhostEatenScore = 800
+	gs.GhostState = config.Chase
+	gs.LevelComplete = true
+	prng.NextByte()
+
+	component.Transform.Get(player).Pos = config.Vector{X: 40, Y: 40}
+	component.Transform.Get(player).Dir = config.Down
+	component.PlayerInput.Get(player).Requested = config.Right
+	component.Motion.Get(player).DotPause = 3
+
+	blinky := ghosts[0]
+	component.Actor.Get(blinky).IsEaten = true
+	component.Ghost.Get(blinky).State = config.Eaten
+	component.Transform.Get(blinky).Pos = config.Vector{X: 24, Y: 24}
+
+	next := system.AdvanceToNextLevel(w, nil)
+	if next != 2 || gs.Level != 2 {
+		t.Fatalf("AdvanceToNextLevel returned %d (gs.Level=%d), want 2", next, gs.Level)
+	}
+	if gs.Spec != config.GetLevelSpec(2) {
+		t.Fatalf("Spec did not update to level 2")
+	}
+	if gs.Score != 12340 || gs.HighScore != 15000 || gs.Lives != 2 {
+		t.Fatalf("persistent metrics altered: Score=%d HighScore=%d Lives=%d", gs.Score, gs.HighScore, gs.Lives)
+	}
+	if gs.FrameCount != 0 || gs.DotsEaten != 0 || gs.IsFrightMode || gs.NumGhostsEaten != 0 || gs.GhostEatenPause != 0 || gs.LevelComplete {
+		t.Fatalf("round state not reset: %+v", gs)
+	}
+	if gs.GhostState != config.Scatter {
+		t.Fatalf("GhostState = %v, want Scatter", gs.GhostState)
+	}
+	if prng.Index != 0 {
+		t.Fatalf("PRNG index = %d, want 0", prng.Index)
+	}
+	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
+		t.Fatalf("player Pos = %v, want spawn %v", got, want)
+	}
+	if got, want := component.PlayerInput.Get(player).Requested, component.Spawn.Get(player).StartDir; got != want {
+		t.Fatalf("player Requested dir = %v, want %v", got, want)
+	}
+	if component.Actor.Get(blinky).IsEaten {
+		t.Fatalf("expected Blinky IsEaten=false after level advance")
+	}
+	if got, want := component.Ghost.Get(blinky).State, component.Ghost.Get(blinky).StartState; got != want {
+		t.Fatalf("Blinky State = %v, want %v", got, want)
+	}
+	if got, want := component.Transform.Get(blinky).Pos, component.Spawn.Get(blinky).StartPos; got != want {
+		t.Fatalf("Blinky Pos = %v, want spawn %v", got, want)
+	}
+
+	// Verify level clamps cleanly at 255.
+	gs.SetLevel(255)
+	if got := system.AdvanceToNextLevel(w, nil); got != 255 {
+		t.Fatalf("expected level to clamp at 255, got %d", got)
 	}
 }

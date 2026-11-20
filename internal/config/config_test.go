@@ -69,3 +69,37 @@ func TestGhostScoreProgression(t *testing.T) {
 		}
 	}
 }
+
+func TestIntermissionForLevel(t *testing.T) {
+	tests := []struct {
+		level      int
+		pacmanMode bool
+		want       int
+	}{
+		{1, true, 0},
+		{2, true, 1},
+		{3, true, 0},
+		{4, true, 0},
+		{5, true, 2},
+		{6, true, 0},
+		{9, true, 3},
+		{13, true, 3},
+		{17, true, 3},
+		{21, true, 0},
+		{1, false, 0},
+		{2, false, 1},
+		{5, false, 2},
+		{9, false, 3},
+		{13, false, 3},
+		{17, false, 3},
+		{21, false, 3},
+		{22, false, 0},
+		{25, false, 3},
+	}
+
+	for _, tt := range tests {
+		if got := config.IntermissionForLevel(tt.level, tt.pacmanMode); got != tt.want {
+			t.Errorf("IntermissionForLevel(%d, pacman=%v) = %d, want %d", tt.level, tt.pacmanMode, got, tt.want)
+		}
+	}
+}

@@ -36,9 +36,23 @@ var (
 
 // ResetGhost restores a ghost's transform, state, and movement counters to spawn defaults.
 func ResetGhost(entry *donburi.Entry) {
+	if entry.HasComponent(Actor) {
+		Actor.Get(entry).IsEaten = false
+	}
+	if entry.HasComponent(Motion) {
+		motion := Motion.Get(entry)
+		motion.SpeedIndex = 0
+		motion.DotPause = 0
+	}
+	if entry.HasComponent(Animation) {
+		anim := Animation.Get(entry)
+		anim.FrameCount = 0
+		anim.FrameIndex = 0
+	}
 	ghost := Ghost.Get(entry)
 	ghost.State = ghost.StartState
-	ghost.PixelsMoved = 0
+	ghost.Target = config.Vector{}
+	ghost.PixelsMoved = config.Tile
 	ghost.Reverse = false
 	ResetToStart(entry)
 }

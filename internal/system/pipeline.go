@@ -27,13 +27,19 @@ func NewPipeline(inputProvider InputProvider) *Pipeline {
 	}
 }
 
+// Input returns the pipeline's InputSystem so scenes can share a single input
+// sampler without double-polling edge-triggered keys.
+func (p *Pipeline) Input() *InputSystem {
+	return p.input
+}
+
 // Update advances the ECS world by one fixed tick.
 func (p *Pipeline) Update(w donburi.World) {
 	p.input.Sample()
 	p.input.ApplyPause(w)
 
 	gameState := component.MustFindGameState(w)
-	if gameState.Paused {
+	if gameState.Paused || gameState.LevelComplete {
 		return
 	}
 
@@ -51,7 +57,7 @@ func (p *Pipeline) Update(w donburi.World) {
 	p.collision.Update(w)
 	events.ProcessAllEvents(w)
 
-	if gameState.GhostEatenPause > 0 {
+	if gameState.GhostEatenPause > 0 || gameState.LevelComplete {
 		return
 	}
 
@@ -60,5 +66,7 @@ func (p *Pipeline) Update(w donburi.World) {
 
 	p.input.ApplyPlayerInput(w)
 	p.player.Update(w)
+	events.ProcessAllEvents(w)
+	// Flush follow-up events published by dot/powerup handlers (e.g., LevelCompleted).
 	events.ProcessAllEvents(w)
 }

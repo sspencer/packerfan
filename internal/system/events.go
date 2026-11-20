@@ -34,6 +34,9 @@ func RegisterEventHandlers(w donburi.World) {
 		}
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
+		if gameState.DotsRemaining == 0 {
+			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
+		}
 
 		if playerEntry, ok := playerQuery.First(w); ok {
 			component.Motion.Get(playerEntry).DotPause += config.PelletPause
@@ -55,6 +58,9 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
 		gameState.NumGhostsEaten = 0
+		if gameState.DotsRemaining == 0 {
+			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
+		}
 
 		if playerEntry, ok := playerQuery.First(w); ok {
 			component.Motion.Get(playerEntry).DotPause += config.PowerPause
@@ -135,7 +141,11 @@ func RegisterEventHandlers(w donburi.World) {
 	})
 
 	event.LevelCompleted.Subscribe(w, func(w donburi.World, _ event.LevelCompletedEvent) {
+		gameState := component.MustFindGameState(w)
+		if gameState.LevelComplete {
+			return
+		}
+		gameState.LevelComplete = true
 		fmt.Println("Level complete!")
-		component.MustFindGameState(w).Paused = true
 	})
 }

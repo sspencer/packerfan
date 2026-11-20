@@ -20,7 +20,7 @@ func (s *GameStateSystem) Update(w donburi.World) {
 	gameState := component.MustFindGameState(w)
 	gameState.FrameCount++
 
-	if gameState.DotsRemaining == 0 {
+	if gameState.DotsRemaining == 0 && !gameState.LevelComplete {
 		event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
 	}
 

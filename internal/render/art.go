@@ -7,13 +7,33 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-// Art owns the loaded Raylib textures, spritesheet image, and chroma-key shader.
+// Art owns the loaded Raylib textures, spritesheet image, and shaders.
 type Art struct {
-	Font    rl.Texture2D
-	Texture rl.Texture2D
-	Image   *rl.Image
-	Shader  rl.Shader
+	Font        rl.Texture2D
+	Texture     rl.Texture2D
+	Image       *rl.Image
+	Shader      rl.Shader
+	FlashShader rl.Shader
 }
+
+const flashFragmentShader = `#version 330
+in vec2 fragTexCoord;
+in vec4 fragColor;
+out vec4 finalColor;
+uniform sampler2D texture0;
+void main()
+{
+    vec4 texColor = texture(texture0, fragTexCoord);
+    if (max(max(texColor.r, texColor.g), texColor.b) > 0.05)
+    {
+        finalColor = vec4(1.0, 1.0, 1.0, texColor.a);
+    }
+    else
+    {
+        finalColor = vec4(0.0, 0.0, 0.0, texColor.a);
+    }
+}
+`
 
 // NewArt loads all graphical assets from the provided embedded filesystem.
 func NewArt(assetsFS fs.FS) *Art {
@@ -21,12 +41,14 @@ func NewArt(assetsFS fs.FS) *Art {
 	gameTexture := loadTexture(assetsFS, "assets/game.png")
 	gameImage := rl.LoadImageFromTexture(gameTexture)
 	shader := loadShader(assetsFS, "assets/chroma_key.fs")
+	flashShader := rl.LoadShaderFromMemory("", flashFragmentShader)
 
 	return &Art{
-		Font:    fontTexture,
-		Texture: gameTexture,
-		Image:   gameImage,
-		Shader:  shader,
+		Font:        fontTexture,
+		Texture:     gameTexture,
+		Image:       gameImage,
+		Shader:      shader,
+		FlashShader: flashShader,
 	}
 }
 
@@ -36,6 +58,7 @@ func (a *Art) Unload() {
 	rl.UnloadTexture(a.Texture)
 	rl.UnloadImage(a.Image)
 	rl.UnloadShader(a.Shader)
+	rl.UnloadShader(a.FlashShader)
 }
 
 // IsPixelLit reports whether the pixel at (x, y) on the spritesheet image is non-black.

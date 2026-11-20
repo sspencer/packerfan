@@ -28,6 +28,7 @@ type GameStateData struct {
 	GhostEatenY      int
 	GhostEatenEntity donburi.Entity
 	GhostEatenScore  int
+	LevelComplete    bool
 	Spec             config.LevelSpecTable
 	GhostState       config.GhostState
 }
@@ -36,6 +37,27 @@ type GameStateData struct {
 func (g *GameStateData) SetLevel(level int) {
 	g.Level = level
 	g.Spec = config.GetLevelSpec(level)
+}
+
+// ResetForNextLevel advances to the given level and resets round-scoped timers,
+// counters, frightened state, and ghost-eaten popup state while preserving score,
+// high score, lives, zoom, and mode flags.
+func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
+	g.SetLevel(level)
+	g.FrameCount = 0
+	g.DotsEaten = 0
+	g.DotsRemaining = dotsRemaining
+	g.IsFrightMode = false
+	g.FrightFlashes = 0
+	g.FrightFrames = 0
+	g.NumGhostsEaten = 0
+	g.GhostEatenPause = 0
+	g.GhostEatenX = 0
+	g.GhostEatenY = 0
+	g.GhostEatenEntity = donburi.Null
+	g.GhostEatenScore = 0
+	g.GhostState = config.Scatter
+	g.LevelComplete = false
 }
 
 var GameState = donburi.NewComponentType[GameStateData]()
