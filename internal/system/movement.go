@@ -79,7 +79,7 @@ func MoveActor(transform *component.TransformData, motion *component.MotionData,
 		}
 
 		if move > 1 && IsCentered(transform.Pos) {
-			return true
+			break
 		}
 	}
 

@@ -751,6 +751,25 @@ func TestPlayerAnimationFreezesWhenBlockedByWall(t *testing.T) {
 	}
 }
 
+func TestMoveActorAdvancesSpeedIndexOnEarlyCenterBreak(t *testing.T) {
+	// Speed100 = 0x80001111 -> bit 12 is 1 (SpeedIndex=3 -> move=2).
+	// Starting 1px before a tile center (X=7, Y=8) causes early center break at X=8,
+	// and SpeedIndex must still advance from 3 to 4.
+	tr := component.TransformData{Pos: config.Vector{X: 7, Y: 8}, Dir: config.Right}
+	motion := component.MotionData{SpeedIndex: 3}
+
+	moved := system.MoveActor(&tr, &motion, config.Speed100)
+	if !moved {
+		t.Fatalf("expected MoveActor to return true")
+	}
+	if tr.Pos != (config.Vector{X: 8, Y: 8}) {
+		t.Fatalf("expected early stop at centered tile (8,8), got %v", tr.Pos)
+	}
+	if motion.SpeedIndex != 4 {
+		t.Fatalf("SpeedIndex = %d, want 4", motion.SpeedIndex)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 
