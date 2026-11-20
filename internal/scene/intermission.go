@@ -114,10 +114,7 @@ func (s *IntermissionScene) buildPacmanView() IntermissionView {
 	case 2:
 		// Act 2: Blinky chases Pac-Man and snags mid-screen while Pac-Man escapes.
 		pacX := mazeRight + 8 - (s.frame * 3 / 2)
-		blinkyX := pacX + 24
-		if blinkyX < 108 {
-			blinkyX = 108
-		}
+		blinkyX := max(pacX+24, 108)
 		return IntermissionView{
 			Title: "ACT 2",
 			Sprites: []IntermissionSprite{
