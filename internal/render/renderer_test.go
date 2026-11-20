@@ -1,13 +1,13 @@
 package render_test
 
 import (
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"pacfan/internal/config"
 	"pacfan/internal/render"
+	"pacfan/internal/sheet"
 )
 
 // spritesheetPath returns assets/game-real.png if it exists, otherwise the
@@ -45,15 +45,9 @@ func TestGhostScoreSpriteMapping(t *testing.T) {
 
 func TestGhostScoreSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
-	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
 	}
 
 	for _, score := range []int{200, 400, 800, 1600} {
@@ -65,8 +59,7 @@ func TestGhostScoreSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 		litCount := 0
 		for dy := range config.Sprite {
 			for dx := range config.Sprite {
-				r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
-				if r > 0 || g > 0 || b > 0 {
+				if s.IsPixelLit(origin.X+dx, origin.Y+dy) {
 					litCount++
 				}
 			}
@@ -86,15 +79,9 @@ func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 	}
 
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
-	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
 	}
 
 	for _, pacmanMode := range []bool{true, false} {
@@ -106,8 +93,7 @@ func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 			litCount := 0
 			for dy := range config.Sprite {
 				for dx := range config.Sprite {
-					r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
-					if r > 0 || g > 0 || b > 0 {
+					if s.IsPixelLit(origin.X+dx, origin.Y+dy) {
 						litCount++
 					}
 				}
@@ -121,15 +107,9 @@ func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 
 func TestBonusFruitAndScoreSpritesInSpritesheetIfPresent(t *testing.T) {
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
-	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
 	}
 
 	symbols := []config.BonusSymbol{
@@ -145,8 +125,7 @@ func TestBonusFruitAndScoreSpritesInSpritesheetIfPresent(t *testing.T) {
 			lit := 0
 			for dy := range config.Sprite {
 				for dx := range config.Sprite {
-					r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
-					if r > 0 || g > 0 || b > 0 {
+					if s.IsPixelLit(origin.X+dx, origin.Y+dy) {
 						lit++
 					}
 				}
@@ -163,8 +142,7 @@ func TestBonusFruitAndScoreSpritesInSpritesheetIfPresent(t *testing.T) {
 			lit := 0
 			for dy := range config.Sprite {
 				for dx := range w {
-					r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
-					if r > 0 || g > 0 || b > 0 {
+					if s.IsPixelLit(origin.X+dx, origin.Y+dy) {
 						lit++
 					}
 				}

@@ -1,11 +1,14 @@
 package component_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
+	"pacfan/assets"
 	"pacfan/internal/component"
 	"pacfan/internal/config"
+	"pacfan/internal/sheet"
 )
 
 func TestCellAndMazeStringRepresentations(t *testing.T) {
@@ -60,5 +63,85 @@ func TestCellAndMazeStringRepresentations(t *testing.T) {
 	pretty := m.PrettyString()
 	if !strings.Contains(pretty, "███") || !strings.Contains(pretty, " 0│") {
 		t.Fatalf("MazeData.PrettyString() missing expected Unicode grid/headers")
+	}
+}
+
+func TestMazeTemplateParityAndTextRoundTrip(t *testing.T) {
+	for _, assetPath := range []string{assets.GameAssetFallbackPath, assets.GameAssetPath(assets.FS)} {
+		t.Run(assetPath, func(t *testing.T) {
+			s, err := sheet.Load(assets.FS, assetPath)
+			if err != nil {
+				t.Fatalf("sheet.Load(%q): %v", assetPath, err)
+			}
+
+			set := component.ParseMazeSet(s.IsPixelLit)
+			if len(set.Hash()) != 64 {
+				t.Fatalf("MazeSet.Hash() length = %d, want 64", len(set.Hash()))
+			}
+
+			// Verify all 5 mazes: template-backed LoadLevel == pixel-sampled LoadLevel.
+			cases := []struct {
+				pacmanMode bool
+				level      int
+				wantIndex  int
+			}{
+				{false, 1, 0},
+				{false, 3, 1},
+				{false, 6, 2},
+				{false, 10, 3},
+				{true, 1, 4},
+			}
+
+			for _, tc := range cases {
+				pixelMaze := component.NewMazeData(tc.pacmanMode)
+				pixelDots := pixelMaze.LoadLevel(tc.level, s.IsPixelLit)
+
+				tmplMaze := component.NewMazeData(tc.pacmanMode)
+				tmplMaze.UseTemplates(set)
+				// Pass a panicking isPixelLit to prove template-backed LoadLevel never calls it.
+				tmplDots := tmplMaze.LoadLevel(tc.level, func(int, int) bool {
+					t.Fatalf("template-backed LoadLevel unexpectedly called isPixelLit")
+					return false
+				})
+
+				if tmplMaze.GetIndex() != tc.wantIndex {
+					t.Fatalf("maze index = %d, want %d", tmplMaze.GetIndex(), tc.wantIndex)
+				}
+				if tmplDots != pixelDots {
+					t.Errorf("maze %d dots: template=%d pixel=%d", tc.wantIndex, tmplDots, pixelDots)
+				}
+				if tmplMaze.GhostHouse() != pixelMaze.GhostHouse() {
+					t.Errorf("maze %d GhostHouse: template=%+v pixel=%+v", tc.wantIndex, tmplMaze.GhostHouse(), pixelMaze.GhostHouse())
+				}
+				if !slices.Equal(tmplMaze.Rows(), pixelMaze.Rows()) {
+					t.Errorf("maze %d rows differ between template and pixel LoadLevel", tc.wantIndex)
+				}
+
+				// Text round-trip: Rows() -> ParseMazeTemplateFromRows -> identical grid/dots/house.
+				tmpl := set.Template(tc.wantIndex)
+				rows := tmpl.Rows()
+				parsed, err := component.ParseMazeTemplateFromRows(tc.wantIndex, rows)
+				if err != nil {
+					t.Fatalf("ParseMazeTemplateFromRows(%d): %v", tc.wantIndex, err)
+				}
+				if parsed.Grid != tmpl.Grid {
+					t.Errorf("maze %d round-trip grid differs", tc.wantIndex)
+				}
+				if parsed.Dots != tmpl.Dots {
+					t.Errorf("maze %d round-trip dots = %d, want %d", tc.wantIndex, parsed.Dots, tmpl.Dots)
+				}
+				if parsed.House != tmpl.House {
+					t.Errorf("maze %d round-trip house = %+v, want %+v", tc.wantIndex, parsed.House, tmpl.House)
+				}
+			}
+
+			// Mutating a single tile changes MazeSet.Hash().
+			modified := set.Templates
+			modified[0].Grid[0][0] = component.Empty
+			set2 := component.NewMazeSetFromTemplates(modified)
+			if set2.Hash() == set.Hash() {
+				t.Errorf("expected MazeSet.Hash() to change after modifying a tile")
+			}
+		})
 	}
 }

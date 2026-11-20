@@ -172,10 +172,10 @@ Values below are illustrative.
 - [x] Tests: same seed → same byte sequence; different seeds diverge; starting at level N loads the right maze index and level spec.
 
 ### Step 1.3 — Pure-Go sheet and text maze set
-- [ ] `internal/sheet`: `Load(fsys fs.FS, path string)` and `LoadFile(path string)` decode the PNG once into a lit-pixel bitmap; expose `IsPixelLit(x, y)` (same rule as `render.Art.IsPixelLit`: any of R, G, B non-zero), `Name()` (base filename), and `SHA256()`.
-- [ ] `internal/component/maze.go`: split the pixel classification out of `LoadLevel` into `ParseMazeTemplate(mazeIndex, isPixelLit) MazeTemplate` (grid, dot count, ghost house, with tunnels marked) and `ParseMazeSet(isPixelLit) *MazeSet` for all five, plus `MazeSet.Hash()` and `MazeTemplate.Rows()`.
-- [ ] `MazeData.UseTemplates(*MazeSet)`: when set, `LoadLevel` copies the template and ignores `isPixelLit`. This keeps the `isPixelLit` parameter threaded through `internal/system/level.go` and the scenes unchanged, so the windowed game and its ~3,000 lines of tests are not disturbed.
-- [ ] Tests: template-backed `LoadLevel` equals pixel-sampled `LoadLevel` tile-for-tile for all five mazes; text round-trips (`Rows()` → parse → identical grid). Replace the duplicated `png.Decode` helpers in `system_test.go`, `scene_test.go`, and `renderer_test.go` with `internal/sheet` where it is a drop-in.
+- [x] `internal/sheet`: `Load(fsys fs.FS, path string)` and `LoadFile(path string)` decode the PNG once into a lit-pixel bitmap; expose `IsPixelLit(x, y)` (same rule as `render.Art.IsPixelLit`: any of R, G, B non-zero), `Name()` (base filename), and `SHA256()`.
+- [x] `internal/component/maze.go`: split the pixel classification out of `LoadLevel` into `ParseMazeTemplate(mazeIndex, isPixelLit) MazeTemplate` (grid, dot count, ghost house, with tunnels marked) and `ParseMazeSet(isPixelLit) *MazeSet` for all five, plus `MazeSet.Hash()` and `MazeTemplate.Rows()`.
+- [x] `MazeData.UseTemplates(*MazeSet)`: when set, `LoadLevel` copies the template and ignores `isPixelLit`. This keeps the `isPixelLit` parameter threaded through `internal/system/level.go` and the scenes unchanged, so the windowed game and its ~3,000 lines of tests are not disturbed.
+- [x] Tests: template-backed `LoadLevel` equals pixel-sampled `LoadLevel` tile-for-tile for all five mazes; text round-trips (`Rows()` → parse → identical grid). Replace the duplicated `png.Decode` helpers in `system_test.go`, `scene_test.go`, and `renderer_test.go` with `internal/sheet` where it is a drop-in.
 
 ### Step 1.4 — `internal/sim`
 - [ ] `input.go`: `Action` (`Right=0 … Noop=4`) and `ScriptedInput` implementing `system.InputProvider` (never sets pause, mute, or start keys).

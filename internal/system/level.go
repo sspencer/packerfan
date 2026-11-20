@@ -70,7 +70,7 @@ func AdvanceToNextLevel(w donburi.World, isPixelLit func(x, y int) bool) int {
 
 	nextLevel := min(gameState.Level+1, 255)
 	dotsRemaining := 0
-	if isPixelLit != nil {
+	if isPixelLit != nil || maze.HasTemplates() {
 		dotsRemaining = maze.LoadLevel(nextLevel, isPixelLit)
 	} else {
 		maze.Level = nextLevel
@@ -122,7 +122,7 @@ func ConsumeLifeOrSwitchPlayer(w donburi.World, isPixelLit func(x, y int) bool) 
 				gameState.ActivePlayer = other
 				gameState.Players[other].Started = true
 				dotsRemaining := 0
-				if isPixelLit != nil {
+				if isPixelLit != nil || maze.HasTemplates() {
 					dotsRemaining = maze.LoadLevel(1, isPixelLit)
 				} else {
 					maze.Level = 1
@@ -182,7 +182,7 @@ func StartGameAtLevel(w donburi.World, level int, isPixelLit func(x, y int) bool
 	maze := component.MustFindMaze(w)
 
 	dotsRemaining := 0
-	if isPixelLit != nil {
+	if isPixelLit != nil || maze.HasTemplates() {
 		dotsRemaining = maze.LoadLevel(level, isPixelLit)
 	} else {
 		maze.Level = level
