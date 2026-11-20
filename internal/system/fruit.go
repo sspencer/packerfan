@@ -21,15 +21,31 @@ func NewFruitSystem() *FruitSystem {
 }
 
 func (s *FruitSystem) Update(w donburi.World) {
-	gs := component.MustFindGameState(w)
+	s.updateFruit(w, component.MustFindGameState(w), nil, nil)
+}
+
+func (s *FruitSystem) updateCached(w donburi.World, c *worldCache) {
+	if !c.gs.FruitActive || !c.gs.FruitMoving {
+		return
+	}
+	s.updateFruit(w, c.gs, c.maze, c.bus)
+}
+
+func (s *FruitSystem) updateFruit(w donburi.World, gs *component.GameStateData, maze *component.MazeData, bus *event.Bus) {
 	if !gs.FruitActive || !gs.FruitMoving {
 		return
 	}
 
-	maze := component.MustFindMaze(w)
+	if maze == nil {
+		maze = component.MustFindMaze(w)
+	}
 
 	if gs.FruitBounceFrame == 0 {
-		event.FruitBounced.Publish(w, event.FruitBouncedEvent{})
+		if bus != nil {
+			event.FruitBounced.PublishTo(bus, event.FruitBouncedEvent{})
+		} else {
+			event.FruitBounced.Publish(w, event.FruitBouncedEvent{})
+		}
 	}
 	gs.FruitBounceFrame = (gs.FruitBounceFrame + 1) % fruitBounceCycle
 

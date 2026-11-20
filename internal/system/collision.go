@@ -78,6 +78,66 @@ func (s *CollisionSystem) Update(w donburi.World) {
 	}
 }
 
+func (s *CollisionSystem) updateCached(w donburi.World, c *worldCache) {
+	if len(c.players) == 0 {
+		return
+	}
+	p := &c.players[0]
+	playerPos := p.transform.Pos
+	playerTile := playerPos.ToCenterTile()
+
+	gameState := c.gs
+	if gameState.FruitActive && playerTile == gameState.FruitPos.ToCenterTile() {
+		pts := gameState.FruitPoints
+		if pts <= 0 {
+			pts = int(gameState.Spec.BonusPoints)
+		}
+		ev := event.FruitEatenEvent{Points: pts}
+		if c.bus != nil {
+			event.FruitEaten.PublishTo(c.bus, ev)
+		} else {
+			event.FruitEaten.Publish(w, ev)
+		}
+	}
+
+	for i := range c.ghosts {
+		g := &c.ghosts[i]
+		if playerTile != g.transform.Pos.ToCenterTile() {
+			continue
+		}
+
+		if g.ghost.State == config.Frightened && !g.actor.IsEaten {
+			ev := event.GhostEatenEvent{
+				Entity: g.entity,
+				ID:     g.actor.ID,
+				X:      g.transform.Pos.X,
+				Y:      g.transform.Pos.Y,
+			}
+			if c.bus != nil {
+				event.GhostEaten.PublishTo(c.bus, ev)
+			} else {
+				event.GhostEaten.Publish(w, ev)
+			}
+			break
+		}
+
+		if (g.ghost.State == config.Chase || g.ghost.State == config.Scatter) && !p.actor.IsEaten {
+			ev := event.PlayerEatenEvent{
+				Entity: p.entity,
+				ID:     p.actor.ID,
+				X:      playerPos.X,
+				Y:      playerPos.Y,
+			}
+			if c.bus != nil {
+				event.PlayerEaten.PublishTo(c.bus, ev)
+			} else {
+				event.PlayerEaten.Publish(w, ev)
+			}
+			break
+		}
+	}
+}
+
 // SameTileCollide reports whether two actors occupy the same center-aligned
 // 8x8 maze tile, matching the original arcade Pac-Man collision rule.
 func SameTileCollide(pPos, gPos config.Vector) bool {

@@ -98,6 +98,12 @@ type Env struct {
 
 	player *donburi.Entry
 	ghosts [4]*donburi.Entry // Indexed by component.ActorID (Blinky, Pinky, Inky, Clyde)
+	gs     *component.GameStateData
+	maze   *component.MazeData
+	prng   *component.PRNGData
+	pTr    *component.TransformData
+	gTr    [4]*component.TransformData
+	gData  [4]*component.GhostData
 
 	tickCount       int
 	done            bool
@@ -113,12 +119,13 @@ func NewEnv(cfg Config) *Env {
 	cfg.StartLevel = max(1, min(cfg.StartLevel, 255))
 
 	w := donburi.NewWorld()
-	archetype.CreateGameState(w, cfg.PacmanMode, 1)
+	gsEntry := archetype.CreateGameState(w, cfg.PacmanMode, 1)
 	mazeEntry := archetype.CreateMaze(w, cfg.PacmanMode)
+	mazeData := component.Maze.Get(mazeEntry)
 	if cfg.Mazes != nil {
-		component.Maze.Get(mazeEntry).UseTemplates(cfg.Mazes)
+		mazeData.UseTemplates(cfg.Mazes)
 	}
-	archetype.CreatePRNG(w)
+	prngEntry := archetype.CreatePRNG(w)
 
 	player := archetype.SpawnPlayer(w)
 	spawnedGhosts := archetype.SpawnAllGhosts(w)
@@ -128,11 +135,17 @@ func NewEnv(cfg Config) *Env {
 		world:  w,
 		input:  NewScriptedInput(),
 		player: player,
+		gs:     component.GameState.Get(gsEntry),
+		maze:   mazeData,
+		prng:   component.PRNG.Get(prngEntry),
+		pTr:    component.Transform.Get(player),
 	}
 	for _, entry := range spawnedGhosts {
 		id := int(component.Actor.Get(entry).ID)
 		if id >= 0 && id < len(env.ghosts) {
 			env.ghosts[id] = entry
+			env.gTr[id] = component.Transform.Get(entry)
+			env.gData[id] = component.Ghost.Get(entry)
 		}
 	}
 
@@ -170,6 +183,21 @@ func (e *Env) GhostEntries() [4]*donburi.Entry {
 	return e.ghosts
 }
 
+// GameState returns the cached singleton GameStateData pointer.
+func (e *Env) GameState() *component.GameStateData { return e.gs }
+
+// Maze returns the cached singleton MazeData pointer.
+func (e *Env) Maze() *component.MazeData { return e.maze }
+
+// PlayerTransform returns the cached player TransformData pointer.
+func (e *Env) PlayerTransform() *component.TransformData { return e.pTr }
+
+// GhostTransform returns the cached TransformData pointer for ghost index i (0..3).
+func (e *Env) GhostTransform(i int) *component.TransformData { return e.gTr[i] }
+
+// GhostData returns the cached GhostData pointer for ghost index i (0..3).
+func (e *Env) GhostData(i int) *component.GhostData { return e.gData[i] }
+
 // SetTickHook installs an optional callback invoked after each individual sim tick
 // (used by replay recording).
 func (e *Env) SetTickHook(fn func(TickInfo)) {
@@ -179,8 +207,7 @@ func (e *Env) SetTickHook(fn func(TickInfo)) {
 // ContinuingEpisodicLife reports whether the next Reset (without ForceFullReset
 // or mode/level change) will continue the current game on a remaining life.
 func (e *Env) ContinuingEpisodicLife() bool {
-	gs := component.MustFindGameState(e.world)
-	return e.continueOnReset && e.cfg.EpisodicLife && !gs.GameOver
+	return e.continueOnReset && e.cfg.EpisodicLife && !e.gs.GameOver
 }
 
 // Reset starts a new episode. When EpisodicLife is enabled and the previous
@@ -220,7 +247,7 @@ func (e *Env) Reset(opts *ResetOptions) {
 		}
 	}
 
-	gs := component.MustFindGameState(e.world)
+	gs := e.gs
 	if e.continueOnReset && !forceFull && e.cfg.EpisodicLife && !gs.GameOver {
 		e.done = false
 		e.continueOnReset = false
@@ -228,14 +255,13 @@ func (e *Env) Reset(opts *ResetOptions) {
 		return
 	}
 
-	maze := component.MustFindMaze(e.world)
+	maze := e.maze
 	gs.PacmanMode = e.cfg.PacmanMode
 	maze.PacmanMode = e.cfg.PacmanMode
 	gs.PlayerCount = 1
 	gs.HighScore = 0
 
-	prng := component.MustFindPRNG(e.world)
-	prng.InitWithSeed(e.cfg.Seed)
+	e.prng.InitWithSeed(e.cfg.Seed)
 
 	system.StartGameAtLevel(e.world, e.cfg.StartLevel, nil)
 	e.tickCount = 0
@@ -247,8 +273,8 @@ func (e *Env) Reset(opts *ResetOptions) {
 // LegalActions returns which cardinal directions [Right, Left, Up, Down] are
 // currently passable from the player's position.
 func (e *Env) LegalActions() [config.DirCount]bool {
-	maze := component.MustFindMaze(e.world)
-	pos := component.Transform.Get(e.player).Pos
+	maze := e.maze
+	pos := e.pTr.Pos
 	ct := pos.ToCenterTile()
 	ox := pos.X % config.Tile
 	oy := pos.Y % config.Tile
@@ -274,8 +300,8 @@ func (e *Env) LegalActions() [config.DirCount]bool {
 // death, level clear, termination, or truncation.
 func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 	e.collector.reset()
-	gs := component.MustFindGameState(e.world)
-	maze := component.MustFindMaze(e.world)
+	gs := e.gs
+	maze := e.maze
 
 	if e.done {
 		return StepResult{
@@ -289,7 +315,7 @@ func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 	startScore := gs.Score
 	startLevel := gs.Level
 	startTick := e.tickCount
-	startPos := component.Transform.Get(e.player).Pos
+	startPos := e.pTr.Pos
 	startTile := startPos.ToCenterTile()
 
 	var targetNonFreeze int
@@ -312,7 +338,7 @@ func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 	nonFreezeTicks := 0
 
 	for nonFreezeTicks < targetNonFreeze {
-		prevPos := component.Transform.Get(e.player).Pos
+		prevPos := e.pTr.Pos
 
 		term, trunc := e.tick(action)
 		nonFreezeTicks++
@@ -338,7 +364,7 @@ func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 		}
 
 		if mode == StepTile || mode == StepIntersection {
-			tr := component.Transform.Get(e.player)
+			tr := e.pTr
 			pos := tr.Pos
 
 			// Stopped by a wall: player did not move and cannot continue in its current direction.
@@ -360,8 +386,11 @@ func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 		}
 	}
 
-	eatenCopy := make([]TileCoord, len(e.collector.eaten))
-	copy(eatenCopy, e.collector.eaten)
+	var eatenCopy []TileCoord
+	if len(e.collector.eaten) > 0 {
+		eatenCopy = make([]TileCoord, len(e.collector.eaten))
+		copy(eatenCopy, e.collector.eaten)
+	}
 
 	return StepResult{
 		Tick:         e.tickCount,
@@ -380,8 +409,7 @@ func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 // Exported for replay playback and viewer loops that drive the sim tick-by-tick.
 func (e *Env) TickOne(action Action) (terminated, truncated bool) {
 	if e.done {
-		gs := component.MustFindGameState(e.world)
-		return gs.GameOver || (e.cfg.EndOnLevelClear && gs.LevelComplete) || e.continueOnReset,
+		return e.gs.GameOver || (e.cfg.EndOnLevelClear && e.gs.LevelComplete) || e.continueOnReset,
 			e.cfg.MaxTicks > 0 && e.tickCount >= e.cfg.MaxTicks
 	}
 	return e.tick(action)
@@ -394,7 +422,7 @@ func (e *Env) tick(action Action) (terminated, truncated bool) {
 	e.pipeline.Update(e.world)
 	e.tickCount++
 
-	gs := component.MustFindGameState(e.world)
+	gs := e.gs
 	died := false
 	levelCleared := false
 

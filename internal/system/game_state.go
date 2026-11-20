@@ -17,11 +17,22 @@ func NewGameStateSystem() *GameStateSystem {
 }
 
 func (s *GameStateSystem) Update(w donburi.World) {
-	gameState := component.MustFindGameState(w)
+	s.updateGameState(w, component.MustFindGameState(w), nil)
+}
+
+func (s *GameStateSystem) updateCached(w donburi.World, c *worldCache) {
+	s.updateGameState(w, c.gs, c.bus)
+}
+
+func (s *GameStateSystem) updateGameState(w donburi.World, gameState *component.GameStateData, bus *event.Bus) {
 	gameState.FrameCount++
 
 	if gameState.DotsRemaining == 0 && !gameState.LevelComplete {
-		event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
+		if bus != nil {
+			event.LevelCompleted.PublishTo(bus, event.LevelCompletedEvent{})
+		} else {
+			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
+		}
 	}
 
 	if gameState.FruitActive {
@@ -44,7 +55,11 @@ func (s *GameStateSystem) Update(w donburi.World) {
 	if gameState.IsFrightMode {
 		gameState.FrightFrames--
 		if gameState.FrightFrames <= 0 {
-			event.FrightModeEnded.Publish(w, event.FrightModeEndedEvent{})
+			if bus != nil {
+				event.FrightModeEnded.PublishTo(bus, event.FrightModeEndedEvent{})
+			} else {
+				event.FrightModeEnded.Publish(w, event.FrightModeEndedEvent{})
+			}
 		}
 		return
 	}
@@ -52,8 +67,11 @@ func (s *GameStateSystem) Update(w donburi.World) {
 	gameState.WaveFrames++
 	nextGhostState := config.GetGhostWaveState(gameState.Level, gameState.WaveFrames)
 	if nextGhostState != gameState.GhostState {
-		event.GhostStateChanged.Publish(w, event.GhostStateChangedEvent{
-			State: nextGhostState,
-		})
+		ev := event.GhostStateChangedEvent{State: nextGhostState}
+		if bus != nil {
+			event.GhostStateChanged.PublishTo(bus, ev)
+		} else {
+			event.GhostStateChanged.Publish(w, ev)
+		}
 	}
 }

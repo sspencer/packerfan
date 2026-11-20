@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/sim"
 )
@@ -223,9 +222,8 @@ func bonusSymbolString(sym config.BonusSymbol) string {
 }
 
 func snapshotState(env *sim.Env) StateSnapshot {
-	w := env.World()
-	gs := component.MustFindGameState(w)
-	playerTr := component.Transform.Get(env.PlayerEntry())
+	gs := env.GameState()
+	playerTr := env.PlayerTransform()
 
 	snap := StateSnapshot{
 		Level:         gs.Level,
@@ -243,9 +241,9 @@ func snapshotState(env *sim.Env) StateSnapshot {
 		},
 	}
 
-	for i, entry := range env.GhostEntries() {
-		tr := component.Transform.Get(entry)
-		g := component.Ghost.Get(entry)
+	for i := range 4 {
+		tr := env.GhostTransform(i)
+		g := env.GhostData(i)
 		snap.Ghosts[i] = GhostStateSnapshot{
 			X:     tr.Pos.X,
 			Y:     tr.Pos.Y,

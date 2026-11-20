@@ -3,7 +3,6 @@ package system
 import (
 	"fmt"
 	"math"
-	"slices"
 
 	"github.com/yohamta/donburi"
 
@@ -216,26 +215,17 @@ func chooseFrightenedDirectionAt(
 	curDir config.Direction,
 	state config.GhostState,
 ) config.Direction {
-	var allowedDirs []config.Direction
-
-	if isValidGhostTile(maze, state, tile.AddDir(config.Right), config.Right) {
-		allowedDirs = append(allowedDirs, config.Right)
-	}
-	if isValidGhostTile(maze, state, tile.AddDir(config.Left), config.Left) {
-		allowedDirs = append(allowedDirs, config.Left)
-	}
-	if isValidGhostTile(maze, state, tile.AddDir(config.Up), config.Up) {
-		allowedDirs = append(allowedDirs, config.Up)
-	}
-	if isValidGhostTile(maze, state, tile.AddDir(config.Down), config.Down) {
-		allowedDirs = append(allowedDirs, config.Down)
-	}
+	var allowed [config.DirCount]bool
+	allowed[config.Right] = isValidGhostTile(maze, state, tile.AddDir(config.Right), config.Right)
+	allowed[config.Left] = isValidGhostTile(maze, state, tile.AddDir(config.Left), config.Left)
+	allowed[config.Up] = isValidGhostTile(maze, state, tile.AddDir(config.Up), config.Up)
+	allowed[config.Down] = isValidGhostTile(maze, state, tile.AddDir(config.Down), config.Down)
 
 	preferred := prng.PreferredDirection()
 	reverse := curDir.Opposite()
 
 	for range config.DirCount {
-		if slices.Contains(allowedDirs, preferred) && preferred != reverse {
+		if allowed[preferred] && preferred != reverse {
 			return preferred
 		}
 		preferred = preferred.ClockwiseNext()
@@ -270,20 +260,19 @@ func ghostSpeed(
 	transform *component.TransformData,
 	ghost *component.GhostData,
 ) uint32 {
-	s := gameState.Spec
+	s := &gameState.Spec
+
+	switch ghost.State {
+	case config.Eaten, config.EnteringHouse:
+		return config.SpeedEaten
+	case config.InHouse, config.LeavingHouse:
+		return s.GhostTunnelSpeed
+	}
+
 	tile := transform.Pos.ToTile()
-	inTunnel := false
 	if !maze.InBounds(tile.X, tile.Y) {
 		fmt.Printf("ghost %s is out of bounds, pos: %v\n", actor.ID.String(), transform.Pos)
-	} else {
-		inTunnel = maze.GetCell(tile.X, tile.Y) == component.Tunnel
-	}
-
-	if ghost.State == config.Eaten || ghost.State == config.EnteringHouse {
-		return config.SpeedEaten
-	}
-
-	if inTunnel || ghost.State == config.InHouse || ghost.State == config.LeavingHouse {
+	} else if maze.GetCell(tile.X, tile.Y) == component.Tunnel {
 		return s.GhostTunnelSpeed
 	}
 

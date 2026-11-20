@@ -147,41 +147,64 @@ func GetLevelSpec(level int) LevelSpecTable {
 	return pacmanLevelTable[len(pacmanLevelTable)-1]
 }
 
+type waveThreshold struct {
+	state    GhostState
+	endFrame int // -1 means indefinite
+}
+
+var waveThresholds = [3][8]waveThreshold{
+	buildWaveThresholds(ghostModePhaseTable[0].Phases),
+	buildWaveThresholds(ghostModePhaseTable[1].Phases),
+	buildWaveThresholds(ghostModePhaseTable[2].Phases),
+}
+
+func buildWaveThresholds(phases [8]GhostModePhase) [8]waveThreshold {
+	var out [8]waveThreshold
+	ticks := 0
+	for i, ph := range phases {
+		if ph.DurationFrames == -1 {
+			out[i] = waveThreshold{state: ph.State, endFrame: -1}
+		} else {
+			ticks += ph.DurationFrames
+			out[i] = waveThreshold{state: ph.State, endFrame: ticks}
+		}
+	}
+	return out
+}
+
+func waveTierIndex(level int) int {
+	if level <= 1 {
+		return 0
+	}
+	if level <= 4 {
+		return 1
+	}
+	return 2
+}
+
 // GetGhostWaveState returns the scheduled global Scatter/Chase ghost wave for the
 // given level and elapsed frame count.
 func GetGhostWaveState(level, frameCount int) GhostState {
-	var phases [8]GhostModePhase
-	for _, pt := range ghostModePhaseTable {
-		if level >= pt.LevelMin && level <= pt.LevelMax {
-			phases = pt.Phases
-			break
+	if level < 1 || level > 255 {
+		return Chase
+	}
+	phases := &waveThresholds[waveTierIndex(level)]
+	for i := range phases {
+		end := phases[i].endFrame
+		if end == -1 || frameCount <= end {
+			return phases[i].state
 		}
 	}
-
-	ticks := 0
-	for _, phase := range phases {
-		if phase.DurationFrames == -1 {
-			return phase.State
-		}
-
-		ticks += phase.DurationFrames
-		if ticks >= frameCount {
-			return phase.State
-		}
-	}
-
 	return Chase
 }
 
 // IsFirstScatterWave reports whether waveFrames is still within the opening
 // Scatter phase for level (used for Ms. Pac-Man's random Blinky/Pinky scatter).
 func IsFirstScatterWave(level, waveFrames int) bool {
-	for _, pt := range ghostModePhaseTable {
-		if level >= pt.LevelMin && level <= pt.LevelMax {
-			return waveFrames <= pt.Phases[0].DurationFrames
-		}
+	if level < 1 || level > 255 {
+		return false
 	}
-	return false
+	return waveFrames <= waveThresholds[waveTierIndex(level)][0].endFrame
 }
 
 var msPacmanBonusTable = [7]struct {

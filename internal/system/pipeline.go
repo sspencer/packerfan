@@ -2,9 +2,8 @@ package system
 
 import (
 	"github.com/yohamta/donburi"
-	"github.com/yohamta/donburi/features/events"
 
-	"pacfan/internal/component"
+	"pacfan/internal/event"
 )
 
 // Pipeline orchestrates the ordered execution of ECS systems and event flushes
@@ -16,6 +15,8 @@ type Pipeline struct {
 	ghosts    *GhostSystem
 	fruit     *FruitSystem
 	player    *PlayerSystem
+
+	cache worldCache
 }
 
 func NewPipeline(inputProvider InputProvider) *Pipeline {
@@ -40,19 +41,40 @@ func (p *Pipeline) UpdateEatenGhosts(w donburi.World) {
 	p.ghosts.UpdateEatenGhosts(w)
 }
 
+func (p *Pipeline) flushEvents(w donburi.World) {
+	if p.cache.bus != nil {
+		if p.cache.bus.HasPending() {
+			p.cache.bus.ProcessAll(w)
+		}
+		return
+	}
+	if w.Len() != p.cache.entityLen {
+		p.cache.bus = event.FindBus(w)
+		p.cache.entityLen = w.Len()
+		if p.cache.bus != nil && p.cache.bus.HasPending() {
+			p.cache.bus.ProcessAll(w)
+		}
+	}
+}
+
 // Update advances the ECS world by one fixed tick.
 func (p *Pipeline) Update(w donburi.World) {
-	p.input.Sample()
-	p.input.ApplyPause(w)
+	p.cache.ensure(w)
+	c := &p.cache
 
-	gameState := component.MustFindGameState(w)
+	p.input.Sample()
+	if p.input.current.PausePressed && c.gs != nil {
+		c.gs.Paused = !c.gs.Paused
+	}
+
+	gameState := c.gs
 	if gameState.Paused || gameState.LevelComplete || gameState.PlayerDying || gameState.GameOver {
 		return
 	}
 
 	if gameState.GhostEatenPause > 0 {
-		p.input.ApplyPlayerInput(w)
-		p.ghosts.UpdateEatenGhosts(w)
+		p.input.applyPlayerInputCached(c)
+		p.ghosts.updateEatenGhostsCached(c)
 		gameState.GhostEatenPause--
 		if gameState.GhostEatenPause > 0 {
 			return
@@ -61,23 +83,23 @@ func (p *Pipeline) Update(w donburi.World) {
 		gameState.GhostEatenScore = 0
 	}
 
-	p.gameState.Update(w)
-	p.collision.Update(w)
-	events.ProcessAllEvents(w)
+	p.gameState.updateCached(w, c)
+	p.collision.updateCached(w, c)
+	p.flushEvents(w)
 	// Flush follow-up events published by collision handlers (e.g., ExtraLifeAwarded on GhostEaten/FruitEaten).
-	events.ProcessAllEvents(w)
+	p.flushEvents(w)
 
 	if gameState.GhostEatenPause > 0 || gameState.LevelComplete || gameState.PlayerDying {
 		return
 	}
 
-	p.ghosts.Update(w)
-	p.fruit.Update(w)
-	events.ProcessAllEvents(w)
+	p.ghosts.updateCached(c)
+	p.fruit.updateCached(w, c)
+	p.flushEvents(w)
 
-	p.input.ApplyPlayerInput(w)
-	p.player.Update(w)
-	events.ProcessAllEvents(w)
+	p.input.applyPlayerInputCached(c)
+	p.player.updateCached(w, c)
+	p.flushEvents(w)
 	// Flush follow-up events published by dot/powerup handlers (e.g., LevelCompleted).
-	events.ProcessAllEvents(w)
+	p.flushEvents(w)
 }

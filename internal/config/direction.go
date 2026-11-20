@@ -17,23 +17,14 @@ const DirCount = 4
 var GhostPriorityDirs = [DirCount]Direction{Up, Left, Down, Right}
 
 func (d Direction) IsOpposite(other Direction) bool {
-	return (d == Right && other == Left) ||
-		(d == Left && other == Right) ||
-		(d == Up && other == Down) ||
-		(d == Down && other == Up)
+	return (d ^ other) == 1
 }
 
 func (d Direction) Opposite() Direction {
-	switch d {
-	case Right:
-		return Left
-	case Left:
-		return Right
-	case Up:
-		return Down
-	default:
-		return Up
+	if d >= Right && d <= Down {
+		return d ^ 1
 	}
+	return Up
 }
 
 // ClockwiseNext returns the next direction clockwise: Up -> Right -> Down -> Left.
