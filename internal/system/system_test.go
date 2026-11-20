@@ -720,6 +720,37 @@ func TestEatenGhostMovesAtDoubleSpeed(t *testing.T) {
 	}
 }
 
+func TestPlayerAnimationFreezesWhenBlockedByWall(t *testing.T) {
+	w, player, _ := newTestWorld(t)
+	maze := component.MustFindMaze(w)
+
+	// Place player at (5,5) facing Left with a wall immediately at (4,5).
+	maze.SetCell(4, 5, component.Wall)
+	tr := component.Transform.Get(player)
+	tr.Pos = config.Vector{X: 5 * config.Tile, Y: 5 * config.Tile}
+	tr.Dir = config.Left
+	component.PlayerInput.Get(player).Requested = config.Left
+
+	anim := component.Animation.Get(player)
+	anim.FrameCount = 7
+	anim.FrameIndex = 1
+
+	playerSys := system.NewPlayerSystem()
+	for range 10 {
+		playerSys.Update(w)
+	}
+	if anim.FrameCount != 7 || anim.FrameIndex != 1 {
+		t.Fatalf("player animation advanced while blocked by wall: count=%d index=%d", anim.FrameCount, anim.FrameIndex)
+	}
+
+	// Clearing the wall resumes animation on movement.
+	maze.SetCell(4, 5, component.Empty)
+	playerSys.Update(w)
+	if anim.FrameCount == 7 {
+		t.Fatalf("expected player animation to advance when moving")
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 

@@ -39,8 +39,6 @@ func (s *PlayerSystem) Update(w donburi.World) {
 		anim := component.Animation.Get(entry)
 		input := component.PlayerInput.Get(entry)
 
-		updatePlayerAnimation(anim)
-
 		const threshold = 3
 
 		tx := transform.Pos.X / config.Tile
@@ -105,8 +103,8 @@ func (s *PlayerSystem) Update(w donburi.World) {
 			}
 		}
 
-		if canMove {
-			MoveActor(transform, motion, playerSpeed(gameState))
+		if canMove && MoveActor(transform, motion, playerSpeed(gameState)) {
+			updatePlayerAnimation(anim)
 		}
 
 		// Eat dots/powerups using center-aligned tile coordinates.
@@ -172,10 +170,7 @@ func updatePlayerAnimation(anim *component.AnimationData) {
 		anim.FrameIndex = 1 // Half-open (returning)
 	}
 
-	anim.FrameCount++
-	if anim.FrameCount > cycleLength {
-		anim.FrameCount = 0
-	}
+	anim.FrameCount = (anim.FrameCount + 1) % cycleLength
 }
 
 func playerSpeed(gameState *component.GameStateData) uint32 {
