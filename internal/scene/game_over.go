@@ -33,7 +33,7 @@ func (s *GameOverScene) Update() {
 
 	if anyKey {
 		system.RestartGame(s.ctx.World, s.ctx.IsPixelLit)
-		s.ctx.Manager.Transition(NewReadyScene(s.ctx))
+		s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
 	}
 }
 

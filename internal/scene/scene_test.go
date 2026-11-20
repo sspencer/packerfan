@@ -183,6 +183,40 @@ func TestReadyToPlayingTransition(t *testing.T) {
 	}
 }
 
+func TestGameStartReadySceneTwoStageIntro(t *testing.T) {
+	ctx, _, drawer, _, _ := newSceneHarness(t, true)
+	ctx.PlayerOneDuration = 3
+	ctx.ReadyDuration = 2
+	ctx.Manager.Start(scene.NewGameStartReadyScene(ctx))
+
+	// Stage 1 (3 frames): PLAYER ONE + READY! with actors hidden.
+	for i := range 3 {
+		ctx.Manager.Draw()
+		opts := drawer.worldCalls[len(drawer.worldCalls)-1]
+		if !opts.ShowPlayerOne || !opts.ShowReady || !opts.HidePlayer || !opts.HideGhosts {
+			t.Fatalf("stage 1 frame %d: unexpected draw opts %+v", i, opts)
+		}
+		ctx.Manager.Update()
+		if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
+			t.Fatalf("left ReadyScene early during stage 1 at frame %d", i)
+		}
+	}
+
+	// Stage 2 (2 frames): READY! only with actors visible.
+	for i := range 2 {
+		ctx.Manager.Draw()
+		opts := drawer.worldCalls[len(drawer.worldCalls)-1]
+		if opts.ShowPlayerOne || !opts.ShowReady || opts.HidePlayer || opts.HideGhosts {
+			t.Fatalf("stage 2 frame %d: unexpected draw opts %+v", i, opts)
+		}
+		ctx.Manager.Update()
+	}
+
+	if _, ok := ctx.Manager.Current().(*scene.PlayingScene); !ok {
+		t.Fatalf("expected PlayingScene after two-stage ready intro, got %T", ctx.Manager.Current())
+	}
+}
+
 func TestEatingLastDotAdvancesToNextLevelWithoutIntermission(t *testing.T) {
 	ctx, _, drawer, player, _ := newSceneHarness(t, true)
 	gs := component.MustFindGameState(ctx.World)

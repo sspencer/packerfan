@@ -10,6 +10,7 @@ import (
 // DrawOptions controls presentation overlays and visibility flags passed from
 // the active scene to the renderer.
 type DrawOptions struct {
+	ShowPlayerOne    bool
 	ShowReady        bool
 	ShowGameOver     bool
 	HidePlayer       bool
@@ -51,6 +52,9 @@ type Context struct {
 	Drawer     Drawer
 	IsPixelLit func(x, y int) bool
 
+	// PlayerOneDuration overrides config.ReadyDuration for the initial
+	// "PLAYER ONE" stage of NewGameStartReadyScene when > 0 (useful in tests).
+	PlayerOneDuration int
 	// ReadyDuration overrides config.ReadyDuration when > 0 (useful in tests).
 	ReadyDuration int
 	// RoundClearedHoldFrames overrides config.RoundClearedHoldFrames when > 0.
@@ -68,6 +72,13 @@ type Context struct {
 	// IntermissionFactory optionally overrides how intermission scenes are created.
 	// Return nil to skip an intermission and proceed directly to ReadyScene.
 	IntermissionFactory func(ctx *Context, act int) Scene
+}
+
+func (c *Context) playerOneDuration() int {
+	if c.PlayerOneDuration > 0 {
+		return c.PlayerOneDuration
+	}
+	return config.ReadyDuration
 }
 
 func (c *Context) readyDuration() int {

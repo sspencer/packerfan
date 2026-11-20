@@ -61,7 +61,7 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	}
 	manager := scene.NewManager(nil)
 	sceneCtx.Manager = manager
-	manager.Start(scene.NewReadyScene(sceneCtx))
+	manager.Start(scene.NewGameStartReadyScene(sceneCtx))
 
 	return &Engine{
 		World:    world,

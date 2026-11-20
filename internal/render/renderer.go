@@ -50,13 +50,16 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	rl.BeginMode2D(mazeCamera)
 	showPower := EnergizerVisible(gameState.FrameCount, opts.ShowReady || opts.ShowGameOver)
 	r.drawMaze(maze, opts.FlashMaze, showPower)
-	if opts.ShowReady {
+	if opts.ShowPlayerOne || opts.ShowReady || opts.ShowGameOver {
 		rl.BeginShaderMode(r.art.Shader)
-		DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
-		rl.EndShaderMode()
-	} else if opts.ShowGameOver {
-		rl.BeginShaderMode(r.art.Shader)
-		DrawText(r.art.Font, "GAME OVER", 9, 17, rl.Red)
+		if opts.ShowPlayerOne {
+			DrawText(r.art.Font, "PLAYER ONE", 9, 11, rl.SkyBlue)
+		}
+		if opts.ShowReady {
+			DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
+		} else if opts.ShowGameOver {
+			DrawText(r.art.Font, "GAME OVER", 9, 17, rl.Red)
+		}
 		rl.EndShaderMode()
 	}
 	rl.EndMode2D()
