@@ -15,6 +15,11 @@ const (
 	PowerScore                  = 50
 	PowerPause                  = 3
 	GhostEatenPause             = 61
+	FruitFirstSpawnDots         = 70
+	FruitSecondSpawnDots        = 170
+	FruitMinFrames              = 566
+	FruitMaxFrames              = 606
+	FruitScorePopupFrames       = 122
 	ReadyDuration               = 122
 	RoundClearedHoldFrames      = 61
 	RoundClearedFlashHalfFrames = 14

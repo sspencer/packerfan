@@ -36,6 +36,12 @@ type GameStateData struct {
 	UseGlobalDotCounter bool
 	GlobalDotCounter    int
 	FramesSinceLastDot  int
+	FruitActive         bool
+	FruitTimer          int
+	FruitSpawnedCount   int
+	FruitScoreTimer     int
+	FruitScoreValue     int
+	FruitPos            config.Vector
 	Spec                config.LevelSpecTable
 	GhostState       config.GhostState
 }
@@ -72,6 +78,12 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.UseGlobalDotCounter = false
 	g.GlobalDotCounter = 0
 	g.FramesSinceLastDot = 0
+	g.FruitActive = false
+	g.FruitTimer = 0
+	g.FruitSpawnedCount = 0
+	g.FruitScoreTimer = 0
+	g.FruitScoreValue = 0
+	g.FruitPos = config.Vector{}
 }
 
 // ResetForNextLife resets wave timing, frightened state, and transient popup
@@ -95,6 +107,10 @@ func (g *GameStateData) ResetForNextLife() {
 	g.UseGlobalDotCounter = true
 	g.GlobalDotCounter = 0
 	g.FramesSinceLastDot = 0
+	g.FruitActive = false
+	g.FruitTimer = 0
+	g.FruitScoreTimer = 0
+	g.FruitScoreValue = 0
 }
 
 // ResetForNewGame resets the session back to level 1 with full lives and zero

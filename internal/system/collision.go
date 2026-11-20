@@ -36,6 +36,13 @@ func (s *CollisionSystem) Update(w donburi.World) {
 	playerActor := component.Actor.Get(playerEntry)
 	playerTransform := component.Transform.Get(playerEntry)
 
+	gameState := component.MustFindGameState(w)
+	if gameState.FruitActive && SameTileCollide(playerTransform.Pos, gameState.FruitPos) {
+		event.FruitEaten.Publish(w, event.FruitEatenEvent{
+			Points: int(gameState.Spec.BonusPoints),
+		})
+	}
+
 	for ghostEntry := range s.ghostQuery.Iter(w) {
 		ghostActor := component.Actor.Get(ghostEntry)
 		ghostTransform := component.Transform.Get(ghostEntry)

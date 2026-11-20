@@ -29,6 +29,21 @@ func RegisterEventHandlers(w donburi.World) {
 		}
 	}
 
+	maybeSpawnFruit := func(w donburi.World, gameState *component.GameStateData, maze *component.MazeData) {
+		shouldSpawn := (gameState.DotsEaten == config.FruitFirstSpawnDots && gameState.FruitSpawnedCount == 0) ||
+			(gameState.DotsEaten == config.FruitSecondSpawnDots && gameState.FruitSpawnedCount == 1)
+		if !shouldSpawn {
+			return
+		}
+		house := maze.GhostHouse()
+		prng := component.MustFindPRNG(w)
+		span := config.FruitMaxFrames - config.FruitMinFrames + 1
+		gameState.FruitActive = true
+		gameState.FruitSpawnedCount++
+		gameState.FruitTimer = config.FruitMinFrames + int(prng.NextByte())%span
+		gameState.FruitPos = config.Vector{X: house.Center.X, Y: house.Center.Y + 3*config.Tile}
+	}
+
 	event.DotEaten.Subscribe(w, func(w donburi.World, ev event.DotEatenEvent) {
 		maze := component.MustFindMaze(w)
 		if !maze.InBounds(ev.X, ev.Y) {
@@ -44,6 +59,7 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
 		recordDotForGhostHouse(w, gameState)
+		maybeSpawnFruit(w, gameState, maze)
 		if gameState.DotsRemaining == 0 {
 			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
 		}
@@ -68,6 +84,7 @@ func RegisterEventHandlers(w donburi.World) {
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
 		recordDotForGhostHouse(w, gameState)
+		maybeSpawnFruit(w, gameState, maze)
 		gameState.NumGhostsEaten = 0
 		if gameState.DotsRemaining == 0 {
 			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
@@ -185,5 +202,20 @@ func RegisterEventHandlers(w donburi.World) {
 			return
 		}
 		gameState.LevelComplete = true
+	})
+
+	event.FruitEaten.Subscribe(w, func(w donburi.World, ev event.FruitEatenEvent) {
+		gameState := component.MustFindGameState(w)
+		if !gameState.FruitActive {
+			return
+		}
+		gameState.FruitActive = false
+		gameState.FruitTimer = 0
+		gameState.Score += ev.Points
+		if gameState.Score > gameState.HighScore {
+			gameState.HighScore = gameState.Score
+		}
+		gameState.FruitScoreTimer = config.FruitScorePopupFrames
+		gameState.FruitScoreValue = ev.Points
 	})
 }

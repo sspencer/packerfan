@@ -40,6 +40,10 @@ type FrightModeEndedEvent struct{}
 
 type LevelCompletedEvent struct{}
 
+type FruitEatenEvent struct {
+	Points int
+}
+
 var (
 	DotEaten          = events.NewEventType[DotEatenEvent]()
 	PowerUpEaten      = events.NewEventType[PowerUpEatenEvent]()
@@ -48,4 +52,5 @@ var (
 	GhostStateChanged = events.NewEventType[GhostStateChangedEvent]()
 	FrightModeEnded   = events.NewEventType[FrightModeEndedEvent]()
 	LevelCompleted    = events.NewEventType[LevelCompletedEvent]()
+	FruitEaten        = events.NewEventType[FruitEatenEvent]()
 )

@@ -108,3 +108,60 @@ func TestPlayerDeathSpritesPresentInSpritesheetIfPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestBonusFruitAndScoreSpritesInSpritesheetIfPresent(t *testing.T) {
+	path := filepath.Join("..", "..", "assets", "game.png")
+	f, err := os.Open(path)
+	if err != nil {
+		t.Skipf("spritesheet %s not present: %v", path, err)
+	}
+	defer f.Close()
+
+	img, err := png.Decode(f)
+	if err != nil {
+		t.Fatalf("decode spritesheet: %v", err)
+	}
+
+	symbols := []config.BonusSymbol{
+		config.BonusCherries, config.BonusStrawberry, config.BonusPeach, config.BonusApple,
+		config.BonusGrapes, config.BonusGalaxian, config.BonusBell, config.BonusKey,
+	}
+	for _, pacmanMode := range []bool{true, false} {
+		for _, sym := range symbols {
+			origin, ok := render.BonusFruitSprite(pacmanMode, sym)
+			if !ok {
+				t.Fatalf("BonusFruitSprite(pacman=%v, %v) returned ok=false", pacmanMode, sym)
+			}
+			lit := 0
+			for dy := range config.Sprite {
+				for dx := range config.Sprite {
+					r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
+					if r > 0 || g > 0 || b > 0 {
+						lit++
+					}
+				}
+			}
+			if lit == 0 {
+				t.Errorf("BonusFruitSprite(pacman=%v, %v) at %v has no lit pixels", pacmanMode, sym, origin)
+			}
+		}
+		for _, pts := range []int{100, 300, 500, 700, 1000, 2000, 3000, 5000} {
+			origin, w, ok := render.BonusScoreSprite(pacmanMode, pts)
+			if !ok || w <= 0 {
+				t.Fatalf("BonusScoreSprite(pacman=%v, %d) returned ok=%v w=%d", pacmanMode, pts, ok, w)
+			}
+			lit := 0
+			for dy := range config.Sprite {
+				for dx := range w {
+					r, g, b, _ := img.At(origin.X+dx, origin.Y+dy).RGBA()
+					if r > 0 || g > 0 || b > 0 {
+						lit++
+					}
+				}
+			}
+			if lit == 0 {
+				t.Errorf("BonusScoreSprite(pacman=%v, %d) at %v (w=%d) has no lit pixels", pacmanMode, pts, origin, w)
+			}
+		}
+	}
+}

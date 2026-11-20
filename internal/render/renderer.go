@@ -68,6 +68,13 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	rl.BeginShaderMode(r.art.Shader)
 
 	showGhostScore := opts.ShowGhostScore || gameState.GhostEatenPause > 0
+	if !opts.HidePlayer && !opts.HideGhosts {
+		if gameState.FruitActive {
+			r.drawBonusFruit(gameState)
+		} else if gameState.FruitScoreTimer > 0 {
+			r.drawBonusScore(gameState)
+		}
+	}
 	if !opts.HidePlayer && !showGhostScore {
 		for entry := range r.playerQuery.Iter(w) {
 			if opts.PlayerDying {
@@ -327,6 +334,98 @@ func (r *Renderer) drawGhostScore(gameState *component.GameStateData) {
 	}
 	pos := config.Vector{X: gameState.GhostEatenX, Y: gameState.GhostEatenY}
 	r.drawSprite(pos, sprite, 0)
+}
+
+// BonusFruitSprite returns the top-left spritesheet pixel coordinates in
+// assets/game.png for the given bonus fruit symbol.
+func BonusFruitSprite(pacmanMode bool, symbol config.BonusSymbol) (config.Vector, bool) {
+	idx := int(symbol)
+	if idx < 0 || idx > int(config.BonusKey) {
+		return config.Vector{}, false
+	}
+	if pacmanMode {
+		return config.Vector{X: 504 + idx*config.Sprite, Y: 1040}, true
+	}
+	// Ms. Pac-Man spritesheet has 7 bonus items across Y=0 (X=504..600).
+	if idx > 6 {
+		idx = 6
+	}
+	return config.Vector{X: 504 + idx*config.Sprite, Y: 0}, true
+}
+
+// BonusScoreSprite returns the spritesheet origin and pixel width for a bonus
+// fruit score popup in assets/game.png.
+func BonusScoreSprite(pacmanMode bool, points int) (config.Vector, int, bool) {
+	if pacmanMode {
+		switch points {
+		case 100:
+			return config.Vector{X: 456, Y: 1136}, 16, true
+		case 300:
+			return config.Vector{X: 472, Y: 1136}, 16, true
+		case 500:
+			return config.Vector{X: 488, Y: 1136}, 16, true
+		case 700:
+			return config.Vector{X: 504, Y: 1136}, 16, true
+		case 1000:
+			return config.Vector{X: 520, Y: 1136}, 20, true
+		case 2000:
+			return config.Vector{X: 516, Y: 1152}, 24, true
+		case 3000:
+			return config.Vector{X: 516, Y: 1168}, 24, true
+		case 5000:
+			return config.Vector{X: 516, Y: 1184}, 24, true
+		default:
+			return config.Vector{}, 0, false
+		}
+	}
+	// Ms. Pac-Man bonus score row at Y=16 (100, 200, 500, 700, 1000, 2000, 5000).
+	switch points {
+	case 100:
+		return config.Vector{X: 504, Y: 16}, 16, true
+	case 200, 300:
+		return config.Vector{X: 520, Y: 16}, 16, true
+	case 500:
+		return config.Vector{X: 536, Y: 16}, 16, true
+	case 700:
+		return config.Vector{X: 552, Y: 16}, 16, true
+	case 1000:
+		return config.Vector{X: 568, Y: 16}, 16, true
+	case 2000, 3000:
+		return config.Vector{X: 584, Y: 16}, 16, true
+	case 5000:
+		return config.Vector{X: 600, Y: 16}, 16, true
+	default:
+		return config.Vector{}, 0, false
+	}
+}
+
+func (r *Renderer) drawBonusFruit(gameState *component.GameStateData) {
+	sprite, ok := BonusFruitSprite(gameState.PacmanMode, gameState.Spec.BonusSymbol)
+	if !ok {
+		return
+	}
+	r.drawSprite(gameState.FruitPos, sprite, 0)
+}
+
+func (r *Renderer) drawBonusScore(gameState *component.GameStateData) {
+	origin, width, ok := BonusScoreSprite(gameState.PacmanMode, gameState.FruitScoreValue)
+	if !ok {
+		return
+	}
+	offsetX := (width - config.Sprite) / 2
+	src := rl.Rectangle{
+		X:      float32(origin.X),
+		Y:      float32(origin.Y),
+		Width:  float32(width),
+		Height: config.Sprite,
+	}
+	dst := rl.Rectangle{
+		X:      float32(gameState.FruitPos.X - offsetX),
+		Y:      float32(gameState.FruitPos.Y),
+		Width:  float32(width),
+		Height: config.Sprite,
+	}
+	rl.DrawTexturePro(r.art.Texture, src, dst, rl.Vector2{}, 0, rl.White)
 }
 
 func (r *Renderer) drawSprite(pos, sprite config.Vector, frameIndex int) {

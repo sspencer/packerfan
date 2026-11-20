@@ -24,6 +24,21 @@ func (s *GameStateSystem) Update(w donburi.World) {
 		event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
 	}
 
+	if gameState.FruitActive {
+		gameState.FruitTimer--
+		if gameState.FruitTimer <= 0 {
+			gameState.FruitActive = false
+			gameState.FruitTimer = 0
+		}
+	}
+	if gameState.FruitScoreTimer > 0 {
+		gameState.FruitScoreTimer--
+		if gameState.FruitScoreTimer <= 0 {
+			gameState.FruitScoreTimer = 0
+			gameState.FruitScoreValue = 0
+		}
+	}
+
 	if gameState.IsFrightMode {
 		gameState.FrightFrames--
 		if gameState.FrightFrames <= 0 {

@@ -1536,6 +1536,54 @@ func TestSameTileCollide(t *testing.T) {
 	}
 }
 
+func TestBonusFruitSpawnsAt70And170DotsAndCollects(t *testing.T) {
+	w, player, _ := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.DotsRemaining = 240
+	gs.DotsEaten = 69
+
+	// 70th dot spawns first bonus fruit.
+	event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
+	events.ProcessAllEvents(w)
+	if !gs.FruitActive || gs.FruitSpawnedCount != 1 {
+		t.Fatalf("expected fruit active after 70 dots: active=%v count=%d", gs.FruitActive, gs.FruitSpawnedCount)
+	}
+	if gs.FruitTimer < config.FruitMinFrames || gs.FruitTimer > config.FruitMaxFrames {
+		t.Fatalf("FruitTimer=%d outside [%d,%d]", gs.FruitTimer, config.FruitMinFrames, config.FruitMaxFrames)
+	}
+
+	// Player walks onto fruit -> scores level bonus points and shows score popup.
+	scoreBefore := gs.Score
+	component.Transform.Get(player).Pos = gs.FruitPos
+	system.NewCollisionSystem().Update(w)
+	events.ProcessAllEvents(w)
+
+	if gs.FruitActive {
+		t.Fatalf("expected FruitActive=false after eating fruit")
+	}
+	wantScore := scoreBefore + int(gs.Spec.BonusPoints)
+	if gs.Score != wantScore {
+		t.Fatalf("Score = %d, want %d", gs.Score, wantScore)
+	}
+	if gs.FruitScoreTimer != config.FruitScorePopupFrames || gs.FruitScoreValue != int(gs.Spec.BonusPoints) {
+		t.Fatalf("unexpected fruit popup state: timer=%d value=%d", gs.FruitScoreTimer, gs.FruitScoreValue)
+	}
+
+	// 170th dot spawns second fruit, which expires when its timer reaches 0.
+	gs.DotsEaten = 169
+	event.DotEaten.Publish(w, event.DotEatenEvent{X: 2, Y: 1})
+	events.ProcessAllEvents(w)
+	if !gs.FruitActive || gs.FruitSpawnedCount != 2 {
+		t.Fatalf("expected second fruit at 170 dots: active=%v count=%d", gs.FruitActive, gs.FruitSpawnedCount)
+	}
+
+	gs.FruitTimer = 1
+	system.NewGameStateSystem().Update(w)
+	if gs.FruitActive {
+		t.Fatalf("expected second fruit to despawn when FruitTimer hits 0")
+	}
+}
+
 func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 	for _, state := range []config.GhostState{
 		config.Eaten,
