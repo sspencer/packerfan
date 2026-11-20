@@ -55,6 +55,16 @@ func (s *GhostSystem) Update(w donburi.World) {
 		}
 	}
 
+	preferredHouseEntry := preferredInHouseGhost(w, s.ghostQuery)
+	timeoutRelease := false
+	if preferredHouseEntry != nil {
+		gameState.FramesSinceLastDot++
+		if gameState.FramesSinceLastDot >= ghostHouseTimeoutFrames(gameState.Level) {
+			gameState.FramesSinceLastDot = 0
+			timeoutRelease = true
+		}
+	}
+
 	for entry := range s.ghostQuery.Iter(w) {
 		actor := component.Actor.Get(entry)
 		transform := component.Transform.Get(entry)
@@ -66,7 +76,9 @@ func (s *GhostSystem) Update(w donburi.World) {
 
 		switch ghost.State {
 		case config.InHouse:
-			updateGhostInHouse(maze, house, gameState, actor, transform, motion, ghost)
+			isPreferred := preferredHouseEntry != nil && entry.Entity() == preferredHouseEntry.Entity()
+			forceRelease := isPreferred && timeoutRelease
+			updateGhostInHouse(maze, house, gameState, actor, transform, motion, ghost, isPreferred, forceRelease)
 			continue
 		case config.LeavingHouse:
 			updateGhostLeavingHouse(maze, house, gameState, prng, actor, transform, motion, ghost)
@@ -294,8 +306,10 @@ func updateGhostInHouse(
 	transform *component.TransformData,
 	motion *component.MotionData,
 	ghost *component.GhostData,
+	isPreferred bool,
+	forceRelease bool,
 ) {
-	if shouldLeaveHouse(ghost, gameState) {
+	if forceRelease || (isPreferred && shouldLeaveHouse(ghost, gameState)) || ghost.AIKind == component.BlinkyAI {
 		ghost.State = config.LeavingHouse
 		return
 	}

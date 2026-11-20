@@ -538,6 +538,89 @@ func TestGhostOneTileAheadLookahead(t *testing.T) {
 	}
 }
 
+func TestGhostHousePersonalGlobalCountersAndInactivityTimer(t *testing.T) {
+	w, _, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.DotsRemaining = 240
+	ghostSys := system.NewGhostSystem()
+
+	inky := component.Ghost.Get(ghosts[1])
+	pinky := component.Ghost.Get(ghosts[2])
+	clyde := component.Ghost.Get(ghosts[3])
+
+	// Tick 1: Pinky has personal limit 0 on Level 1 and leaves immediately.
+	ghostSys.Update(w)
+	if pinky.State != config.LeavingHouse {
+		t.Fatalf("expected Pinky to leave immediately, got %v", pinky.State)
+	}
+	if inky.State != config.InHouse || clyde.State != config.InHouse {
+		t.Fatalf("expected Inky and Clyde still InHouse, got inky=%v clyde=%v", inky.State, clyde.State)
+	}
+
+	// Eating 30 dots increments Inky's personal counter (not Clyde's) and releases Inky.
+	for range 30 {
+		event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
+		events.ProcessAllEvents(w)
+	}
+	if inky.DotCounter != 30 || clyde.DotCounter != 0 {
+		t.Fatalf("unexpected personal counters: inky=%d clyde=%d (want 30, 0)", inky.DotCounter, clyde.DotCounter)
+	}
+	ghostSys.Update(w)
+	if inky.State != config.LeavingHouse {
+		t.Fatalf("expected Inky to leave after 30 personal dots, got %v", inky.State)
+	}
+
+	// No-dot inactivity timer (4s on Level 1) forces Clyde out even with 0 personal dots.
+	timeout := config.SecondsToFrames(4)
+	for range timeout {
+		ghostSys.Update(w)
+	}
+	if clyde.State != config.LeavingHouse {
+		t.Fatalf("expected Clyde to be released by 4s inactivity timer, got %v", clyde.State)
+	}
+
+	// After losing a life, global dot counter takes over: 7 (Pinky), 17 (Inky), 32 (Clyde).
+	if !system.ConsumeLifeAndRespawn(w) {
+		t.Fatalf("expected respawn")
+	}
+	if !gs.UseGlobalDotCounter || gs.GlobalDotCounter != 0 {
+		t.Fatalf("expected UseGlobalDotCounter=true after respawn")
+	}
+
+	eatDots := func(n int) {
+		for range n {
+			event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
+			events.ProcessAllEvents(w)
+		}
+	}
+
+	eatDots(6)
+	ghostSys.Update(w)
+	if pinky.State != config.InHouse {
+		t.Fatalf("Pinky left early at 6 global dots")
+	}
+	eatDots(1) // total 7
+	ghostSys.Update(w)
+	if pinky.State != config.LeavingHouse {
+		t.Fatalf("Pinky did not leave at 7 global dots, state=%v", pinky.State)
+	}
+
+	eatDots(10) // total 17
+	ghostSys.Update(w)
+	if inky.State != config.LeavingHouse {
+		t.Fatalf("Inky did not leave at 17 global dots, state=%v", inky.State)
+	}
+
+	eatDots(15) // total 32
+	ghostSys.Update(w)
+	if clyde.State != config.LeavingHouse {
+		t.Fatalf("Clyde did not leave at 32 global dots, state=%v", clyde.State)
+	}
+	if gs.UseGlobalDotCounter {
+		t.Fatalf("expected UseGlobalDotCounter=false once Clyde leaves at 32 dots")
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 
@@ -917,8 +1000,10 @@ func TestGhostHouseBounceAndExitReliableAtFastSpeeds(t *testing.T) {
 	}
 
 	// Release Clyde from an off-center bounce Y at fast speed: must center Y, center X, and exit cleanly.
+	component.Ghost.Get(ghosts[1]).State = config.Scatter
+	component.Ghost.Get(ghosts[2]).State = config.Scatter
 	clydeTr.Pos = config.Vector{X: house.RightSlot.X + 1, Y: house.BounceBottom}
-	gs.DotsEaten = 100
+	clydeGhost.DotCounter = 60
 	ghostSys.Update(w) // InHouse -> LeavingHouse
 	if clydeGhost.State != config.LeavingHouse {
 		t.Fatalf("expected Clyde to enter LeavingHouse, got %v", clydeGhost.State)

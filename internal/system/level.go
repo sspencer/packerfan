@@ -24,6 +24,16 @@ func ResetActors(w donburi.World) {
 	}
 }
 
+// ResetGhostDotCounters zeroes every ghost's personal house dot counter (used on new level/game).
+func ResetGhostDotCounters(w donburi.World) {
+	ghostQuery := donburi.NewQuery(
+		filter.Contains(component.GhostTag, component.Ghost),
+	)
+	for entry := range ghostQuery.Iter(w) {
+		component.Ghost.Get(entry).DotCounter = 0
+	}
+}
+
 // AdvanceToNextLevel increments the level (clamped to 255), loads the next
 // level's maze when isPixelLit is provided, rewinds the PRNG, resets round
 // state, and restores all actors to their spawn defaults.
@@ -42,6 +52,7 @@ func AdvanceToNextLevel(w donburi.World, isPixelLit func(x, y int) bool) int {
 	gameState.ResetForNextLevel(nextLevel, dotsRemaining)
 	component.MustFindPRNG(w).Reset()
 	ResetActors(w)
+	ResetGhostDotCounters(w)
 	return nextLevel
 }
 
@@ -83,4 +94,5 @@ func RestartGame(w donburi.World, isPixelLit func(x, y int) bool) {
 	gameState.ResetForNewGame(dotsRemaining)
 	component.MustFindPRNG(w).Reset()
 	ResetActors(w)
+	ResetGhostDotCounters(w)
 }

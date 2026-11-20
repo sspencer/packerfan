@@ -29,6 +29,7 @@ type GhostData struct {
 	NextDir       config.Direction
 	PlannedTile   config.Vector
 	HasNextDir    bool
+	DotCounter    int
 	SpriteRow     int
 }
 

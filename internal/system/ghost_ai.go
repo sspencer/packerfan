@@ -5,6 +5,8 @@ import (
 	"math"
 	"slices"
 
+	"github.com/yohamta/donburi"
+
 	"pacfan/internal/component"
 	"pacfan/internal/config"
 )
@@ -71,26 +73,77 @@ func computeChaseTarget(
 	}
 }
 
-func shouldLeaveHouse(ghost *component.GhostData, gameState *component.GameStateData) bool {
-	switch ghost.AIKind {
-	case component.BlinkyAI, component.PinkyAI:
-		return true
-	case component.InkyAI:
-		if gameState.Level == 1 {
-			return gameState.DotsEaten > 30 || gameState.FrameCount > config.SecondsToFrames(7)
+// ghostHousePriorityOrder defines the strict order in which waiting ghosts
+// receive dot-counter increments and timer-forced releases (Pinky -> Inky -> Clyde).
+var ghostHousePriorityOrder = [...]component.GhostAIKind{
+	component.PinkyAI,
+	component.InkyAI,
+	component.ClydeAI,
+}
+
+func preferredInHouseGhost(w donburi.World, ghostQuery *donburi.Query) *donburi.Entry {
+	for _, kind := range ghostHousePriorityOrder {
+		for entry := range ghostQuery.Iter(w) {
+			g := component.Ghost.Get(entry)
+			if g.State == config.InHouse && g.AIKind == kind {
+				return entry
+			}
 		}
-		return true
-	case component.ClydeAI:
-		if gameState.Level == 1 {
-			return gameState.DotsEaten > 90 || gameState.FrameCount > config.SecondsToFrames(15)
-		}
-		if gameState.Level == 2 {
-			return gameState.DotsEaten > 50 || gameState.FrameCount > config.SecondsToFrames(10)
-		}
-		return true
-	default:
-		return false
 	}
+	return nil
+}
+
+func personalDotLimit(kind component.GhostAIKind, level int) int {
+	switch kind {
+	case component.BlinkyAI, component.PinkyAI:
+		return 0
+	case component.InkyAI:
+		if level == 1 {
+			return 30
+		}
+		return 0
+	case component.ClydeAI:
+		if level == 1 {
+			return 60
+		}
+		if level == 2 {
+			return 50
+		}
+		return 0
+	default:
+		return 0
+	}
+}
+
+func ghostHouseTimeoutFrames(level int) int {
+	if level >= 5 {
+		return config.SecondsToFrames(3)
+	}
+	return config.SecondsToFrames(4)
+}
+
+func shouldLeaveHouse(ghost *component.GhostData, gameState *component.GameStateData) bool {
+	if ghost.AIKind == component.BlinkyAI {
+		return true
+	}
+	if gameState.UseGlobalDotCounter {
+		switch ghost.AIKind {
+		case component.PinkyAI:
+			return gameState.GlobalDotCounter >= 7
+		case component.InkyAI:
+			return gameState.GlobalDotCounter >= 17
+		case component.ClydeAI:
+			if gameState.GlobalDotCounter >= 32 {
+				gameState.UseGlobalDotCounter = false
+				gameState.GlobalDotCounter = 0
+				return true
+			}
+			return false
+		default:
+			return false
+		}
+	}
+	return ghost.DotCounter >= personalDotLimit(ghost.AIKind, gameState.Level)
 }
 
 func isValidGhostTile(maze *component.MazeData, state config.GhostState, t config.Vector, dir config.Direction) bool {

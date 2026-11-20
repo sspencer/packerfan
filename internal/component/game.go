@@ -29,11 +29,14 @@ type GameStateData struct {
 	GhostEatenY      int
 	GhostEatenEntity donburi.Entity
 	GhostEatenScore  int
-	LevelComplete    bool
-	PlayerDying      bool
-	GameOver         bool
-	ElroySuspended   bool
-	Spec             config.LevelSpecTable
+	LevelComplete       bool
+	PlayerDying         bool
+	GameOver            bool
+	ElroySuspended      bool
+	UseGlobalDotCounter bool
+	GlobalDotCounter    int
+	FramesSinceLastDot  int
+	Spec                config.LevelSpecTable
 	GhostState       config.GhostState
 }
 
@@ -66,6 +69,9 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.PlayerDying = false
 	g.GameOver = false
 	g.ElroySuspended = false
+	g.UseGlobalDotCounter = false
+	g.GlobalDotCounter = 0
+	g.FramesSinceLastDot = 0
 }
 
 // ResetForNextLife resets wave timing, frightened state, and transient popup
@@ -86,6 +92,9 @@ func (g *GameStateData) ResetForNextLife() {
 	g.GhostState = config.Scatter
 	g.PlayerDying = false
 	g.ElroySuspended = true
+	g.UseGlobalDotCounter = true
+	g.GlobalDotCounter = 0
+	g.FramesSinceLastDot = 0
 }
 
 // ResetForNewGame resets the session back to level 1 with full lives and zero

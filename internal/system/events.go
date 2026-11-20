@@ -18,6 +18,17 @@ func RegisterEventHandlers(w donburi.World) {
 		filter.Contains(component.GhostTag, component.Ghost),
 	)
 
+	recordDotForGhostHouse := func(w donburi.World, gameState *component.GameStateData) {
+		gameState.FramesSinceLastDot = 0
+		if gameState.UseGlobalDotCounter {
+			gameState.GlobalDotCounter++
+			return
+		}
+		if preferred := preferredInHouseGhost(w, ghostQuery); preferred != nil {
+			component.Ghost.Get(preferred).DotCounter++
+		}
+	}
+
 	event.DotEaten.Subscribe(w, func(w donburi.World, ev event.DotEatenEvent) {
 		maze := component.MustFindMaze(w)
 		if !maze.InBounds(ev.X, ev.Y) {
@@ -32,6 +43,7 @@ func RegisterEventHandlers(w donburi.World) {
 		}
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
+		recordDotForGhostHouse(w, gameState)
 		if gameState.DotsRemaining == 0 {
 			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
 		}
@@ -55,6 +67,7 @@ func RegisterEventHandlers(w donburi.World) {
 		}
 		gameState.DotsEaten++
 		gameState.DotsRemaining--
+		recordDotForGhostHouse(w, gameState)
 		gameState.NumGhostsEaten = 0
 		if gameState.DotsRemaining == 0 {
 			event.LevelCompleted.Publish(w, event.LevelCompletedEvent{})
