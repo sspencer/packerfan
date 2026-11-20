@@ -17,7 +17,7 @@ This builds `./pacfan-headless` (pure Go, zero Raylib/audio/scene dependencies).
 ```bash
 cd ml
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate       # bash/zsh (or: source .venv/bin/activate.fish for fish)
 pip install -e ".[dev]"
 ```
 

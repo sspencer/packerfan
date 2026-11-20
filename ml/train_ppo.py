@@ -69,7 +69,7 @@ class PacFanCNNExtractor(BaseFeaturesExtractor):
 
 
 def _mask_fn(env: Any) -> Any:
-    return env.action_masks()
+    return env.unwrapped.action_masks()
 
 
 def make_train_env(
@@ -147,6 +147,7 @@ class RunLoggingAndEvalCallback(BaseCallback):
 
         self.best_mean_score = float("-inf")
         self.next_eval_step = self.eval_freq
+        self.last_eval_step = -1
         self.episode_counter = 0
 
     def _on_step(self) -> bool:
@@ -177,6 +178,9 @@ class RunLoggingAndEvalCallback(BaseCallback):
         return True
 
     def _checkpoint_and_eval(self) -> None:
+        if self.num_timesteps == self.last_eval_step:
+            return
+        self.last_eval_step = self.num_timesteps
         ckpt_name = f"ckpt-{self.num_timesteps:08d}"
         ckpt_path = self.checkpoints_dir / f"{ckpt_name}.zip"
         self.model.save(str(ckpt_path))
