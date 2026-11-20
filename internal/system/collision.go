@@ -38,8 +38,12 @@ func (s *CollisionSystem) Update(w donburi.World) {
 
 	gameState := component.MustFindGameState(w)
 	if gameState.FruitActive && SameTileCollide(playerTransform.Pos, gameState.FruitPos) {
+		pts := gameState.FruitPoints
+		if pts <= 0 {
+			pts = int(gameState.Spec.BonusPoints)
+		}
 		event.FruitEaten.Publish(w, event.FruitEatenEvent{
-			Points: int(gameState.Spec.BonusPoints),
+			Points: pts,
 		})
 	}
 

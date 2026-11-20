@@ -184,6 +184,31 @@ func IsFirstScatterWave(level, waveFrames int) bool {
 	return false
 }
 
+var msPacmanBonusTable = [7]struct {
+	Symbol BonusSymbol
+	Points int
+}{
+	{BonusCherries, 100},
+	{BonusStrawberry, 200},
+	{BonusPeach, 500},
+	{BonusApple, 700},     // Pretzel on Ms. Pac-Man spritesheet (index 3)
+	{BonusGrapes, 1000},   // Apple on Ms. Pac-Man spritesheet (index 4)
+	{BonusGalaxian, 2000}, // Pear on Ms. Pac-Man spritesheet (index 5)
+	{BonusBell, 5000},     // Banana on Ms. Pac-Man spritesheet (index 6)
+}
+
+// MsPacmanBonus returns the bonus fruit symbol and point value for Ms. Pac-Man.
+// Levels 1..7 follow the fixed sequence (100..5000); Level 8+ selects randomly
+// among the 7 items using randByte.
+func MsPacmanBonus(level int, randByte byte) (BonusSymbol, int) {
+	if level >= 1 && level <= len(msPacmanBonusTable) {
+		entry := msPacmanBonusTable[level-1]
+		return entry.Symbol, entry.Points
+	}
+	entry := msPacmanBonusTable[int(randByte)%len(msPacmanBonusTable)]
+	return entry.Symbol, entry.Points
+}
+
 // IntermissionForLevel returns the 1-based arcade intermission act number (1, 2, or 3)
 // to play after completing completedLevel, or 0 if gameplay proceeds directly to the next level.
 func IntermissionForLevel(completedLevel int, pacmanMode bool) int {

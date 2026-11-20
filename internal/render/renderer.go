@@ -395,10 +395,21 @@ func LevelBonusSymbols(level int) []config.BonusSymbol {
 }
 
 func (r *Renderer) drawLevelSymbols(gameState *component.GameStateData) {
-	symbols := LevelBonusSymbols(gameState.Level)
 	pos := config.Vector{X: (config.GameWidth - 4) * config.Tile, Y: 0}
-	for _, sym := range symbols {
-		if sprite, ok := BonusFruitSprite(gameState.PacmanMode, sym); ok {
+	if gameState.PacmanMode {
+		for _, sym := range LevelBonusSymbols(gameState.Level) {
+			if sprite, ok := BonusFruitSprite(true, sym); ok {
+				r.drawSprite(pos, sprite, 0)
+			}
+			pos.X -= config.Sprite
+		}
+		return
+	}
+	// Ms. Pac-Man HUD shows up to 7 sequential fruit symbols (Levels 1..7, capped at Banana).
+	count := min(max(1, gameState.Level), 7)
+	for i := range count {
+		sym, _ := config.MsPacmanBonus(i+1, 0)
+		if sprite, ok := BonusFruitSprite(false, sym); ok {
 			r.drawSprite(pos, sprite, 0)
 		}
 		pos.X -= config.Sprite
@@ -587,12 +598,27 @@ func BonusScoreSprite(pacmanMode bool, points int) (config.Vector, int, bool) {
 	}
 }
 
+// FruitBounceOffset returns the vertical pixel offset for Ms. Pac-Man's
+// bouncing bonus fruit animation across its 16-frame bounce cycle.
+func FruitBounceOffset(frame int) int {
+	curve := [16]int{0, -1, -2, -2, -2, -1, 0, 0, 0, -1, -2, -2, -2, -1, 0, 0}
+	return curve[frame%len(curve)]
+}
+
 func (r *Renderer) drawBonusFruit(gameState *component.GameStateData) {
-	sprite, ok := BonusFruitSprite(gameState.PacmanMode, gameState.Spec.BonusSymbol)
+	sym := gameState.FruitSymbol
+	if !gameState.FruitMoving && gameState.PacmanMode {
+		sym = gameState.Spec.BonusSymbol
+	}
+	sprite, ok := BonusFruitSprite(gameState.PacmanMode, sym)
 	if !ok {
 		return
 	}
-	r.drawSprite(gameState.FruitPos, sprite, 0)
+	pos := gameState.FruitPos
+	if gameState.FruitMoving {
+		pos.Y += FruitBounceOffset(gameState.FruitBounceFrame)
+	}
+	r.drawSprite(pos, sprite, 0)
 }
 
 func (r *Renderer) drawBonusScore(gameState *component.GameStateData) {

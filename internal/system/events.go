@@ -30,18 +30,65 @@ func RegisterEventHandlers(w donburi.World) {
 	}
 
 	maybeSpawnFruit := func(w donburi.World, gameState *component.GameStateData, maze *component.MazeData) {
-		shouldSpawn := (gameState.DotsEaten == config.FruitFirstSpawnDots && gameState.FruitSpawnedCount == 0) ||
-			(gameState.DotsEaten == config.FruitSecondSpawnDots && gameState.FruitSpawnedCount == 1)
+		firstDots := config.MsFruitFirstSpawnDots
+		secondDots := config.MsFruitSecondSpawnDots
+		if gameState.PacmanMode {
+			firstDots = config.FruitFirstSpawnDots
+			secondDots = config.FruitSecondSpawnDots
+		}
+		shouldSpawn := (gameState.DotsEaten == firstDots && gameState.FruitSpawnedCount == 0) ||
+			(gameState.DotsEaten == secondDots && gameState.FruitSpawnedCount == 1)
 		if !shouldSpawn {
 			return
 		}
 		house := maze.GhostHouse()
 		prng := component.MustFindPRNG(w)
-		span := config.FruitMaxFrames - config.FruitMinFrames + 1
+		centerFruitPos := config.Vector{X: house.Center.X, Y: house.Center.Y + 3*config.Tile}
+
 		gameState.FruitActive = true
 		gameState.FruitSpawnedCount++
-		gameState.FruitTimer = config.FruitMinFrames + int(prng.NextByte())%span
-		gameState.FruitPos = config.Vector{X: house.Center.X, Y: house.Center.Y + 3*config.Tile}
+		gameState.FruitExiting = false
+		gameState.FruitMotion = component.MotionData{}
+		gameState.FruitBounceFrame = 0
+
+		if gameState.PacmanMode {
+			span := config.FruitMaxFrames - config.FruitMinFrames + 1
+			gameState.FruitMoving = false
+			gameState.FruitSymbol = gameState.Spec.BonusSymbol
+			gameState.FruitPoints = int(gameState.Spec.BonusPoints)
+			gameState.FruitTimer = config.FruitMinFrames + int(prng.NextByte())%span
+			gameState.FruitPos = centerFruitPos
+			return
+		}
+
+		// Ms. Pac-Man: bouncing fruit enters from a random tunnel, visits the maze
+		// center below the ghost house, and exits out a random tunnel.
+		sym, pts := config.MsPacmanBonus(gameState.Level, prng.NextByte())
+		tunnels := maze.TunnelRows()
+		entryRow := tunnels[int(prng.NextByte())%len(tunnels)]
+		exitRow := tunnels[int(prng.NextByte())%len(tunnels)]
+		entryLeft := prng.NextByte()%2 == 0
+		exitLeft := prng.NextByte()%2 == 0
+
+		entryX := (config.GameWidth - 1) * config.Tile
+		entryDir := config.Left
+		if entryLeft {
+			entryX = 0
+			entryDir = config.Right
+		}
+		exitX := (config.GameWidth - 1) * config.Tile
+		if exitLeft {
+			exitX = 0
+		}
+
+		gameState.FruitMoving = true
+		gameState.FruitSymbol = sym
+		gameState.FruitPoints = pts
+		gameState.FruitTimer = config.MsFruitMaxFrames
+		gameState.FruitPos = config.Vector{X: entryX, Y: entryRow * config.Tile}
+		gameState.FruitDir = entryDir
+		gameState.FruitTarget = centerFruitPos
+		gameState.FruitExitPos = config.Vector{X: exitX, Y: exitRow * config.Tile}
 	}
 
 	addScore := func(w donburi.World, gameState *component.GameStateData, points int) {
@@ -207,6 +254,8 @@ func RegisterEventHandlers(w donburi.World) {
 			return
 		}
 		gameState.FruitActive = false
+		gameState.FruitMoving = false
+		gameState.FruitExiting = false
 		gameState.FruitTimer = 0
 		addScore(w, gameState, ev.Points)
 		gameState.FruitScoreTimer = config.FruitScorePopupFrames

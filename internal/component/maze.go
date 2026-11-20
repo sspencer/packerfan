@@ -212,6 +212,23 @@ func (m *MazeData) computeGhostHouse() GhostHouse {
 	return ghostHouseFromDoor(minX, maxX, doorRow)
 }
 
+// TunnelRows returns the maze tile Y rows containing left/right wrap tunnels
+// for the active maze layout.
+func (m *MazeData) TunnelRows() []int {
+	switch m.GetIndex() {
+	case 0:
+		return []int{8, 17}
+	case 1:
+		return []int{1, 23}
+	case 2:
+		return []int{9}
+	case 3:
+		return []int{13, 16}
+	default:
+		return []int{14}
+	}
+}
+
 // IsGhostWall returns true for the special upward-restricted tiles in the
 // classic Pac-Man maze where non-frightened ghosts may not turn up.
 func (m *MazeData) IsGhostWall(x, y int) bool {

@@ -72,11 +72,20 @@ type GameStateData struct {
 	GlobalDotCounter    int
 	FramesSinceLastDot  int
 	FruitActive         bool
+	FruitMoving         bool
+	FruitExiting        bool
 	FruitTimer          int
 	FruitSpawnedCount   int
+	FruitSymbol         config.BonusSymbol
+	FruitPoints         int
 	FruitScoreTimer     int
 	FruitScoreValue     int
 	FruitPos            config.Vector
+	FruitDir            config.Direction
+	FruitTarget         config.Vector
+	FruitExitPos        config.Vector
+	FruitMotion         MotionData
+	FruitBounceFrame    int
 	Spec                config.LevelSpecTable
 	GhostState          config.GhostState
 }
@@ -212,11 +221,19 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.GlobalDotCounter = 0
 	g.FramesSinceLastDot = 0
 	g.FruitActive = false
+	g.FruitMoving = false
+	g.FruitExiting = false
 	g.FruitTimer = 0
 	g.FruitSpawnedCount = 0
+	g.FruitSymbol = g.Spec.BonusSymbol
+	g.FruitPoints = int(g.Spec.BonusPoints)
 	g.FruitScoreTimer = 0
 	g.FruitScoreValue = 0
 	g.FruitPos = config.Vector{}
+	g.FruitTarget = config.Vector{}
+	g.FruitExitPos = config.Vector{}
+	g.FruitMotion = MotionData{}
+	g.FruitBounceFrame = 0
 }
 
 // ResetForNextLife resets wave timing, frightened state, and transient popup
@@ -241,9 +258,13 @@ func (g *GameStateData) ResetForNextLife() {
 	g.GlobalDotCounter = 0
 	g.FramesSinceLastDot = 0
 	g.FruitActive = false
+	g.FruitMoving = false
+	g.FruitExiting = false
 	g.FruitTimer = 0
 	g.FruitScoreTimer = 0
 	g.FruitScoreValue = 0
+	g.FruitMotion = MotionData{}
+	g.FruitBounceFrame = 0
 }
 
 // ResetForNewGame resets the session back to level 1 with full lives and zero

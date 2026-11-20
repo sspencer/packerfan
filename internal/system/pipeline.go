@@ -14,6 +14,7 @@ type Pipeline struct {
 	gameState *GameStateSystem
 	collision *CollisionSystem
 	ghosts    *GhostSystem
+	fruit     *FruitSystem
 	player    *PlayerSystem
 }
 
@@ -23,6 +24,7 @@ func NewPipeline(inputProvider InputProvider) *Pipeline {
 		gameState: NewGameStateSystem(),
 		collision: NewCollisionSystem(),
 		ghosts:    NewGhostSystem(),
+		fruit:     NewFruitSystem(),
 		player:    NewPlayerSystem(),
 	}
 }
@@ -70,6 +72,7 @@ func (p *Pipeline) Update(w donburi.World) {
 	}
 
 	p.ghosts.Update(w)
+	p.fruit.Update(w)
 	events.ProcessAllEvents(w)
 
 	p.input.ApplyPlayerInput(w)

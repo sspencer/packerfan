@@ -18,8 +18,11 @@ const (
 	GhostEatenPause             = 61
 	FruitFirstSpawnDots         = 70
 	FruitSecondSpawnDots        = 170
+	MsFruitFirstSpawnDots       = 64
+	MsFruitSecondSpawnDots      = 176
 	FruitMinFrames              = 566
 	FruitMaxFrames              = 606
+	MsFruitMaxFrames            = 1800
 	FruitScorePopupFrames       = 122
 	ReadyDuration               = 122
 	RoundClearedHoldFrames      = 61

@@ -25,6 +25,9 @@ func RegisterAudioEventHandlers(w donburi.World, player audio.Player) {
 	event.FruitEaten.Subscribe(w, func(_ donburi.World, _ event.FruitEatenEvent) {
 		player.Play(audio.SoundEatFruit)
 	})
+	event.FruitBounced.Subscribe(w, func(_ donburi.World, _ event.FruitBouncedEvent) {
+		player.Play(audio.SoundFruitBounce)
+	})
 	event.ExtraLifeAwarded.Subscribe(w, func(_ donburi.World, _ event.ExtraLifeAwardedEvent) {
 		player.Play(audio.SoundExtraLife)
 	})

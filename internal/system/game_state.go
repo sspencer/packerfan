@@ -28,6 +28,8 @@ func (s *GameStateSystem) Update(w donburi.World) {
 		gameState.FruitTimer--
 		if gameState.FruitTimer <= 0 {
 			gameState.FruitActive = false
+			gameState.FruitMoving = false
+			gameState.FruitExiting = false
 			gameState.FruitTimer = 0
 		}
 	}

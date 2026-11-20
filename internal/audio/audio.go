@@ -19,6 +19,7 @@ const (
 	SoundChomp
 	SoundEatGhost
 	SoundEatFruit
+	SoundFruitBounce
 	SoundExtraLife
 	SoundDeath
 	SoundIntermission1
@@ -79,6 +80,8 @@ func SoundPaths(pacmanMode bool, id SoundID) []string {
 			return []string{"assets/pacman/eatghost.wav", "assets/ms-pacman/eat_ghost.wav"}
 		case SoundEatFruit:
 			return []string{"assets/pacman/eatfruit.wav", "assets/ms-pacman/eat_fruit.wav"}
+		case SoundFruitBounce:
+			return []string{"assets/ms-pacman/fruit_bounce.wav"}
 		case SoundExtraLife:
 			return []string{"assets/pacman/extrapac.wav", "assets/ms-pacman/extend.wav"}
 		case SoundDeath:
@@ -102,6 +105,8 @@ func SoundPaths(pacmanMode bool, id SoundID) []string {
 		return []string{"assets/ms-pacman/eat_ghost.wav", "assets/pacman/eatghost.wav"}
 	case SoundEatFruit:
 		return []string{"assets/ms-pacman/eat_fruit.wav", "assets/pacman/eatfruit.wav"}
+	case SoundFruitBounce:
+		return []string{"assets/ms-pacman/fruit_bounce.wav"}
 	case SoundExtraLife:
 		return []string{"assets/ms-pacman/extend.wav", "assets/pacman/extrapac.wav"}
 	case SoundDeath:
@@ -164,6 +169,7 @@ var AllSounds = []SoundID{
 	SoundChomp,
 	SoundEatGhost,
 	SoundEatFruit,
+	SoundFruitBounce,
 	SoundExtraLife,
 	SoundDeath,
 	SoundIntermission1,

@@ -1539,6 +1539,7 @@ func TestSameTileCollide(t *testing.T) {
 func TestBonusFruitSpawnsAt70And170DotsAndCollects(t *testing.T) {
 	w, player, _ := newTestWorld(t)
 	gs := component.MustFindGameState(w)
+	gs.PacmanMode = true
 	gs.DotsRemaining = 240
 	gs.DotsEaten = 69
 
@@ -1641,6 +1642,62 @@ func TestMsPacmanFirstScatterUsesPRNGForBlinkyAndPinky(t *testing.T) {
 	}
 	if idx := runOnce(false, config.SecondsToFrames(30)); idx != 0 {
 		t.Fatalf("expected Ms. Pac-Man later scatter wave NOT to advance PRNG, got index=%d", idx)
+	}
+}
+
+func TestMsPacmanBouncingFruitSpawnsAt64And176AndExitsTunnel(t *testing.T) {
+	w, _, _ := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.PacmanMode = false
+	gs.SetLevel(2) // Strawberry = 200 pts in Ms. Pac-Man (not 300)
+	gs.DotsRemaining = 200
+	gs.DotsEaten = 63
+
+	bounced := 0
+	event.FruitBounced.Subscribe(w, func(_ donburi.World, _ event.FruitBouncedEvent) {
+		bounced++
+	})
+
+	// 64th dot spawns Ms. Pac-Man's moving bouncing fruit at a side tunnel.
+	event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
+	events.ProcessAllEvents(w)
+
+	if !gs.FruitActive || !gs.FruitMoving || gs.FruitSpawnedCount != 1 {
+		t.Fatalf("expected moving Ms. Pac-Man fruit at 64 dots: active=%v moving=%v count=%d",
+			gs.FruitActive, gs.FruitMoving, gs.FruitSpawnedCount)
+	}
+	if gs.FruitPoints != 200 {
+		t.Fatalf("Ms. Pac-Man Level 2 fruit points = %d, want 200", gs.FruitPoints)
+	}
+
+	// Drive FruitSystem until the fruit reaches center and exits out a tunnel.
+	fruitSys := system.NewFruitSystem()
+	startPos := gs.FruitPos
+	moved := false
+	for range 1200 {
+		fruitSys.Update(w)
+		events.ProcessAllEvents(w)
+		if gs.FruitPos != startPos {
+			moved = true
+		}
+		if !gs.FruitActive {
+			break
+		}
+	}
+	if !moved || bounced == 0 {
+		t.Fatalf("expected fruit to move and bounce: moved=%v bounced=%d", moved, bounced)
+	}
+	if gs.FruitActive {
+		t.Fatalf("expected bouncing fruit to exit tunnel cleanly, still active at %v (exiting=%v target=%v)",
+			gs.FruitPos, gs.FruitExiting, gs.FruitTarget)
+	}
+
+	// 176th dot spawns the second Ms. Pac-Man fruit.
+	gs.DotsEaten = 175
+	event.DotEaten.Publish(w, event.DotEatenEvent{X: 2, Y: 1})
+	events.ProcessAllEvents(w)
+	if !gs.FruitActive || gs.FruitSpawnedCount != 2 {
+		t.Fatalf("expected second Ms. Pac-Man fruit at 176 dots: active=%v count=%d", gs.FruitActive, gs.FruitSpawnedCount)
 	}
 }
 

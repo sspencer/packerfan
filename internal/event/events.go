@@ -44,6 +44,8 @@ type FruitEatenEvent struct {
 	Points int
 }
 
+type FruitBouncedEvent struct{}
+
 type ExtraLifeAwardedEvent struct{}
 
 var (
@@ -55,5 +57,6 @@ var (
 	FrightModeEnded   = events.NewEventType[FrightModeEndedEvent]()
 	LevelCompleted    = events.NewEventType[LevelCompletedEvent]()
 	FruitEaten        = events.NewEventType[FruitEatenEvent]()
+	FruitBounced      = events.NewEventType[FruitBouncedEvent]()
 	ExtraLifeAwarded  = events.NewEventType[ExtraLifeAwardedEvent]()
 )
