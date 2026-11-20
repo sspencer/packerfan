@@ -61,6 +61,14 @@ Evaluate a saved checkpoint and optionally record `.pfr` replays:
 python eval.py ../runs/ppo-demo/best/model.zip --episodes 10 --record-dir ../runs/ppo-demo/eval-manual
 ```
 
+Measure where step time goes (server round trip vs observation encoding):
+
+```bash
+python bench.py
+```
+
+See [docs/headless.md](../docs/headless.md#9-benchmarks) for all benchmarks and baseline numbers.
+
 Verify any recorded `.pfr` replay headlessly:
 
 ```bash

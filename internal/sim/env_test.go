@@ -452,3 +452,50 @@ func BenchmarkEnvTick(b *testing.B) {
 		}
 	}
 }
+
+// benchAction picks a legal direction deterministically, rotating the
+// preferred starting direction every call so the player explores the maze.
+func benchAction(legal [config.DirCount]bool, i int) sim.Action {
+	for k := range config.DirCount {
+		d := (i + k) % config.DirCount
+		if legal[d] {
+			return sim.Action(d)
+		}
+	}
+	return sim.ActionNoop
+}
+
+// BenchmarkEnvStep measures sim.Env.Step in each step mode with a legal-move
+// policy. It reports ticks/step and ns/tick so modes can be compared.
+func BenchmarkEnvStep(b *testing.B) {
+	modes := []struct {
+		name   string
+		mode   sim.StepMode
+		frames int
+	}{
+		{"frames4", sim.StepFrames, 4},
+		{"tile", sim.StepTile, 0},
+		{"intersection", sim.StepIntersection, 0},
+	}
+	mazes := loadTestMazes(b)
+	for _, m := range modes {
+		b.Run(m.name, func(b *testing.B) {
+			env := sim.NewEnv(sim.Config{Mazes: mazes, StartLevel: 1, Seed: 42})
+			totalTicks := 0
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := range b.N {
+				res := env.Step(benchAction(env.LegalActions(), i/8), m.mode, m.frames)
+				totalTicks += res.Ticks
+				if res.Terminated || res.Truncated {
+					env.Reset(nil)
+				}
+			}
+			b.StopTimer()
+			b.ReportMetric(float64(totalTicks)/float64(b.N), "ticks/step")
+			if totalTicks > 0 {
+				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(totalTicks), "ns/tick")
+			}
+		})
+	}
+}

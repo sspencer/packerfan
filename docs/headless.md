@@ -10,7 +10,8 @@ This guide explains how the headless build of Packer Fan (`pacfan-headless`) wor
 - [6. Replay files (`.pfr`)](#6-replay-files-pfr)
 - [7. Watching and verifying replays](#7-watching-and-verifying-replays)
 - [8. Running the Python AI](#8-running-the-python-ai)
-- [9. Troubleshooting](#9-troubleshooting)
+- [9. Benchmarks](#9-benchmarks)
+- [10. Troubleshooting](#10-troubleshooting)
 
 ---
 
@@ -682,7 +683,77 @@ All values are scaled to `0..1`. The reward is the raw score change; wrap the en
 
 ---
 
-## 9. Troubleshooting
+## 9. Benchmarks
+
+Benchmarks measure each layer separately, so you can see where time goes before trying to make API mode faster, and check that a change really helped.
+
+| Benchmark | Where | Measures |
+| --- | --- | --- |
+| `BenchmarkEnvTick` | [`internal/sim/env_test.go`](../internal/sim/env_test.go) | One raw simulation tick (`Env.TickOne`). |
+| `BenchmarkEnvStep/{frames4,tile,intersection}` | [`internal/sim/env_test.go`](../internal/sim/env_test.go) | One `Env.Step` in each step mode, with a legal-move policy. Reports `ticks/step` and `ns/tick`. |
+| `BenchmarkNDJSONStep` | [`internal/api/api_test.go`](../internal/api/api_test.go) | A 4-frame step through the NDJSON server in-process (JSON decode, step, JSON encode), over in-memory pipes. |
+| `BenchmarkHeadlessProcess/{frames4,tile,intersection}` | [`cmd/pacfan-headless/main_test.go`](../cmd/pacfan-headless/main_test.go) | A step round trip against the real `pacfan-headless` binary over OS pipes, the way a client sees it. The binary is built into a temporary directory on first use. Reports `steps/s` and `ticks/step`. |
+| `bench.py` | [`ml/bench.py`](../ml/bench.py) | From Python: the raw request round trip (`rpc`), observation building alone (`encode/<obs_mode>`), and the full `PacFanEnv.step()` (`env/<obs_mode>`), for each step mode. |
+| `baselines.py --benchmark-workers` | [`ml/baselines.py`](../ml/baselines.py) | Total steps/s with several environments in parallel (`AsyncVectorEnv`). |
+
+All of them play Ms. Pac-Man level 1 with the placeholder `assets/game.png` mazes and a fixed seed, so results are comparable between machines and over time. The Go step benchmarks and `bench.py` use the same deterministic legal-move policy, so their `ticks/step` match.
+
+### Running
+
+```sh
+make bench                                 # all Go benchmarks once
+make bench BENCH=EnvStep COUNT=6           # one benchmark, 6 runs
+go test -run '^$' -bench . -benchmem ./internal/sim ./internal/api ./cmd/pacfan-headless
+
+cd ml
+python bench.py                            # all step modes, grid and bfs observations
+python bench.py --steps 20000 --modes tile --obs-modes bfs
+python baselines.py --episodes 1 --benchmark-workers 1 4 8 --benchmark-steps 5000
+```
+
+Run `make build-headless` before the Python benchmarks so they use the current Go code.
+
+### Comparing before and after a change
+
+Results vary by 10-20% between runs, so take several samples and compare them with [`benchstat`](https://pkg.go.dev/golang.org/x/perf/cmd/benchstat):
+
+```sh
+go install golang.org/x/perf/cmd/benchstat@latest
+make bench BENCH='EnvStep|HeadlessProcess' COUNT=10 > old.txt
+# ... make the change ...
+make bench BENCH='EnvStep|HeadlessProcess' COUNT=10 > new.txt
+benchstat old.txt new.txt
+```
+
+To find what to optimize, profile a benchmark:
+
+```sh
+go test -run '^$' -bench EnvStep/tile -cpuprofile cpu.out ./internal/sim
+go tool pprof -top cpu.out                 # or: go tool pprof -http=:8080 cpu.out
+```
+
+Whatever you change, `go test ./...` (in particular the replay tests and `-verify` of existing `.pfr` files) must still pass: a speedup must not change how the game plays.
+
+### Baseline (Apple M1)
+
+| Layer | frames (4 ticks) | tile (about 8 ticks) | intersection (about 35 ticks) |
+| --- | --- | --- | --- |
+| `Env.Step` (simulation only) | 15 µs | 31 µs | 159 µs |
+| `pacfan-headless` over pipes, from Go | 33 µs | 51 µs | 165 µs |
+| Python `rpc` (round trip only) | 37 µs | 51 µs | 145 µs |
+| Python `encode/grid` | 6 µs | 6 µs | 6 µs |
+| Python `encode/bfs` | 320 µs | 320 µs | 320 µs |
+| Python `env/grid` (full step) | 47 µs | 62 µs | 158 µs |
+| Python `env/bfs` (full step) | 365 µs | 386 µs | 482 µs |
+
+A single tick costs about 3.5-4.5 µs. What these numbers say:
+
+- With `grid` observations, most of the time is the simulation itself; process I/O and JSON add roughly 15-20 µs per step. Faster ticks speed up training directly.
+- With `bfs` observations, the Python breadth-first search (about 320 µs) dwarfs everything else. Speeding up the Go side barely matters there; the encoder is the thing to optimize.
+
+---
+
+## 10. Troubleshooting
 
 | Problem | Cause and fix |
 | --- | --- |

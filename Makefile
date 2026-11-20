@@ -4,8 +4,10 @@ HEADLESS_BINARY ?= pacfan-headless
 ARGS            ?=
 GOFLAGS         ?=
 COVER_FILE      ?= coverage.out
+BENCH           ?= .
+COUNT           ?= 1
 
-.PHONY: build build-headless run test test-race cover fmt vet fix check check-headless-deps generate deps clean help
+.PHONY: build build-headless run test test-race bench cover fmt vet fix check check-headless-deps generate deps clean help
 
 build: ## Build the binary
 	$(GO) build $(GOFLAGS) -o $(BINARY) .
@@ -21,6 +23,9 @@ test: ## Run all tests
 
 test-race: ## Run all tests with the race detector enabled
 	$(GO) test -race $(GOFLAGS) ./...
+
+bench: ## Run simulation and API benchmarks (e.g. make bench BENCH=EnvStep COUNT=6)
+	$(GO) test -run '^$$' -bench '$(BENCH)' -benchmem -count $(COUNT) ./internal/sim ./internal/api ./cmd/pacfan-headless
 
 cover: ## Run tests and print total statement coverage
 	$(GO) test -coverprofile=$(COVER_FILE) ./...
