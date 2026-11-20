@@ -276,10 +276,10 @@ a ...
 
 **Goal:** `pacfan -replay FILE_OR_DIR` shows any `.pfr` with the real graphics.
 
-- [ ] `internal/game`: a `ReplayViewer` that builds a `sim.Env` from the replay header, feeds it the recorded actions at the arcade clock rate, and draws `env.World()` with the existing `render.Renderer.DrawWorld`. Set `GameState.Zoom` from `-zoom` (it is excluded from `HashWorld`).
-- [ ] Art selection: load the embedded PNG whose base name equals `art.file` (or `-art FILE`); parse its `MazeSet` and refuse to play if `maze_hash` differs from the header, naming the file the replay needs.
-- [ ] `main.go` flags: `-replay FILE_OR_DIR` (directory = sorted playlist), `-replay-speed N` (`0.25..16`). No audio initialisation in this mode.
-- [ ] Controls read straight from Raylib: `Space` pause, `→` single tick while paused, `+`/`-` speed, `N`/`P` next/previous file. HUD line with run id, checkpoint, episode, tick, speed. Hash checkpoints verified as playback passes them.
+- [x] `internal/game`: a `ReplayViewer` that builds a `sim.Env` from the replay header, feeds it the recorded actions at the arcade clock rate, and draws `env.World()` with the existing `render.Renderer.DrawWorld`. Set `GameState.Zoom` from `-zoom` (it is excluded from `HashWorld`).
+- [x] Art selection: load the embedded PNG whose base name equals `art.file` (or `-art FILE`); parse its `MazeSet` and refuse to play if `maze_hash` differs from the header, naming the file the replay needs.
+- [x] `main.go` flags: `-replay FILE_OR_DIR` (directory = sorted playlist), `-replay-speed N` (`0.25..16`). No audio initialisation in this mode.
+- [x] Controls read straight from Raylib: `Space` pause, `→` single tick while paused, `+`/`-` speed, `N`/`P` next/previous file. HUD line with run id, checkpoint, episode, tick, speed. Hash checkpoints verified as playback passes them.
 - [ ] Optional polish: cosmetic holds on death and level clear (draw with `DrawOptions{PlayerDying…}` / `FlashMaze` for a moment without ticking the sim).
 - [ ] Optional: `-sim` human play mode — the same viewer loop with `render.RaylibInput` instead of a replay and `-record FILE`, giving human demonstrations in exactly the format and timeline the agents use (for imitation learning).
 - [ ] Optional: live spectating. `pacfan -api tcp://127.0.0.1:PORT` runs the same viewer loop with actions arriving from an `api.Session` on a loopback socket; the main thread keeps rendering and ticks only when a `step` arrives.
