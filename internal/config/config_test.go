@@ -103,3 +103,37 @@ func TestIntermissionForLevel(t *testing.T) {
 		}
 	}
 }
+
+func TestFixedStepClockPacing(t *testing.T) {
+	clock := config.NewArcadeClock()
+
+	// Over 1.0 second at 120 Hz render frames, should emit ~60 ticks (60.606061 Hz).
+	total := 0
+	for range 120 {
+		total += clock.Advance(1.0 / 120.0)
+	}
+	if total != 60 {
+		t.Fatalf("ticks over 1s at 120Hz = %d, want 60", total)
+	}
+
+	// Over 10.0 seconds total at 60 Hz render frames, should emit 606 ticks.
+	clock60 := config.NewArcadeClock()
+	total60 := 0
+	for range 600 {
+		total60 += clock60.Advance(1.0 / 60.0)
+	}
+	if total60 != 606 {
+		t.Fatalf("ticks over 10s at 60Hz = %d, want 606", total60)
+	}
+
+	// Huge pause delta is clamped to maxDelta (0.25s -> 15 ticks).
+	clockClamp := config.NewArcadeClock()
+	if got := clockClamp.Advance(5.0); got != 15 {
+		t.Fatalf("clamped 5s pause ticks = %d, want 15", got)
+	}
+
+	// Non-positive deltas emit 0 steps.
+	if got := clockClamp.Advance(-0.1); got != 0 {
+		t.Fatalf("negative delta ticks = %d, want 0", got)
+	}
+}

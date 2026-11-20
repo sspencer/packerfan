@@ -57,8 +57,13 @@ binary at build time, so adding them without rebuilding has no effect.
 	}, assetsFS)
 	defer engine.Unload()
 
+	clock := config.NewArcadeClock()
+
 	for !rl.WindowShouldClose() {
-		engine.Update()
+		steps := clock.Advance(float64(rl.GetFrameTime()))
+		for range steps {
+			engine.Update()
+		}
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
 		engine.Draw()
