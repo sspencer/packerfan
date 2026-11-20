@@ -29,7 +29,35 @@ const (
 	DoorMask  uint64 = 16776960
 )
 
+// Char returns the single-character ASCII encoding for a tile, suitable for
+// compact serialization and ML/scripting APIs.
+func (c Cell) Char() byte {
+	switch c {
+	case Empty:
+		return ' '
+	case Wall:
+		return '#'
+	case Door:
+		return '-'
+	case Dot:
+		return '.'
+	case Power:
+		return 'O'
+	case Tunnel:
+		return '@'
+	default:
+		panic("unhandled default case")
+	}
+}
+
+// String returns the single-character ASCII representation of a tile.
 func (c Cell) String() string {
+	return string(c.Char())
+}
+
+// PrettyString returns a 3-character wide Unicode representation of a tile for
+// human-readable terminal debugging.
+func (c Cell) PrettyString() string {
 	switch c {
 	case Empty:
 		return "   "
@@ -109,7 +137,29 @@ func NewMazeData(pacmanMode bool) MazeData {
 	}
 }
 
+// Rows returns the maze as a slice of 1-character-per-tile ASCII row strings
+// (31 rows of 28 characters) suitable for JSON/scripting serialization.
+func (m *MazeData) Rows() []string {
+	rows := make([]string, len(m.Grid))
+	for y := range m.Grid {
+		buf := make([]byte, len(m.Grid[y]))
+		for x, cell := range m.Grid[y] {
+			buf[x] = cell.Char()
+		}
+		rows[y] = string(buf)
+	}
+	return rows
+}
+
+// String returns a compact 1-character-per-tile ASCII representation of the maze
+// (rows separated by newlines, no coordinate borders).
 func (m *MazeData) String() string {
+	return strings.Join(m.Rows(), "\n")
+}
+
+// PrettyString returns a 3-character-per-tile Unicode grid with row/column
+// indices for human-readable terminal debugging.
+func (m *MazeData) PrettyString() string {
 	sb := strings.Builder{}
 	sb.WriteString("  │")
 	for x := 0; x < len(m.Grid[0]); x++ {
@@ -120,7 +170,7 @@ func (m *MazeData) String() string {
 	for y := range m.Grid {
 		sb.WriteString(fmt.Sprintf("%2d│", y))
 		for x := 0; x < len(m.Grid[y]); x++ {
-			sb.WriteString(m.Grid[y][x].String())
+			sb.WriteString(m.Grid[y][x].PrettyString())
 		}
 		sb.WriteString("\n")
 	}
