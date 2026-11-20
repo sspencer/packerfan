@@ -206,6 +206,12 @@ func chooseRandomDirection(prng *component.PRNGData, fallback config.Direction, 
 	return fallback
 }
 
+func isCruiseElroy(gameState *component.GameStateData, ghost *component.GhostData) bool {
+	return ghost.AIKind == component.BlinkyAI &&
+		!gameState.ElroySuspended &&
+		gameState.DotsRemaining <= gameState.Spec.Elroy1DotsLeft
+}
+
 func ghostSpeed(
 	maze *component.MazeData,
 	gameState *component.GameStateData,
@@ -234,7 +240,7 @@ func ghostSpeed(
 		return s.GhostFrightSpeed
 	}
 
-	if actor.ID == component.Blinky {
+	if actor.ID == component.Blinky && !gameState.ElroySuspended {
 		if gameState.DotsRemaining <= s.Elroy2DotsLeft {
 			return s.Elroy2Speed
 		}

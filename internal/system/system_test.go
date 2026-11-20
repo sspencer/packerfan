@@ -366,6 +366,58 @@ func TestPowerUpReversesGhostsOnNoFrightLevels(t *testing.T) {
 	}
 }
 
+func TestCruiseElroyChasesInScatterAndSuspendsUntilClydeLeaves(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Scatter
+	gs.DotsRemaining = gs.Spec.Elroy1DotsLeft // triggers Elroy 1 on level 1 (20)
+
+	playerPos := config.Vector{X: 5 * config.Tile, Y: 20 * config.Tile}
+	component.Transform.Get(player).Pos = playerPos
+
+	blinkyEntry := ghosts[0]
+	blinkyTr := component.Transform.Get(blinkyEntry)
+	blinkyGhost := component.Ghost.Get(blinkyEntry)
+	blinkyTr.Pos = config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	blinkyTr.Dir = config.Left
+	blinkyGhost.State = config.Scatter
+
+	ghostSys := system.NewGhostSystem()
+	ghostSys.Update(w)
+	if blinkyGhost.Target != playerPos {
+		t.Fatalf("Elroy Blinky in Scatter targeted %v, want player pos %v", blinkyGhost.Target, playerPos)
+	}
+
+	// Losing a life suspends Elroy until Clyde exits the house.
+	if !system.ConsumeLifeAndRespawn(w) {
+		t.Fatalf("expected respawn with lives remaining")
+	}
+	if !gs.ElroySuspended {
+		t.Fatalf("expected ElroySuspended=true after respawn")
+	}
+
+	blinkyTr.Pos = config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	blinkyTr.Dir = config.Left
+	blinkyGhost.State = config.Scatter
+	component.Transform.Get(player).Pos = playerPos
+	ghostSys.Update(w)
+	if blinkyGhost.Target != blinkyGhost.ScatterTarget {
+		t.Fatalf("suspended Elroy targeted %v, want ScatterTarget %v", blinkyGhost.Target, blinkyGhost.ScatterTarget)
+	}
+
+	// Release Clyde and let him exit the house -> unsuspends Elroy.
+	clydeEntry := ghosts[3]
+	component.Ghost.Get(clydeEntry).State = config.LeavingHouse
+	house := component.MustFindMaze(w).GhostHouse()
+	component.Transform.Get(clydeEntry).Pos = config.Vector{X: house.Entrance.X, Y: house.Entrance.Y + 1}
+	gs.Spec.GhostTunnelSpeed = config.Speed80
+	ghostSys.Update(w)
+
+	if gs.ElroySuspended {
+		t.Fatalf("expected ElroySuspended=false once Clyde exits house")
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 

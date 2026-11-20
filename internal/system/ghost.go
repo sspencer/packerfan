@@ -76,7 +76,11 @@ func (s *GhostSystem) Update(w donburi.World) {
 			continue
 		case config.Scatter:
 			if IsCentered(transform.Pos) {
-				updateGhostTarget(maze, prng, transform, ghost, ghost.ScatterTarget)
+				target := ghost.ScatterTarget
+				if isCruiseElroy(gameState, ghost) && playerTransform != nil {
+					target = computeChaseTarget(ghost, transform, playerTransform, blinkyTransform)
+				}
+				updateGhostTarget(maze, prng, transform, ghost, target)
 			}
 		case config.Chase:
 			if IsCentered(transform.Pos) && playerTransform != nil {
@@ -307,4 +311,7 @@ func updateGhostLeavingHouse(
 	ghost.State = gameState.GhostState
 	ghost.PixelsMoved = config.Tile
 	transform.Dir = chooseRandomDirection(prng, transform.Dir, []config.Direction{config.Right, config.Left})
+	if ghost.AIKind == component.ClydeAI {
+		gameState.ElroySuspended = false
+	}
 }

@@ -32,6 +32,7 @@ type GameStateData struct {
 	LevelComplete    bool
 	PlayerDying      bool
 	GameOver         bool
+	ElroySuspended   bool
 	Spec             config.LevelSpecTable
 	GhostState       config.GhostState
 }
@@ -64,6 +65,7 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.LevelComplete = false
 	g.PlayerDying = false
 	g.GameOver = false
+	g.ElroySuspended = false
 }
 
 // ResetForNextLife resets wave timing, frightened state, and transient popup
@@ -83,6 +85,7 @@ func (g *GameStateData) ResetForNextLife() {
 	g.GhostEatenScore = 0
 	g.GhostState = config.Scatter
 	g.PlayerDying = false
+	g.ElroySuspended = true
 }
 
 // ResetForNewGame resets the session back to level 1 with full lives and zero
