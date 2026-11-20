@@ -93,8 +93,15 @@ func CheckAssets(assetsFS fs.FS) error {
 
 // NewArt loads all graphical assets from the provided embedded filesystem.
 func NewArt(assetsFS fs.FS) *Art {
+	gameData := mustReadAsset(assetsFS, GameAssetPath(assetsFS))
+	return NewArtWithGamePNG(assetsFS, gameData)
+}
+
+// NewArtWithGamePNG loads the font and shader from assetsFS and uses the
+// provided PNG bytes as the game spritesheet texture/image.
+func NewArtWithGamePNG(assetsFS fs.FS, gamePNG []byte) *Art {
 	fontTexture := loadTexture(assetsFS, FontAssetPath(assetsFS))
-	gameTexture := loadTexture(assetsFS, GameAssetPath(assetsFS))
+	gameTexture := loadTextureBytes(gamePNG)
 	gameImage := rl.LoadImageFromTexture(gameTexture)
 	shader := loadShader(assetsFS, shaderAssetPath)
 	flashShader := rl.LoadShaderFromMemory("", flashFragmentShader)
@@ -124,7 +131,10 @@ func (a *Art) IsPixelLit(x, y int) bool {
 }
 
 func loadTexture(assetsFS fs.FS, path string) rl.Texture2D {
-	data := mustReadAsset(assetsFS, path)
+	return loadTextureBytes(mustReadAsset(assetsFS, path))
+}
+
+func loadTextureBytes(data []byte) rl.Texture2D {
 	img := rl.LoadImageFromMemory(".png", data, int32(len(data)))
 	texture := rl.LoadTextureFromImage(img)
 	rl.UnloadImage(img)
