@@ -62,6 +62,8 @@ func (p *Pipeline) Update(w donburi.World) {
 	p.gameState.Update(w)
 	p.collision.Update(w)
 	events.ProcessAllEvents(w)
+	// Flush follow-up events published by collision handlers (e.g., ExtraLifeAwarded on GhostEaten/FruitEaten).
+	events.ProcessAllEvents(w)
 
 	if gameState.GhostEatenPause > 0 || gameState.LevelComplete || gameState.PlayerDying {
 		return

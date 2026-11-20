@@ -943,3 +943,31 @@ func TestAudioEventsAndSceneLoopTransitions(t *testing.T) {
 		t.Fatalf("2P turn switch replayed SoundStart unexpectedly: %v", rec.played)
 	}
 }
+
+func TestGhostEatenExtraLifeSoundPlaysImmediatelyOnCollisionFrame(t *testing.T) {
+	ctx, _, _, player, ghosts := newSceneHarness(t, true)
+	rec := &recordingAudio{}
+	ctx.Audio = rec
+	system.RegisterAudioEventHandlers(ctx.World, rec)
+
+	gs := component.MustFindGameState(ctx.World)
+	gs.Score = 9900
+	gs.IsFrightMode = true
+	gs.FrightFrames = 200
+
+	blinky := ghosts[0]
+	component.Ghost.Get(blinky).State = config.Frightened
+	pos := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	component.Transform.Get(player).Pos = pos
+	component.Transform.Get(blinky).Pos = pos
+
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+	ctx.Manager.Update() // Single tick: eats ghost (+200 -> 10100) and transitions to GhostEatenFreezeScene.
+
+	if _, ok := ctx.Manager.Current().(*scene.GhostEatenFreezeScene); !ok {
+		t.Fatalf("expected GhostEatenFreezeScene, got %T", ctx.Manager.Current())
+	}
+	if !rec.hasSound(audio.SoundEatGhost) || !rec.hasSound(audio.SoundExtraLife) {
+		t.Fatalf("expected both SoundEatGhost and SoundExtraLife immediately on collision frame, played=%v", rec.played)
+	}
+}
