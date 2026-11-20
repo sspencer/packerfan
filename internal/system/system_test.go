@@ -456,6 +456,23 @@ func TestRedZoneBlocksOnlyUpwardTurns(t *testing.T) {
 	}
 }
 
+func TestGhostScatterTargetsMatchDossier(t *testing.T) {
+	_, _, ghosts := newTestWorld(t)
+	want := map[component.ActorID]config.Vector{
+		component.Blinky: {X: 25, Y: -3},
+		component.Pinky:  {X: 2, Y: -3},
+		component.Inky:   {X: 27, Y: 32},
+		component.Clyde:  {X: 0, Y: 32},
+	}
+	for _, entry := range ghosts {
+		id := component.Actor.Get(entry).ID
+		got := component.Ghost.Get(entry).ScatterTarget.ToTile()
+		if got != want[id] {
+			t.Errorf("%s scatter target tile = %v, want %v", id, got, want[id])
+		}
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 

@@ -68,7 +68,7 @@ func SpawnBlinky(w donburi.World) *donburi.Entry {
 		startPos:      house.Entrance,
 		startState:    config.Scatter,
 		eatenTarget:   house.Center,
-		scatterTarget: config.Vector{X: config.GameWidth, Y: -3}.ToPixel(),
+		scatterTarget: config.Vector{X: config.GameWidth - 3, Y: -3}.ToPixel(),
 		spriteRow:     64,
 	})
 }
@@ -83,7 +83,7 @@ func SpawnInky(w donburi.World) *donburi.Entry {
 		startPos:      house.LeftSlot,
 		startState:    config.InHouse,
 		eatenTarget:   house.LeftSlot,
-		scatterTarget: config.Vector{X: config.GameWidth - 1, Y: config.GameHeight}.ToPixel(),
+		scatterTarget: config.Vector{X: config.GameWidth - 1, Y: config.GameHeight + 1}.ToPixel(),
 		spriteRow:     96,
 	})
 }
@@ -113,7 +113,7 @@ func SpawnClyde(w donburi.World) *donburi.Entry {
 		startPos:      house.RightSlot,
 		startState:    config.InHouse,
 		eatenTarget:   house.RightSlot,
-		scatterTarget: config.Vector{X: 0, Y: config.GameHeight}.ToPixel(),
+		scatterTarget: config.Vector{X: 0, Y: config.GameHeight + 1}.ToPixel(),
 		spriteRow:     112,
 	})
 }
