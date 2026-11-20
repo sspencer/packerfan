@@ -393,6 +393,49 @@ func TestPlayingToGhostEatenFreezeSceneAndBack(t *testing.T) {
 	}
 }
 
+func TestPreviouslyEatenGhostEyesKeepMovingDuringGhostEatenFreeze(t *testing.T) {
+	ctx, _, _, player, ghosts := newSceneHarness(t, true)
+	gs := component.MustFindGameState(ctx.World)
+
+	// Blinky is about to be eaten; Pinky was already eaten earlier and is returning as eyes.
+	blinky := ghosts[0]
+	pinky := ghosts[2]
+	component.Ghost.Get(blinky).State = config.Frightened
+	gs.IsFrightMode = true
+	gs.FrightFrames = 300
+
+	eatPos := config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+	component.Transform.Get(player).Pos = eatPos
+	component.Transform.Get(blinky).Pos = eatPos
+
+	pinkyStart := config.Vector{X: 4 * config.Tile, Y: 10 * config.Tile}
+	component.Actor.Get(pinky).IsEaten = true
+	component.Ghost.Get(pinky).State = config.Eaten
+	component.Transform.Get(pinky).Pos = pinkyStart
+	component.Transform.Get(pinky).Dir = config.Right
+
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+	ctx.Manager.Update() // collision -> GhostEatenFreezeScene
+
+	if _, ok := ctx.Manager.Current().(*scene.GhostEatenFreezeScene); !ok {
+		t.Fatalf("expected GhostEatenFreezeScene, got %T", ctx.Manager.Current())
+	}
+
+	// Step a few freeze frames: Blinky and player stay frozen, Pinky's eyes keep moving.
+	for range 5 {
+		ctx.Manager.Update()
+	}
+	if got := component.Transform.Get(blinky).Pos; got != eatPos {
+		t.Fatalf("just-eaten Blinky moved during freeze: got %v, want %v", got, eatPos)
+	}
+	if got := component.Transform.Get(player).Pos; got != eatPos {
+		t.Fatalf("player moved during freeze: got %v, want %v", got, eatPos)
+	}
+	if got := component.Transform.Get(pinky).Pos; got == pinkyStart {
+		t.Fatalf("previously eaten Pinky eyes did not move during freeze (stuck at %v)", got)
+	}
+}
+
 func TestRealSpritesheetLevelProgressionIfPresent(t *testing.T) {
 	path := filepath.Join("..", "..", "assets", "game.png")
 	f, err := os.Open(path)

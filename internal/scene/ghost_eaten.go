@@ -32,6 +32,9 @@ func (s *GhostEatenFreezeScene) Update() {
 	if s.ctx.Input != nil {
 		s.ctx.Input.ApplyPlayerInput(s.ctx.World)
 	}
+	if s.ctx.Pipeline != nil {
+		s.ctx.Pipeline.UpdateEatenGhosts(s.ctx.World)
+	}
 
 	if gameState.GhostEatenPause > 0 {
 		gameState.GhostEatenPause--

@@ -33,6 +33,11 @@ func (p *Pipeline) Input() *InputSystem {
 	return p.input
 }
 
+// UpdateEatenGhosts advances previously eaten ghost eyes during the score freeze.
+func (p *Pipeline) UpdateEatenGhosts(w donburi.World) {
+	p.ghosts.UpdateEatenGhosts(w)
+}
+
 // Update advances the ECS world by one fixed tick.
 func (p *Pipeline) Update(w donburi.World) {
 	p.input.Sample()
@@ -45,6 +50,7 @@ func (p *Pipeline) Update(w donburi.World) {
 
 	if gameState.GhostEatenPause > 0 {
 		p.input.ApplyPlayerInput(w)
+		p.ghosts.UpdateEatenGhosts(w)
 		gameState.GhostEatenPause--
 		if gameState.GhostEatenPause > 0 {
 			return

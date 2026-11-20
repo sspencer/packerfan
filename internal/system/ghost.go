@@ -133,6 +133,59 @@ func (s *GhostSystem) Update(w donburi.World) {
 	}
 }
 
+// UpdateEatenGhosts advances only previously eaten ghosts (Eaten or EnteringHouse,
+// excluding the just-eaten GhostEatenEntity) so retreating eyes continue returning
+// to the house during the ghost-eaten score freeze.
+func (s *GhostSystem) UpdateEatenGhosts(w donburi.World) {
+	gameState := component.MustFindGameState(w)
+	maze := component.MustFindMaze(w)
+	prng := component.MustFindPRNG(w)
+	house := maze.GhostHouse()
+
+	for entry := range s.ghostQuery.Iter(w) {
+		if entry.Entity() == gameState.GhostEatenEntity {
+			continue
+		}
+		ghost := component.Ghost.Get(entry)
+		if ghost.State != config.Eaten && ghost.State != config.EnteringHouse {
+			continue
+		}
+
+		actor := component.Actor.Get(entry)
+		transform := component.Transform.Get(entry)
+		motion := component.Motion.Get(entry)
+
+		if ghost.State == config.EnteringHouse {
+			updateGhostEnteringHouse(maze, gameState, actor, transform, motion, ghost)
+			continue
+		}
+
+		if transform.Pos == house.Entrance {
+			ghost.State = config.EnteringHouse
+			ghost.HasNextDir = false
+			transform.Dir = config.Down
+			continue
+		}
+		if IsCentered(transform.Pos) {
+			updateGhostTurnWithLookahead(maze, prng, transform, ghost, house.Entrance)
+		}
+
+		oldPos := transform.Pos
+		MoveActor(transform, motion, ghostSpeed(maze, gameState, actor, transform, ghost))
+		ghost.PixelsMoved += absInt(transform.Pos.X-oldPos.X) + absInt(transform.Pos.Y-oldPos.Y)
+
+		if crossedHorizontalPoint(oldPos, transform.Pos, house.Entrance) {
+			transform.Pos = house.Entrance
+			ghost.State = config.EnteringHouse
+			ghost.HasNextDir = false
+			transform.Dir = config.Down
+			continue
+		}
+
+		WrapHorizontal(&transform.Pos)
+	}
+}
+
 func absInt(v int) int {
 	if v < 0 {
 		return -v
