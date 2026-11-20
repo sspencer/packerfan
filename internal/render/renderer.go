@@ -48,7 +48,8 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	// Maze + edible dots/power pellets
 	mazeCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, zeroV, 0, zoom)
 	rl.BeginMode2D(mazeCamera)
-	r.drawMaze(maze, opts.FlashMaze)
+	showPower := EnergizerVisible(gameState.FrameCount, opts.ShowReady || opts.ShowGameOver)
+	r.drawMaze(maze, opts.FlashMaze, showPower)
 	if opts.ShowReady {
 		rl.BeginShaderMode(r.art.Shader)
 		DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
@@ -156,7 +157,9 @@ func (r *Renderer) drawHUD(gameState *component.GameStateData) {
 	// Top HUD labels
 	textCamera := rl.NewCamera2D(rl.Vector2{X: 0, Y: 2 * zoom}, zeroV, 0, zoom)
 	rl.BeginMode2D(textCamera)
-	DrawText(r.art.Font, "1UP", 3, 0, rl.White)
+	if OneUpVisible(gameState.FrameCount, gameState.GameOver) {
+		DrawText(r.art.Font, "1UP", 3, 0, rl.White)
+	}
 	DrawText(r.art.Font, "HIGH SCORE", 9, 0, rl.White)
 	rl.EndMode2D()
 
@@ -174,7 +177,7 @@ func (r *Renderer) drawHUD(gameState *component.GameStateData) {
 	rl.EndMode2D()
 }
 
-func (r *Renderer) drawMaze(maze *component.MazeData, flashWhite bool) {
+func (r *Renderer) drawMaze(maze *component.MazeData, flashWhite, showPower bool) {
 	const mazeW = float32(config.GameWidth) * config.Tile
 	const mazeH = float32(config.GameHeight) * config.Tile
 	index := maze.GetIndex()
@@ -207,11 +210,31 @@ func (r *Renderer) drawMaze(maze *component.MazeData, flashWhite bool) {
 				rec := rl.Rectangle{X: float32(x) * config.Tile, Y: float32(y) * config.Tile, Width: config.Tile, Height: config.Tile}
 				rl.DrawTexturePro(r.art.Texture, dotSrc, rec, rl.Vector2{}, 0, rl.White)
 			case component.Power:
+				if !showPower {
+					continue
+				}
 				rec := rl.Rectangle{X: float32(x) * config.Tile, Y: float32(y) * config.Tile, Width: config.Tile, Height: config.Tile}
 				rl.DrawTexturePro(r.art.Texture, powerSrc, rec, rl.Vector2{}, 0, rl.White)
 			}
 		}
 	}
+}
+
+// EnergizerVisible reports whether power pellets should be drawn on frameCount.
+// Pellets remain solid when solid is true (e.g., READY! and GAME OVER).
+func EnergizerVisible(frameCount int, solid bool) bool {
+	if solid {
+		return true
+	}
+	return (frameCount/10)%2 == 0
+}
+
+// OneUpVisible reports whether the "1UP" HUD header should be drawn on frameCount.
+func OneUpVisible(frameCount int, gameOver bool) bool {
+	if gameOver {
+		return true
+	}
+	return (frameCount/16)%2 == 0
 }
 
 func (r *Renderer) drawLives(gameState *component.GameStateData) {

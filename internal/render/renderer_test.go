@@ -193,3 +193,23 @@ func TestFrightenedGhostFlashCount(t *testing.T) {
 		})
 	}
 }
+
+func TestEnergizerAndOneUpBlinking(t *testing.T) {
+	// Energizers stay solid when solid=true, and alternate on/off every 10 frames otherwise.
+	for f := range 30 {
+		if !render.EnergizerVisible(f, true) {
+			t.Fatalf("EnergizerVisible(%d, solid=true) = false, want true", f)
+		}
+	}
+	if !render.EnergizerVisible(0, false) || render.EnergizerVisible(10, false) || !render.EnergizerVisible(20, false) {
+		t.Fatalf("EnergizerVisible did not toggle every 10 frames")
+	}
+
+	// 1UP stays visible on game over, and toggles every 16 frames during play.
+	if !render.OneUpVisible(16, true) {
+		t.Fatalf("OneUpVisible(16, gameOver=true) = false, want true")
+	}
+	if !render.OneUpVisible(0, false) || render.OneUpVisible(16, false) || !render.OneUpVisible(32, false) {
+		t.Fatalf("OneUpVisible did not toggle every 16 frames")
+	}
+}
