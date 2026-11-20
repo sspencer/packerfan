@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
+
+	"pacfan/assets"
 )
 
 // Art owns the loaded Raylib textures, spritesheet image, and shaders.
@@ -43,9 +45,7 @@ void main()
 // tools/genexample is used.
 const (
 	realFontAssetPath = "assets/text-real.png"
-	realGameAssetPath = "assets/game-real.png"
 	fontAssetPath     = "assets/text.png"
-	gameAssetPath     = "assets/game.png"
 	shaderAssetPath   = "assets/chroma_key.fs"
 )
 
@@ -58,20 +58,15 @@ func FontAssetPath(assetsFS fs.FS) string {
 // GameAssetPath returns the game spritesheet NewArt loads from assetsFS:
 // assets/game-real.png if it exists, otherwise assets/game.png.
 func GameAssetPath(assetsFS fs.FS) string {
-	return preferAsset(assetsFS, realGameAssetPath, gameAssetPath)
+	return assets.GameAssetPath(assetsFS)
 }
 
 // preferAsset returns preferred if it is a regular file in assetsFS, otherwise fallback.
 func preferAsset(assetsFS fs.FS, preferred, fallback string) string {
-	if isAssetFile(assetsFS, preferred) {
+	if assets.IsAssetFile(assetsFS, preferred) {
 		return preferred
 	}
 	return fallback
-}
-
-func isAssetFile(assetsFS fs.FS, path string) bool {
-	info, err := fs.Stat(assetsFS, path)
-	return err == nil && !info.IsDir()
 }
 
 // RequiredAssets lists every file NewArt reads from assetsFS.
@@ -86,7 +81,7 @@ func RequiredAssets(assetsFS fs.FS) []string {
 func CheckAssets(assetsFS fs.FS) error {
 	var missing []string
 	for _, path := range RequiredAssets(assetsFS) {
-		if !isAssetFile(assetsFS, path) {
+		if !assets.IsAssetFile(assetsFS, path) {
 			missing = append(missing, path)
 		}
 	}

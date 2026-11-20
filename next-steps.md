@@ -162,9 +162,9 @@ Values below are illustrative.
 **Goal:** a pure-Go `sim.Env` that plays full games deterministically with no Raylib, audio, or scene code linked.
 
 ### Step 1.1 — Cut the audio/Raylib link out of `internal/system`
-- [ ] Move `RegisterAudioEventHandlers` from `internal/system/audio.go` to `internal/audio`; update `internal/game/engine.go` and any tests.
-- [ ] Add `assets/embed.go` (`package assets`) exposing the embedded FS and a pure-Go `GameAssetPath`; `render.GameAssetPath` delegates to it. Update `main.go` to use `assets.FS`.
-- [ ] **Verify:** `go list -deps ./internal/system ./internal/archetype | grep -E 'raylib|internal/audio'` prints nothing; `make check` passes.
+- [x] Move `RegisterAudioEventHandlers` from `internal/system/audio.go` to `internal/audio`; update `internal/game/engine.go` and any tests.
+- [x] Add `assets/embed.go` (`package assets`) exposing the embedded FS and a pure-Go `GameAssetPath`; `render.GameAssetPath` delegates to it. Update `main.go` to use `assets.FS`.
+- [x] **Verify:** `go list -deps ./internal/system ./internal/archetype | grep -E 'raylib|internal/audio'` prints nothing; `make check` passes.
 
 ### Step 1.2 — Seedable PRNG and start-at-level
 - [ ] `internal/component/prng.go`: `DefaultPRNGSeed = 42`, `InitWithSeed(seed int64)`; `Init()` delegates to it so the windowed game is unchanged.
