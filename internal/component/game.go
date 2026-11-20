@@ -270,6 +270,14 @@ func (g *GameStateData) ResetForNextLife() {
 // ResetForNewGame resets the session back to level 1 with full lives and zero
 // score while preserving HighScore, Zoom, PacmanMode, and PlayerCount.
 func (g *GameStateData) ResetForNewGame(dotsRemaining int) {
+	g.ResetForNewGameAtLevel(1, dotsRemaining)
+}
+
+// ResetForNewGameAtLevel resets the session to the given level (clamped to
+// 1..255) with full lives and zero score while preserving HighScore, Zoom,
+// PacmanMode, and PlayerCount.
+func (g *GameStateData) ResetForNewGameAtLevel(level, dotsRemaining int) {
+	level = max(1, min(level, 255))
 	if g.PlayerCount < 1 || g.PlayerCount > 2 {
 		g.PlayerCount = 1
 	}
@@ -279,7 +287,7 @@ func (g *GameStateData) ResetForNewGame(dotsRemaining int) {
 	for i := range g.PlayerCount {
 		g.Players[i] = PlayerSession{
 			Lives: config.InitialLives,
-			Level: 1,
+			Level: level,
 		}
 	}
 	g.Players[0].Started = true
@@ -287,7 +295,7 @@ func (g *GameStateData) ResetForNewGame(dotsRemaining int) {
 	g.ExtraLifeAwarded = false
 	g.Score = 0
 	g.Paused = false
-	g.ResetForNextLevel(1, dotsRemaining)
+	g.ResetForNextLevel(level, dotsRemaining)
 }
 
 var GameState = donburi.NewComponentType[GameStateData]()
