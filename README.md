@@ -6,7 +6,7 @@ Arcade dot-eating maze game with ghosts built in Go using [Raylib](https://githu
 
 *Gameplay with the placeholder example artwork (`go run . -ex`).*
 
-See [docs/ecs.md](docs/ecs.md) for the ECS, scene state machine, and rendering architecture overview.
+See [Documentation](#documentation) for the architecture overview, asset format reference, and scripting API design.
 
 ## Prerequisites
 
@@ -62,6 +62,16 @@ make generate   # Run go generate ./... (regenerate stringer enum helpers)
 make clean      # Remove build and coverage artifacts
 make help       # List all available targets
 ```
+
+---
+
+## Documentation
+
+| Document | Description |
+| --- | --- |
+| [docs/ecs.md](docs/ecs.md) | Architecture overview: project layout, Donburi entities and components, the world-scoped event bus, the scene state machine, the game loop and simulation pipeline, and the audio and rendering pipeline. |
+| [assets/README.md](assets/README.md) | Asset reference: the files the game embeds, the `game.png` maze and sprite atlas layout, the `text.png` font layout, the placeholder example artwork, and the optional WAV audio files. |
+| [scriptable.md](scriptable.md) | Design proposal (not yet implemented) for a scripting and machine-learning API: operating modes, a wire protocol for observing state and sending controls, observation and reward design, an implementation plan, and an example Python Gymnasium client. |
 
 ---
 
