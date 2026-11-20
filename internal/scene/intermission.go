@@ -55,7 +55,7 @@ func (s *IntermissionScene) Update() {
 		s.ctx.Input.ApplyPause(s.ctx.World)
 	}
 
-	if component.MustFindGameState(s.ctx.World).Paused {
+	if s.ctx.syncAudioPause() {
 		return
 	}
 

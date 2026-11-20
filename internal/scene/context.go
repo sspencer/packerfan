@@ -4,6 +4,7 @@ import (
 	"github.com/yohamta/donburi"
 
 	"pacfan/internal/audio"
+	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/system"
 )
@@ -105,6 +106,12 @@ func (c *Context) audio() audio.Player {
 		return c.Audio
 	}
 	return audio.NoopPlayer{}
+}
+
+func (c *Context) syncAudioPause() bool {
+	paused := component.MustFindGameState(c.World).Paused
+	c.audio().SetPaused(paused)
+	return paused
 }
 
 func (c *Context) playerOneDuration() int {

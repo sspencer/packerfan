@@ -2,7 +2,6 @@ package scene
 
 import (
 	"pacfan/internal/audio"
-	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/system"
 )
@@ -38,7 +37,7 @@ func (s *PacmanDyingScene) Update() {
 		s.ctx.Input.ApplyPause(s.ctx.World)
 	}
 
-	if component.MustFindGameState(s.ctx.World).Paused {
+	if s.ctx.syncAudioPause() {
 		return
 	}
 

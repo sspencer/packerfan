@@ -37,10 +37,10 @@ func (s *RoundClearedScene) Update() {
 		s.ctx.Input.ApplyPause(s.ctx.World)
 	}
 
-	gameState := component.MustFindGameState(s.ctx.World)
-	if gameState.Paused {
+	if s.ctx.syncAudioPause() {
 		return
 	}
+	gameState := component.MustFindGameState(s.ctx.World)
 
 	s.frame++
 	if s.frame < s.totalFrames {

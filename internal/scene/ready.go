@@ -1,9 +1,6 @@
 package scene
 
-import (
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-)
+import "pacfan/internal/audio"
 
 // ReadyScene displays the maze and "READY!" prompt while holding gameplay until
 // the pre-round delay elapses.
@@ -63,7 +60,7 @@ func (s *ReadyScene) Update() {
 		s.ctx.Input.ApplyPause(s.ctx.World)
 	}
 
-	if component.MustFindGameState(s.ctx.World).Paused {
+	if s.ctx.syncAudioPause() {
 		return
 	}
 

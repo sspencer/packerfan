@@ -843,13 +843,15 @@ func TestTwoPlayerAlternatesOnDeathWithIndependentBoards(t *testing.T) {
 }
 
 type recordingAudio struct {
-	played  []audio.SoundID
-	loops   []audio.LoopID
-	stopped int
+	played      []audio.SoundID
+	loops       []audio.LoopID
+	pauseStates []bool
+	stopped     int
 }
 
 func (a *recordingAudio) Play(id audio.SoundID)     { a.played = append(a.played, id) }
 func (a *recordingAudio) SetLoop(loop audio.LoopID) { a.loops = append(a.loops, loop) }
+func (a *recordingAudio) SetPaused(paused bool)     { a.pauseStates = append(a.pauseStates, paused) }
 func (a *recordingAudio) StopAll()                  { a.stopped++ }
 func (a *recordingAudio) Unload()                   {}
 
@@ -969,5 +971,24 @@ func TestGhostEatenExtraLifeSoundPlaysImmediatelyOnCollisionFrame(t *testing.T) 
 	}
 	if !rec.hasSound(audio.SoundEatGhost) || !rec.hasSound(audio.SoundExtraLife) {
 		t.Fatalf("expected both SoundEatGhost and SoundExtraLife immediately on collision frame, played=%v", rec.played)
+	}
+}
+
+func TestPauseSynchronizesAudioPauseAndResume(t *testing.T) {
+	ctx, input, _, _, _ := newSceneHarness(t, true)
+	rec := &recordingAudio{}
+	ctx.Audio = rec
+	ctx.Manager.Start(scene.NewPlayingScene(ctx))
+
+	input.state = system.InputState{PausePressed: true}
+	ctx.Manager.Update() // pauses
+	if len(rec.pauseStates) == 0 || !rec.pauseStates[len(rec.pauseStates)-1] {
+		t.Fatalf("expected SetPaused(true) on pause, got %v", rec.pauseStates)
+	}
+
+	input.state = system.InputState{PausePressed: true}
+	ctx.Manager.Update() // unpauses
+	if rec.pauseStates[len(rec.pauseStates)-1] {
+		t.Fatalf("expected SetPaused(false) on unpause, got %v", rec.pauseStates)
 	}
 }

@@ -50,7 +50,8 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	rl.BeginMode2D(mazeCamera)
 	showPower := EnergizerVisible(gameState.FrameCount, opts.ShowReady || opts.ShowGameOver)
 	r.drawMaze(maze, opts.FlashMaze, showPower)
-	if opts.ShowPlayerOne || opts.ShowReady || opts.ShowGameOver {
+	showPaused := gameState.Paused && !opts.ShowGameOver
+	if opts.ShowPlayerOne || opts.ShowReady || opts.ShowGameOver || showPaused {
 		rl.BeginShaderMode(r.art.Shader)
 		if opts.ShowPlayerOne {
 			DrawText(r.art.Font, gameState.ActivePlayerName(), 9, 11, rl.SkyBlue)
@@ -59,6 +60,13 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 			DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
 		} else if opts.ShowGameOver {
 			DrawText(r.art.Font, "GAME OVER", 9, 17, rl.Red)
+		}
+		if showPaused {
+			pauseY := 17
+			if opts.ShowReady {
+				pauseY = 14
+			}
+			DrawText(r.art.Font, "PAUSED", 11, pauseY, rl.Yellow)
 		}
 		rl.EndShaderMode()
 	}
@@ -121,7 +129,7 @@ func (r *Renderer) DrawIntermission(w donburi.World, view scene.IntermissionView
 
 	r.drawHUD(gameState)
 
-	if view.Title != "" || view.Subtitle != "" {
+	if view.Title != "" || view.Subtitle != "" || gameState.Paused {
 		mazeCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, zeroV, 0, zoom)
 		rl.BeginMode2D(mazeCamera)
 		rl.BeginShaderMode(r.art.Shader)
@@ -132,6 +140,9 @@ func (r *Renderer) DrawIntermission(w donburi.World, view scene.IntermissionView
 		if view.Subtitle != "" {
 			sx := max(0, (config.GameWidth-len(view.Subtitle))/2)
 			DrawText(r.art.Font, view.Subtitle, sx, 11, rl.White)
+		}
+		if gameState.Paused {
+			DrawText(r.art.Font, "PAUSED", 11, 17, rl.Yellow)
 		}
 		rl.EndShaderMode()
 		rl.EndMode2D()

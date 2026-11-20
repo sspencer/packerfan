@@ -25,11 +25,10 @@ func (s *GhostEatenFreezeScene) Update() {
 		s.ctx.Input.ApplyPause(s.ctx.World)
 	}
 
-	gameState := component.MustFindGameState(s.ctx.World)
-	if gameState.Paused {
-		s.ctx.audio().SetLoop(audio.LoopNone)
+	if s.ctx.syncAudioPause() {
 		return
 	}
+	gameState := component.MustFindGameState(s.ctx.World)
 
 	if s.ctx.Input != nil {
 		s.ctx.Input.ApplyPlayerInput(s.ctx.World)

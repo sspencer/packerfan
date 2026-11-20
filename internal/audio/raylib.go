@@ -10,11 +10,13 @@ import (
 // (with alternating waka-waka chomp pitch) and continuous background loops.
 // Missing audio files or unavailable audio devices degrade silently to no-ops.
 type RaylibPlayer struct {
-	ready      bool
-	sounds     map[SoundID]rl.Sound
-	loops      map[LoopID]rl.Sound
-	activeLoop LoopID
-	chompAlt   bool
+	ready        bool
+	paused       bool
+	sounds       map[SoundID]rl.Sound
+	loops        map[LoopID]rl.Sound
+	pausedSounds []rl.Sound
+	activeLoop   LoopID
+	chompAlt     bool
 }
 
 // NewRaylibPlayer verifies that at least one audio file exists in assetsFS,
@@ -72,7 +74,7 @@ func loadFirstWAV(assetsFS fs.FS, paths []string) (rl.Sound, bool) {
 // Play triggers a one-shot sound effect. Dot chomps alternate pitch slightly
 // to reproduce the arcade waka-waka cadence.
 func (p *RaylibPlayer) Play(id SoundID) {
-	if !p.ready {
+	if !p.ready || p.paused {
 		return
 	}
 	snd, ok := p.sounds[id]
@@ -96,7 +98,7 @@ func (p *RaylibPlayer) Play(id SoundID) {
 // SetLoop ensures loop is playing continuously and stops any previous loop.
 // Call every frame during gameplay to seamlessly re-trigger completed loops.
 func (p *RaylibPlayer) SetLoop(loop LoopID) {
-	if !p.ready {
+	if !p.ready || p.paused {
 		return
 	}
 	if loop != p.activeLoop {
@@ -113,11 +115,42 @@ func (p *RaylibPlayer) SetLoop(loop LoopID) {
 	}
 }
 
+// SetPaused pauses all currently playing sounds/loops when paused becomes true
+// and resumes them when paused becomes false.
+func (p *RaylibPlayer) SetPaused(paused bool) {
+	if !p.ready || paused == p.paused {
+		return
+	}
+	p.paused = paused
+	if paused {
+		p.pausedSounds = p.pausedSounds[:0]
+		for _, snd := range p.sounds {
+			if rl.IsSoundPlaying(snd) {
+				rl.PauseSound(snd)
+				p.pausedSounds = append(p.pausedSounds, snd)
+			}
+		}
+		for _, snd := range p.loops {
+			if rl.IsSoundPlaying(snd) {
+				rl.PauseSound(snd)
+				p.pausedSounds = append(p.pausedSounds, snd)
+			}
+		}
+		return
+	}
+	for _, snd := range p.pausedSounds {
+		rl.ResumeSound(snd)
+	}
+	p.pausedSounds = p.pausedSounds[:0]
+}
+
 // StopAll halts every active sound effect and background loop.
 func (p *RaylibPlayer) StopAll() {
 	if !p.ready {
 		return
 	}
+	p.paused = false
+	p.pausedSounds = p.pausedSounds[:0]
 	for _, snd := range p.sounds {
 		if rl.IsSoundPlaying(snd) {
 			rl.StopSound(snd)

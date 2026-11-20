@@ -19,6 +19,9 @@ func (s *PlayingScene) Enter() {}
 
 func (s *PlayingScene) Update() {
 	s.ctx.Pipeline.Update(s.ctx.World)
+	if s.ctx.syncAudioPause() {
+		return
+	}
 
 	gameState := component.MustFindGameState(s.ctx.World)
 	if gameState.PlayerDying {
