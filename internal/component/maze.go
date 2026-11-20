@@ -1,6 +1,8 @@
 package component
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -8,6 +10,8 @@ import (
 
 	"pacfan/internal/config"
 )
+
+const NumMazes = 5
 
 type Cell byte
 
@@ -47,6 +51,26 @@ func (c Cell) Char() byte {
 		return '@'
 	default:
 		panic("unhandled default case")
+	}
+}
+
+// CellFromChar converts a single-character ASCII encoding back into a Cell.
+func CellFromChar(ch byte) (Cell, error) {
+	switch ch {
+	case ' ':
+		return Empty, nil
+	case '#':
+		return Wall, nil
+	case '-':
+		return Door, nil
+	case '.':
+		return Dot, nil
+	case 'O':
+		return Power, nil
+	case '@':
+		return Tunnel, nil
+	default:
+		return Empty, fmt.Errorf("unknown maze tile character %q", ch)
 	}
 }
 
@@ -112,6 +136,190 @@ func DefaultGhostHouse() GhostHouse {
 	return ghostHouseFromDoor(defaultDoorLeftX, defaultDoorRightX, defaultDoorRow)
 }
 
+// MazeTemplate holds a pre-parsed 28x31 maze layout (grid, edible dot count,
+// and ghost-house geometry) ready to be copied into MazeData without touching
+// the spritesheet pixels.
+type MazeTemplate struct {
+	Index int
+	Grid  [config.GameHeight][config.GameWidth]Cell
+	Dots  int
+	House GhostHouse
+}
+
+// Rows returns the template as 31 strings of 28 single-character ASCII tiles.
+func (t *MazeTemplate) Rows() []string {
+	rows := make([]string, config.GameHeight)
+	var buf [config.GameWidth]byte
+	for y := range config.GameHeight {
+		for x := range config.GameWidth {
+			buf[x] = t.Grid[y][x].Char()
+		}
+		rows[y] = string(buf[:])
+	}
+	return rows
+}
+
+// String returns the template as newline-joined ASCII rows.
+func (t *MazeTemplate) String() string {
+	return strings.Join(t.Rows(), "\n")
+}
+
+// ParseMazeTemplateFromRows parses 31 rows of 28 ASCII characters into a MazeTemplate.
+func ParseMazeTemplateFromRows(index int, rows []string) (MazeTemplate, error) {
+	if len(rows) != config.GameHeight {
+		return MazeTemplate{}, fmt.Errorf("maze %d: got %d rows, want %d", index, len(rows), config.GameHeight)
+	}
+	tmpl := MazeTemplate{Index: index}
+	for y, row := range rows {
+		if len(row) != config.GameWidth {
+			return MazeTemplate{}, fmt.Errorf("maze %d row %d: got length %d, want %d", index, y, len(row), config.GameWidth)
+		}
+		for x := range config.GameWidth {
+			cell, err := CellFromChar(row[x])
+			if err != nil {
+				return MazeTemplate{}, fmt.Errorf("maze %d (%d,%d): %w", index, x, y, err)
+			}
+			tmpl.Grid[y][x] = cell
+			if cell == Dot || cell == Power {
+				tmpl.Dots++
+			}
+		}
+	}
+	tmpl.House = computeGhostHouseFromTemplate(&tmpl.Grid)
+	return tmpl, nil
+}
+
+// ParseMazeTemplate classifies the 28x31 tile grid for mazeIndex (0..3 Ms. Pac-Man,
+// 4 classic Pac-Man) by sampling 8x8 pixel masks via isPixelLit, marks tunnels,
+// counts edible dots/power pellets, and derives ghost-house geometry.
+func ParseMazeTemplate(mazeIndex int, isPixelLit func(x, y int) bool) MazeTemplate {
+	tmpl := MazeTemplate{Index: mazeIndex}
+	offset := mazeIndex * config.GameHeight * config.Tile
+
+	for y := range config.GameHeight {
+		for x := range config.GameWidth {
+			mask := computeTileMask(x*config.Tile, y*config.Tile+offset, isPixelLit)
+			switch mask {
+			case EmptyMask:
+				tmpl.Grid[y][x] = Empty
+			case DotMask:
+				tmpl.Grid[y][x] = Dot
+				tmpl.Dots++
+			case PowerMask:
+				tmpl.Grid[y][x] = Power
+				tmpl.Dots++
+			case DoorMask:
+				tmpl.Grid[y][x] = Door
+			default:
+				tmpl.Grid[y][x] = Wall
+			}
+		}
+	}
+
+	applyTunnelsToTemplate(&tmpl.Grid, mazeIndex)
+	tmpl.House = computeGhostHouseFromTemplate(&tmpl.Grid)
+	return tmpl
+}
+
+// MazeSet holds all five pre-parsed arcade maze templates (0..3 Ms. Pac-Man,
+// 4 classic Pac-Man) and their combined layout hash.
+type MazeSet struct {
+	Templates [NumMazes]MazeTemplate
+	hash      string
+}
+
+// ParseMazeSet parses all five maze layouts from isPixelLit into a MazeSet.
+func ParseMazeSet(isPixelLit func(x, y int) bool) *MazeSet {
+	set := &MazeSet{}
+	for i := range NumMazes {
+		set.Templates[i] = ParseMazeTemplate(i, isPixelLit)
+	}
+	set.hash = computeMazeSetHash(&set.Templates)
+	return set
+}
+
+// NewMazeSetFromTemplates constructs a MazeSet from pre-built templates and computes its hash.
+func NewMazeSetFromTemplates(templates [NumMazes]MazeTemplate) *MazeSet {
+	set := &MazeSet{Templates: templates}
+	set.hash = computeMazeSetHash(&set.Templates)
+	return set
+}
+
+// Template returns the template for mazeIndex (0..4).
+func (s *MazeSet) Template(mazeIndex int) *MazeTemplate {
+	return &s.Templates[mazeIndex]
+}
+
+// Hash returns the lowercase hex-encoded SHA-256 hash of all five parsed maze texts.
+func (s *MazeSet) Hash() string {
+	return s.hash
+}
+
+func computeMazeSetHash(templates *[NumMazes]MazeTemplate) string {
+	h := sha256.New()
+	for i := range NumMazes {
+		fmt.Fprintf(h, "maze %d\n", i)
+		for _, row := range templates[i].Rows() {
+			h.Write([]byte(row))
+			h.Write([]byte{'\n'})
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func computeGhostHouseFromTemplate(grid *[config.GameHeight][config.GameWidth]Cell) GhostHouse {
+	found := false
+	minX, maxX, doorRow := config.GameWidth, -1, 0
+	for y := range config.GameHeight {
+		for x := range config.GameWidth {
+			if grid[y][x] != Door {
+				continue
+			}
+			if !found {
+				found = true
+				doorRow = y
+			}
+			if x < minX {
+				minX = x
+			}
+			if x > maxX {
+				maxX = x
+			}
+		}
+	}
+	if !found {
+		return DefaultGhostHouse()
+	}
+	return ghostHouseFromDoor(minX, maxX, doorRow)
+}
+
+func setTemplateTunnels(grid *[config.GameHeight][config.GameWidth]Cell, x1, x2, y int) {
+	for x := 0; x <= x1; x++ {
+		grid[y][x] = Tunnel
+	}
+	for x := x2; x < config.GameWidth; x++ {
+		grid[y][x] = Tunnel
+	}
+}
+
+func applyTunnelsToTemplate(grid *[config.GameHeight][config.GameWidth]Cell, mazeIndex int) {
+	switch mazeIndex {
+	case 0:
+		setTemplateTunnels(grid, 1, 26, 8)
+		setTemplateTunnels(grid, 1, 26, 17)
+	case 1:
+		setTemplateTunnels(grid, 4, 23, 1)
+		setTemplateTunnels(grid, 1, 26, 23)
+	case 2:
+		setTemplateTunnels(grid, 0, 27, 9)
+	case 3:
+		setTemplateTunnels(grid, 1, 26, 13)
+		setTemplateTunnels(grid, 1, 26, 16)
+	default:
+		setTemplateTunnels(grid, 4, 23, 14)
+	}
+}
+
 // MazeData is the singleton world resource holding the 28x31 tile grid and
 // maze metadata for the active level.
 type MazeData struct {
@@ -120,6 +328,18 @@ type MazeData struct {
 	PacmanMode bool
 	house      GhostHouse
 	houseDirty bool
+	templates  *MazeSet
+}
+
+// UseTemplates configures MazeData to copy pre-parsed templates on LoadLevel
+// instead of sampling spritesheet pixels via isPixelLit.
+func (m *MazeData) UseTemplates(set *MazeSet) {
+	m.templates = set
+}
+
+// HasTemplates reports whether MazeData has a pre-parsed MazeSet configured.
+func (m *MazeData) HasTemplates() bool {
+	return m.templates != nil
 }
 
 // NewMazeData allocates an empty GameWidth x GameHeight maze grid.
@@ -288,15 +508,6 @@ func (m *MazeData) IsGhostWall(x, y int) bool {
 	return false
 }
 
-func (m *MazeData) setTunnels(x1, x2, y int) {
-	for x := 0; x <= x1; x++ {
-		m.Grid[y][x] = Tunnel
-	}
-	for x := x2; x < config.GameWidth; x++ {
-		m.Grid[y][x] = Tunnel
-	}
-}
-
 func computeTileMask(startX, startY int, isPixelLit func(x, y int) bool) uint64 {
 	var result uint64
 	for y := startY; y < startY+config.Tile; y++ {
@@ -310,55 +521,30 @@ func computeTileMask(startX, startY int, isPixelLit func(x, y int) bool) uint64 
 	return result
 }
 
-// LoadLevel populates the tile grid by sampling 8x8 pixel masks from the
-// spritesheet image via isPixelLit, marks tunnels, and returns the total count
-// of edible dots and power pellets in the maze.
+// LoadLevel populates the tile grid for the given level, marks tunnels, and
+// returns the total count of edible dots and power pellets in the maze.
+// When UseTemplates has been configured, LoadLevel copies the pre-parsed
+// template and ignores isPixelLit; otherwise it samples 8x8 pixel masks via
+// isPixelLit.
 func (m *MazeData) LoadLevel(level int, isPixelLit func(x, y int) bool) int {
 	m.Level = level
 	mazeIndex := m.GetIndex()
-	offset := mazeIndex * config.GameHeight * config.Tile
-	dotsRemaining := 0
+
+	var tmpl *MazeTemplate
+	if m.templates != nil && mazeIndex >= 0 && mazeIndex < NumMazes {
+		tmpl = &m.templates.Templates[mazeIndex]
+	} else {
+		parsed := ParseMazeTemplate(mazeIndex, isPixelLit)
+		tmpl = &parsed
+	}
 
 	for y := range config.GameHeight {
-		for x := range config.GameWidth {
-			mask := computeTileMask(x*config.Tile, y*config.Tile+offset, isPixelLit)
-			switch mask {
-			case EmptyMask:
-				m.Grid[y][x] = Empty
-			case DotMask:
-				m.Grid[y][x] = Dot
-				dotsRemaining++
-			case PowerMask:
-				m.Grid[y][x] = Power
-				dotsRemaining++
-			case DoorMask:
-				m.Grid[y][x] = Door
-			default:
-				m.Grid[y][x] = Wall
-			}
-		}
+		copy(m.Grid[y], tmpl.Grid[y][:])
 	}
-
-	switch mazeIndex {
-	case 0:
-		m.setTunnels(1, 26, 8)
-		m.setTunnels(1, 26, 17)
-	case 1:
-		m.setTunnels(4, 23, 1)
-		m.setTunnels(1, 26, 23)
-	case 2:
-		m.setTunnels(0, 27, 9)
-	case 3:
-		m.setTunnels(1, 26, 13)
-		m.setTunnels(1, 26, 16)
-	default:
-		m.setTunnels(4, 23, 14)
-	}
-
-	m.house = m.computeGhostHouse()
+	m.house = tmpl.House
 	m.houseDirty = false
 
-	return dotsRemaining
+	return tmpl.Dots
 }
 
 var Maze = donburi.NewComponentType[MazeData]()

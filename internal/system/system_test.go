@@ -1,7 +1,6 @@
 package system_test
 
 import (
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/event"
+	"pacfan/internal/sheet"
 	"pacfan/internal/system"
 )
 
@@ -862,21 +862,11 @@ func TestWorldIsolationNoGlobalStateLeakage(t *testing.T) {
 
 func TestMazeLoadLevelFromSpritesheetIfPresent(t *testing.T) {
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
 	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
-	}
-
-	isLit := func(x, y int) bool {
-		r, g, b, _ := img.At(x, y).RGBA()
-		return r > 0 || g > 0 || b > 0
-	}
+	isLit := s.IsPixelLit
 
 	// Classic Pac-Man maze has 244 edible tiles (240 dots + 4 power pellets).
 	pacMaze := component.NewMazeData(true)
@@ -965,20 +955,11 @@ func TestEatenGhostEntersHouseRegeneratesAndLeaves(t *testing.T) {
 
 func TestEatenGhostNavigationOnRealMazesIfPresent(t *testing.T) {
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
 	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
-	}
-	isLit := func(x, y int) bool {
-		r, g, b, _ := img.At(x, y).RGBA()
-		return r > 0 || g > 0 || b > 0
-	}
+	isLit := s.IsPixelLit
 
 	cases := []struct {
 		name       string
@@ -1090,20 +1071,11 @@ func TestGhostHouseGeometryDerivedFromDoorTiles(t *testing.T) {
 
 func TestGhostHouseGeometryOnRealMazesIfPresent(t *testing.T) {
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
 	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
-	}
-	isLit := func(x, y int) bool {
-		r, g, b, _ := img.At(x, y).RGBA()
-		return r > 0 || g > 0 || b > 0
-	}
+	isLit := s.IsPixelLit
 
 	cases := []struct {
 		name       string

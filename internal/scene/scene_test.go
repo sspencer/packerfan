@@ -1,7 +1,6 @@
 package scene_test
 
 import (
-	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"pacfan/internal/config"
 	"pacfan/internal/event"
 	"pacfan/internal/scene"
+	"pacfan/internal/sheet"
 	"pacfan/internal/system"
 )
 
@@ -489,20 +489,11 @@ func TestPreviouslyEatenGhostEyesKeepMovingDuringGhostEatenFreeze(t *testing.T) 
 
 func TestRealSpritesheetLevelProgressionIfPresent(t *testing.T) {
 	path := spritesheetPath()
-	f, err := os.Open(path)
+	s, err := sheet.LoadFile(path)
 	if err != nil {
 		t.Skipf("spritesheet %s not present: %v", path, err)
 	}
-	defer f.Close()
-
-	img, err := png.Decode(f)
-	if err != nil {
-		t.Fatalf("decode spritesheet: %v", err)
-	}
-	isLit := func(x, y int) bool {
-		r, g, b, _ := img.At(x, y).RGBA()
-		return r > 0 || g > 0 || b > 0
-	}
+	isLit := s.IsPixelLit
 
 	ctx, _, _, _, _ := newSceneHarness(t, false) // Ms. Pac-Man
 	ctx.IsPixelLit = isLit
