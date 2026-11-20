@@ -93,7 +93,7 @@ func shouldLeaveHouse(ghost *component.GhostData, gameState *component.GameState
 	}
 }
 
-func isValidGhostTile(maze *component.MazeData, state config.GhostState, t config.Vector) bool {
+func isValidGhostTile(maze *component.MazeData, state config.GhostState, t config.Vector, dir config.Direction) bool {
 	if t.X < 0 {
 		t.X += config.GameWidth
 	}
@@ -106,7 +106,7 @@ func isValidGhostTile(maze *component.MazeData, state config.GhostState, t confi
 
 	cell := maze.GetCell(t.X, t.Y)
 
-	if state == config.Chase || state == config.Scatter {
+	if dir == config.Up && (state == config.Chase || state == config.Scatter) {
 		if maze.IsGhostWall(t.X, t.Y) {
 			return false
 		}
@@ -148,7 +148,7 @@ func chooseGhostDirection(
 			continue
 		}
 		nextTile := curTile.AddDir(dir)
-		if !isValidGhostTile(maze, ghost.State, nextTile) {
+		if !isValidGhostTile(maze, ghost.State, nextTile, dir) {
 			continue
 		}
 		if d := nextTile.DistanceSq(targetTile); d < minDist {
@@ -169,16 +169,16 @@ func chooseFrightenedDirection(
 	tile := transform.Pos.ToTile()
 	var allowedDirs []config.Direction
 
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Right)) {
+	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Right), config.Right) {
 		allowedDirs = append(allowedDirs, config.Right)
 	}
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Left)) {
+	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Left), config.Left) {
 		allowedDirs = append(allowedDirs, config.Left)
 	}
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Up)) {
+	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Up), config.Up) {
 		allowedDirs = append(allowedDirs, config.Up)
 	}
-	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Down)) {
+	if isValidGhostTile(maze, ghost.State, tile.AddDir(config.Down), config.Down) {
 		allowedDirs = append(allowedDirs, config.Down)
 	}
 

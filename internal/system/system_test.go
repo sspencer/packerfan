@@ -418,6 +418,44 @@ func TestCruiseElroyChasesInScatterAndSuspendsUntilClydeLeaves(t *testing.T) {
 	}
 }
 
+func TestRedZoneBlocksOnlyUpwardTurns(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	maze := component.MustFindMaze(w)
+	maze.PacmanMode = true // index 4 enables IsGhostWall at (12,10), (15,10), (12,22), (15,22)
+	gs := component.MustFindGameState(w)
+	gs.GhostState = config.Chase
+
+	// Build corridor around (12, 11) and (12, 9) so only Up vs Left (from 12,11) and Down vs Left (from 12,9) matter.
+	maze.SetCell(12, 12, component.Wall)
+	maze.SetCell(13, 11, component.Wall)
+
+	blinkyEntry := ghosts[0]
+	blinkyTr := component.Transform.Get(blinkyEntry)
+	blinkyGhost := component.Ghost.Get(blinkyEntry)
+	blinkyGhost.State = config.Chase
+	blinkyGhost.PixelsMoved = config.Tile
+	ghostSys := system.NewGhostSystem()
+
+	// From (12, 11) heading Left, even with target directly above at (12, 5), Up into (12, 10) must be blocked.
+	component.Transform.Get(player).Pos = config.Vector{X: 12 * config.Tile, Y: 5 * config.Tile}
+	blinkyTr.Pos = config.Vector{X: 12 * config.Tile, Y: 11 * config.Tile}
+	blinkyTr.Dir = config.Left
+	ghostSys.Update(w)
+	if blinkyTr.Dir == config.Up {
+		t.Fatalf("expected red zone to block Up turn into (12,10), got Dir=Up")
+	}
+
+	// From (12, 9) heading Right, with target below at (12, 15), Down into (12, 10) MUST be allowed.
+	component.Transform.Get(player).Pos = config.Vector{X: 12 * config.Tile, Y: 15 * config.Tile}
+	blinkyTr.Pos = config.Vector{X: 12 * config.Tile, Y: 9 * config.Tile}
+	blinkyTr.Dir = config.Right
+	blinkyGhost.PixelsMoved = config.Tile
+	ghostSys.Update(w)
+	if blinkyTr.Dir != config.Down {
+		t.Fatalf("expected Down turn into (12,10) to be allowed, got Dir=%v", blinkyTr.Dir)
+	}
+}
+
 func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 	w, player, ghosts := newTestWorld(t)
 
