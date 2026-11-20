@@ -1,273 +1,315 @@
-# Next Steps: Headless Pac-Man / Ms. Pac-Man API & ML Training Plan
+# Next Steps: Play-Only Headless Pac-Man / Ms. Pac-Man for ML
 
-This document turns the design ideas in [`scriptable.md`](scriptable.md) and [`machine.md`](machine.md) into a concrete, step-by-step engineering plan grounded in the current `pacfan` codebase.
+A step-by-step plan for a headless `pacfan` that machine-learning tools can drive to learn to play, grounded in the current codebase.
 
-It follows the **four implementation phases from `scriptable.md`** while incorporating the **zero-Raylib build guarantee, cached maze loading, unified scene-driven simulation, deterministic `.pfr` replays, and native batching path from `machine.md`**.
-
----
-
-## Reconciling `scriptable.md` and `machine.md` (Decisions to Lock In First)
-
-Before writing code, five small architectural choices unify both documents so there is only **one** simulation engine to maintain:
-
-1. **Layer `internal/api` on top of a shared pure-Go `internal/sim` core.**
-   - `internal/sim` owns headless world setup, `TimingProfile`, `Env` (`Reset`, `Step`, `Observe`, `LegalActions`), event collection, world-state hashing, and replay recording/reading.
-   - `internal/api` wraps `internal/sim.Env` with the lockstep NDJSON wire protocol (`stdio`, Unix socket, TCP) and `RemoteInput` for live spectating.
-   - This lets both Python NDJSON agents (`scriptable.md`) and native Go / `VecEnv` / `c-shared` agents (`machine.md`) share one deterministic core.
-
-2. **Drive the real `scene.Manager` with a `FastTiming` profile — and keep `GhostEatenPause`.**
-   - `machine.md` notes that driving `scene.Manager` (instead of duplicating death/level-advance transitions around `system.Pipeline`) prevents rule drift, and keeping the 61-frame `GhostEatenFreezeScene` matters because previously eaten ghost eyes continue moving via `Pipeline.UpdateEatenGhosts`.
-   - In `FastTiming`, non-interactive delays (`PlayerOneDuration`, `ReadyDuration`, `RoundClearedHoldFrames`, `RoundClearedFlashes`, `PlayerDyingHoldFrames`, `PlayerDyingFrameTicks`, `PlayerDyingPostFrames`) are collapsed to `1` tick, intermissions return `nil`, and `Env.Step` automatically fast-forwards through non-interactive scenes (including `GhostEatenFreezeScene`) without asking the agent for decisions—while still recording exact ticks so headless games replay **frame-for-frame identically** in the windowed Raylib player.
-
-3. **Break the hidden Raylib dependency in `internal/audio`.**
-   - Currently, `internal/audio/raylib.go` sits in `package audio` without a subpackage or build tag, which causes `internal/audio`, `internal/system`, and `internal/scene` to transitively import `github.com/gen2brain/raylib-go/raylib`.
-   - Moving `RaylibPlayer` into a subpackage (e.g., `internal/audio/raylibaudio`) makes `internal/audio`, `internal/system`, `internal/scene`, `internal/sim`, and `internal/api` **100% pure Go with zero Raylib/CGo/OpenGL linkage**.
-
-4. **Standardize action numbering on `config.Direction`.**
-   - `internal/config/direction.go` already defines `Right=0, Left=1, Up=2, Down=3`.
-   - Using `0=right, 1=left, 2=up, 3=down, 4=noop` everywhere (matching `scriptable.md`) avoids error-prone translation tables between Go, JSON, replays, and Python.
-
-5. **Provide both CLI modes cleanly.**
-   - `cmd/pacfan-headless` (pure Go, zero Raylib, deployable to headless Linux/Docker training servers).
-   - `main.go` (`pacfan` binary) also accepts `-headless -api stdio` (skipping `rl.InitWindow` / audio initialization) for local convenience, plus `-api tcp://...`, `-record`, and `-replay` for windowed spectating and replay playback.
+[`scriptable.md`](scriptable.md) and [`machine.md`](machine.md) remain useful background (observation encodings, reward shaping, replay ideas). **Where they disagree with this document, this document wins.**
 
 ---
 
-## Target Package Architecture
+## What Changed in This Revision
+
+The earlier plan drove the real `scene.Manager` with a "fast timing" profile and a no-op audio player. This revision narrows the scope to **the playing levels only**:
+
+| Topic | Earlier plan | Now |
+| --- | --- | --- |
+| Scenes | Drive `scene.Manager`, collapse delays to 1 tick | `internal/scene` is **not imported**. No attract, ready, dying, round-cleared, intermission, or game-over scenes |
+| Audio | `NoopPlayer`, move `RaylibPlayer` to a subpackage | `internal/audio` is **not imported** at all |
+| Timing | `TimingArcade` / `TimingFast` profiles | Gone. One tick = one gameplay frame; nothing else exists |
+| Maze on the wire | `rows` on reset, `compact_maze` dot lists per step | All mazes sent **once as text** in `hello`; steps carry only the tiles eaten |
+| Artwork | `real_art` bool in the replay header | PNG **filename + SHA-256 + maze-layout hash** in `hello` and in every replay |
+| Replay playback | Replay through `game.Engine` scenes, hash-compare headless vs windowed | Viewer runs the **same** `sim.Env` and draws its world with `render.Renderer` |
+| Binaries | `pacfan -headless` and `cmd/pacfan-headless` | Only `cmd/pacfan-headless` serves the API; `pacfan` gains `-replay` later |
+| Players / high score | Inherited from the game | Always 1 player; no high-score file I/O |
+
+---
+
+## Decisions to Lock In First
+
+### 1. The simulator is `system.Pipeline` plus three transition rules
+
+`internal/sim.Env` owns a `donburi.World` and calls `Pipeline.Update` once per tick. After each tick it applies the only transitions that matter, immediately and with zero dead ticks:
+
+- **`GameState.PlayerDying`** → call `system.ConsumeLifeOrSwitchPlayer` (with `PlayerCount` forced to 1). Lives left: play resumes on the next tick from the spawn positions. No lives left: `terminated`.
+- **`GameState.LevelComplete`** → call `system.AdvanceToNextLevel`. The next tick is the first tick of the new level (or `terminated` when `end_on_level_clear` is set).
+- **`GameState.GhostEatenPause > 0`** → keep ticking inside the same `Step` call until it reaches 0. This is gameplay, not a between-level scene: eaten ghosts' eyes keep travelling home during the 61-tick freeze, so skipping it would change ghost positions. `Pipeline.Update` already contains this path (`internal/system/pipeline.go`); the agent is simply not asked for a decision during it.
+
+Consequences worth knowing up front:
+
+- **Sim ticks are the canonical timeline.** The windowed arcade game routes the ghost-eaten freeze through `GhostEatenFreezeScene`, which resumes the full pipeline one tick later than the pipeline's inline path. The two therefore drift by one tick per ghost eaten. That is fine because replays are played back by `sim.Env` itself (Decision 5), never by the scene manager. The windowed arcade game is left untouched.
+- **Ready-screen input latching is dropped.** Not needed: the first `Step` after a reset, death, or level change applies its action on the first play tick.
+
+### 2. Keep audio and Raylib out of the dependency graph, not just silent
+
+Today `internal/system` imports `internal/audio` for one function (`RegisterAudioEventHandlers` in `internal/system/audio.go`), and `internal/audio/raylib.go` imports Raylib, so every package above `system` links Raylib.
+
+Fix: move `RegisterAudioEventHandlers` into `package audio` (it already imports `component`; adding `event` creates no cycle) and call it from `internal/game/engine.go`. `internal/system` then has no audio import, and `internal/sim` depends only on:
+
+```text
+config  component  event  archetype  system  sheet
+```
+
+No `audio`, `scene`, `render`, `game`, or Raylib. A `make` target enforces this.
+
+### 3. Mazes are parsed from the PNG once at startup and travel as text
+
+`component.MazeData` already classifies 8×8 pixel masks into tiles (`LoadLevel`) and serialises them one character per tile (`Rows()`, `Cell.Char()`):
+
+| Char | Tile | | Char | Tile |
+| --- | --- | --- | --- | --- |
+| `' '` | empty | | `.` | dot |
+| `#` | wall | | `O` | power pellet |
+| `-` | ghost-house door | | `@` | tunnel |
+
+At startup the headless server decodes the game PNG with stdlib `image/png` and builds a `MazeSet`: all five layouts (indices `0..3` Ms. Pac-Man, `4` classic Pac-Man) as tile grids, each with its dot count and ghost-house geometry. After that the PNG is never touched again:
+
+- Level loads copy an 868-byte template instead of sampling ~55,000 pixels.
+- The `hello` response sends all five mazes as 31 strings of 28 characters (about 5 KB, once per connection).
+- `reset` and level changes send only `maze_index`.
+- Each `step` sends only `eaten`: the tile coordinates cleared during that step, taken from `event.DotEaten` / `event.PowerUpEaten` (which already carry tile `X`, `Y`). The client keeps its own copy of the grid. Walls, doors, and tunnels never change during a level.
+
+### 4. The artwork file is part of the environment's identity
+
+The tracked placeholder `assets/game.png` and the untracked original `assets/game-real.png` contain **different maze layouts** (see `assets/README.md`), so the PNG decides the rules of the world, not just how it looks. A policy trained or a replay recorded on one cannot be evaluated or replayed on the other.
+
+The server therefore reports, in `hello` and in every replay header:
+
+- `art.file` — base filename of the game PNG (e.g. `game.png`), so a viewer knows which graphics to load.
+- `art.sha256` — hash of the PNG bytes.
+- `maze_hash` — hash of the five parsed maze texts. This is the real compatibility key: two PNGs with different pixels but identical layouts are interchangeable for simulation.
+
+Source of the PNG: the embedded asset chosen by the existing preference (`game-real.png` if present, else `game.png`), overridable with `-art FILE` to read any PNG from disk at startup. The font PNG and shader are irrelevant headless.
+
+### 5. A replay is a seed plus an action list, replayed by `sim.Env`
+
+Because the simulator is deterministic, a game is fully described by `{maze_hash, pacman, level, seed, options}` plus the action applied on each tick. Replays are recorded inside `sim.Env` and played back by constructing a fresh `sim.Env` and feeding the actions back in.
+
+The windowed replay viewer is **`sim.Env` + `render.Renderer.DrawWorld`**: no `scene` package, no audio. Death animations, "READY!" banners, and maze flashes are optional cosmetic holds the viewer draws *between* sim ticks without advancing the simulation.
+
+### 6. Seeding
+
+`PRNGData` fills a ROM table from a fixed seed (`42`) and `Reset()` rewinds its index on every life and level. With one fixed seed, ghost behaviour is a pure function of the player's actions, and an agent can memorise a route instead of learning to play. `reset` takes a `seed` that reseeds the ROM table: training varies it per episode, evaluation uses a fixed seed list.
+
+### 7. Action numbering follows `config.Direction`
+
+`0=right, 1=left, 2=up, 3=down, 4=noop` everywhere (Go, JSON, replays, Python). Ghost order is `component.ActorID` order: `blinky, pinky, inky, clyde`.
+
+---
+
+## Target Package Layout
 
 ```text
 assets/
-  embed.go                       # Shared //go:embed FS + pure-Go ExampleArtFS (no Raylib)
+  embed.go                 # package assets: //go:embed, GameAssetPath (pure Go)
 cmd/
-  pacfan-headless/main.go        # Pure-Go headless binary (zero Raylib imports; CI-verified)
+  pacfan-headless/main.go  # NDJSON server; zero Raylib, audio, or scene imports
 internal/
-  audio/
-    audio.go                     # Pure-Go Player interface, NoopPlayer, loop selection
-    raylibaudio/raylib.go        # Moved RaylibPlayer (only imported by windowed game)
+  audio/                   # + RegisterAudioEventHandlers (moved from system); windowed game only
   component/
-    prng.go                      # + NewPRNGDataWithSeed(seed), InitWithSeed(seed)
-    maze.go                      # + LoadTemplate / CachedMaze support
-  sheet/                         # Pure-Go image/png spritesheet decoder & 5-maze grid cache
-  sim/                           # Core headless Env, TimingProfile, EventCollector, StateHash
-    replay/                      # .pfr binary RLE replay format, RecordingInput, ReplayInput
-  api/                           # NDJSON protocol, Session, stdio/unix/tcp Server, RemoteInput
-ml/                              # Python Gymnasium env, baseline agents, MaskablePPO trainer
-main.go                          # Windowed pacfan + -headless, -api, -record, -replay flags
+    maze.go                # + MazeTemplate, MazeSet, ParseMazeSet, template-backed LoadLevel
+    prng.go                # + InitWithSeed
+  sheet/                   # Pure-Go PNG decode -> IsPixelLit, file name, SHA-256
+  sim/                     # Env, Action, events, HashWorld, replay record/read
+  api/                     # NDJSON protocol, Session, stdio server
+ml/                        # Python Gymnasium env, baselines, trainer
+main.go                    # Windowed pacfan; later: -replay
 ```
 
 ---
 
-## Phase 1: Core Headless API
+## Wire Protocol Sketch (NDJSON, one request line → one response line)
 
-**Goal:** Run `pacfan` headlessly with zero Raylib dependencies, deterministic seeding, cached pure-Go maze loading, a lockstep NDJSON API over `stdio`, and automated determinism + throughput benchmarks.
+Values below are illustrative.
 
-### Step 1.1 — Decouple Raylib from `internal/audio` and share embedded assets
-- [ ] Move `internal/audio/raylib.go` into `internal/audio/raylibaudio/raylib.go` (`package raylibaudio`) and update `internal/game/engine.go` to call `raylibaudio.New(...)`.
-- [ ] Add `assets/embed.go` (`package assets`) with `//go:embed *.png *.fs pacman ms-pacman` (or `//go:embed *`) exposing `assets.FS` and pure-Go `assets.GameAssetPath(fs.FS)` / `assets.FontAssetPath(fs.FS)` helpers that prefer `game-real.png` / `text-real.png` and fall back to the placeholder `game.png` / `text.png` (migrating `GameAssetPath` and `FontAssetPath` out of `internal/render/art.go`, keeping thin aliases if callers reference them).
-- [ ] Update `main.go` to use `assets.FS`.
-- [ ] **Verify:** Run `go list -deps ./internal/audio ./internal/system ./internal/scene | grep raylib` and confirm **no output**; run `make check`.
+```jsonc
+// -> {"cmd":"hello"}
+// <- sent once; everything static lives here
+{"ok":true,"protocol":1,
+ "art":{"file":"game.png","sha256":"9f2c..."},"maze_hash":"51ab...",
+ "width":28,"height":31,
+ "mazes":[{"index":0,"dots":220,"rows":["############################","#......##..........##......#", "..."]}, "..."],
+ "actions":["right","left","up","down","noop"],
+ "ghosts":["blinky","pinky","inky","clyde"]}
 
-### Step 1.2 — Add configurable PRNG seeding and start-level support
-- [ ] In `internal/component/prng.go`, add `DefaultPRNGSeed = 42`, `NewPRNGDataWithSeed(seed int64) PRNGData`, and `(p *PRNGData) InitWithSeed(seed int64)` (with existing `Init()` delegating to `InitWithSeed(DefaultPRNGSeed)`).
-- [ ] In `internal/archetype/world.go`, add `CreatePRNGWithSeed(w donburi.World, seed int64) *donburi.Entry` (keeping `CreatePRNG(w)` as default seed `42`).
-- [ ] In `internal/system/level.go`, add `StartGameAtLevel(w donburi.World, level, playerCount int, isPixelLit func(x, y int) bool)` (clamping `level` to `1..255`) so curriculum learning can start episodes on any level without duplicating `RestartGame` logic.
-- [ ] Add unit tests verifying identical seeds produce identical `PRNG` sequences and different seeds diverge deterministically.
+// -> {"cmd":"reset","pacman":false,"level":1,"seed":7,"episodic_life":false,
+//     "end_on_level_clear":false,"max_ticks":0,"record":"runs/x/ep-0001.pfr"}
+// <- {"ok":true,"tick":0,"maze_index":0,"state":{...}}
 
-### Step 1.3 — Pure-Go spritesheet decoder and cached maze loader (`internal/sheet`)
-- [ ] Create `internal/sheet/sheet.go` using stdlib `image/png` + `fs.FS` to decode the spritesheet chosen by `GameAssetPath` (`assets/game-real.png` when present, otherwise `assets/game.png`) once per process.
-- [ ] Expose `IsPixelLit(x, y int) bool` matching `render.Art.IsPixelLit` (`r > 0 || g > 0 || b > 0`).
-- [ ] Pre-parse and cache all 5 maze layouts (`mazeIndex` `0..3` for Ms. Pac-Man, `4` for classic Pac-Man) as read-only `[config.GameHeight][config.GameWidth]component.Cell` templates plus their `dotsRemaining` count and `GhostHouse` geometry.
-- [ ] Add `(m *MazeData) LoadCachedLevel(level int, loader func(mazeIndex int) (MazeTemplate, bool)) int` (or an optional fast path in `internal/component/maze.go`) so headless `Reset` copies 868 bytes instead of sampling ~55,000 pixels.
-- [ ] Replace duplicated `png.Decode` helpers in `internal/system/system_test.go` and `internal/scene/scene_test.go` with `internal/sheet` where appropriate, and add a parity test confirming cached templates match pixel-sampled `MazeData.LoadLevel` tile-for-tile across all 5 mazes.
+// -> {"cmd":"step","action":2,"mode":"tile"}        // mode: "frames" (with "frames":N) | "tile" | "intersection"
+// <- {"ok":true,"tick":8,"ticks":8,"reward":10,"terminated":false,"truncated":false,
+//     "events":["dot"],"eaten":[[6,23]],"state":{...}}
+//    "maze_index" appears again only when the level changed during this step
 
-### Step 1.4 — Build the core headless simulation engine (`internal/sim`)
-- [ ] Create `internal/sim/input.go`:
-  - `Action` enum (`ActionRight=0, ActionLeft=1, ActionUp=2, ActionDown=3, ActionNoop=4`).
-  - `ScriptedInput` implementing `system.InputProvider` (holds the next `Action`, zero allocations).
-- [ ] Create `internal/sim/timing.go`:
-  - `TimingProfile` enum (`TimingArcade`, `TimingFast`) and helper `ApplyTiming(ctx *scene.Context, profile TimingProfile)` that configures `scene.Context` overrides (`ReadyDuration=1`, `PlayerOneDuration=1`, `RoundClearedHoldFrames=1`, `RoundClearedFlashes=1`, `PlayerDyingHoldFrames=1`, `PlayerDyingFrameTicks=1`, `PlayerDyingPostFrames=1`, `IntermissionFactory=nil` for `TimingFast`).
-- [ ] Create `internal/sim/events.go`:
-  - `EventFlags` bitmask + ordered `[]string` event recorder subscribed to `event.DotEaten`, `event.PowerUpEaten`, `event.GhostEaten`, `event.FruitEaten`, `event.ExtraLifeAwarded`, `event.PlayerEaten`, `event.LevelCompleted` on the world's event bus.
-- [ ] Create `internal/sim/hash.go`:
-  - `HashWorld(w donburi.World) uint64` (FNV-1a 64-bit hash over `GameState` gameplay fields, `MazeData.Grid`, player & ghost transforms/states/motion/dot counters, fruit state, and `PRNG.Index`) for determinism verification and replay desync detection.
-- [ ] Create `internal/sim/env.go`:
-  - `EnvConfig`: `PacmanMode`, `StartLevel`, `Seed`, `Timing`, `EpisodicLife`, `MaxSteps`, `MaxTicks`, `UseExampleArt`.
-  - `StepMode`: `StepFrames`, `StepTile`, `StepIntersection`.
-  - `Env`: `NewEnv(sheet *sheet.Sheet, cfg EnvConfig) *Env`, `Reset(opts ResetOptions)`, `Step(action Action, mode StepMode, frames int) StepResult`, `LegalActions() [4]bool`, `World() donburi.World`, `Tick() int`, `StepCount() int`.
-  - Wire headless composition root: `Drawer: nil` (or `NoopDrawer`), `Audio: audio.NoopPlayer{}`, `Input: ScriptedInput`, no high-score disk I/O, start directly at `scene.NewReadyScene` (bypassing `AttractScene`).
-  - Handle non-interactive scenes cleanly during `Step`: advance through `ReadyScene`, `GhostEatenFreezeScene`, `PacmanDyingScene`, and `RoundClearedScene` automatically while breaking immediately on `player_eaten`, `level_completed`, or `GameOver` so the agent receives timely rewards/terminations.
-  - Implement `StepTile` (advance until Pac-Man reaches a new centered tile or stops at a wall / dies / clears level) and `StepIntersection` (advance until Pac-Man reaches a centered tile with ≥2 legal non-reverse moves or hits a corner/wall/event), with a safety tick cap to prevent infinite loops when stalled against a wall.
+// -> {"cmd":"observe","maze":true}                  // debug/resync: current grid as rows
+// -> {"cmd":"close"}
+```
 
-### Step 1.5 — Implement the NDJSON wire protocol & `stdio` server (`internal/api`)
-- [ ] Create `internal/api/protocol.go`:
-  - Request structs: `Command` dispatching `"reset"`, `"step"`, `"observe"`, `"close"`.
-  - Accept both integer (`0..4`) and string (`"right"`, `"left"`, `"up"`, `"down"`, `"noop"`) values for `action`.
-  - Response struct (`ok`, `error`, `step`, `tick`, `reward`, `terminated`, `truncated`, `events`, `state`) and `Snapshot(w donburi.World, compactMaze bool, includeStaticMaze bool) StateSnapshot` matching the schema in `scriptable.md` §4.2:
-    - Game globals (`level`, `pacman_mode`, `score`, `high_score`, `lives`, `dots_eaten`, `dots_remaining`, `wave_mode`, `wave_frames`, `is_fright`, `fright_frames`, `num_ghosts_eaten`, `elroy_stage`).
-    - `player` (`x`, `y`, `tile_x`, `tile_y`, `dir`, `dot_pause`, `legal_actions`).
-    - `ghosts` in canonical order (`blinky`, `pinky`, `inky`, `clyde` — verify order matches `component.ActorID` and document explicitly in the schema).
-    - `fruit` (`active`, `moving`, `symbol`, `points`, `x`, `y`, `tile_x`, `tile_y`, `timer`).
-    - `maze` (`width`, `height`, `rows` via `MazeData.Rows()`, plus `compact_maze` mode sending `dots` & `power` coordinates on non-reset/non-level-change steps).
-- [ ] Create `internal/api/session.go`: manages one `sim.Env`, tracks whether static maze walls need to be sent (on `reset` and level change), and executes `Handle(req Request) Response`.
-- [ ] Create `internal/api/server.go`: `ServeNDJSON(r io.Reader, w io.Writer, session *Session) error` using `bufio.Scanner` (with raised max token size if needed) + `bufio.Writer` + `encoding/json`, returning clean JSON error responses on malformed input and exiting cleanly on `"close"` or `EOF`.
+`state` is small and has no maze in it:
 
-### Step 1.6 — Wire CLI flags and dedicated pure-Go headless binary
-- [ ] Create `cmd/pacfan-headless/main.go`:
-  - Flags: `-api` (default `stdio`), `-pacman`, `-seed`, `-level`, `-timing` (`fast`|`arcade`).
-  - Zero Raylib imports.
-- [ ] Update `main.go` (`pacfan`) to support `-headless`, `-api`, and `-seed` flags so `pacfan -headless -api stdio` works out of the box without calling `rl.InitWindow` or initializing audio.
-- [ ] Update `Makefile` with `build-headless` and a `check-headless-deps` target asserting `go list -deps ./cmd/pacfan-headless ./internal/sim ./internal/api | grep raylib` returns empty.
+```jsonc
+{"level":1,"score":10,"lives":3,"dots_remaining":219,
+ "wave":"scatter","fright_frames":0,"ghosts_eaten":0,
+ "player":{"x":108,"y":184,"dir":1,"legal":[true,true,false,false]},
+ "ghosts":[{"x":108,"y":88,"dir":1,"state":"scatter"}, "..."],
+ "fruit":{"active":false}}
+```
 
-### Step 1.7 — Determinism audit, tests, and throughput benchmarks
-- [ ] Audit `internal/system`, `internal/component`, and `internal/scene` for nondeterminism (map iteration order, `time.Now()`, global `math/rand`, entity iteration order). Document any findings and fix before locking hashes.
-- [ ] Add `internal/sim/env_test.go` and `internal/api/api_test.go`:
-  - **Determinism test:** Run two independent `Env` instances with identical seed and action sequence for 5,000+ ticks in both Pac-Man and Ms. Pac-Man modes; assert identical `HashWorld` on **every** tick.
-  - **Rule coverage tests:** Verify dot eating, power pellets, ghost eating (including 61-tick eye movement), fruit spawn/eat, extra life, death (`episodic_life` true vs false), level clear, and `max_steps` truncation.
-  - **Step mode tests:** Verify `frames`, `tile`, and `intersection` modes terminate cleanly and never hang when pushing into a wall.
-  - **Protocol tests:** Round-trip NDJSON `reset` → `step` → `observe` → `close`, malformed JSON error handling, `compact_maze` output.
-  - **Benchmarks:** `BenchmarkEnvStep` (raw Go ticks/sec and allocs/op) and `BenchmarkNDJSONStep` (end-to-end JSON round-trip steps/sec) to establish baseline numbers.
-
-**Phase 1 Done When:**
-- `go list -deps ./cmd/pacfan-headless | grep raylib` produces zero matches.
-- `pacfan-headless -api stdio` (and `-pacman`) runs full episodes via piped JSON commands.
-- `make check` passes with determinism tests and benchmark baselines recorded.
+`reward` is the raw score delta for the step; shaping belongs in the Python wrapper. `events` values: `dot`, `power`, `ghost`, `fruit`, `extra_life`, `death`, `level_clear`.
 
 ---
 
-## Phase 2: Python Gymnasium Environment & Baseline Agents
+## Phase 1: Play-Only Simulation Core
 
-**Goal:** Connect standard Python RL libraries (Stable-Baselines3 / CleanRL / PyTorch) to `pacfan-headless`, validate the pipeline with fast scripted/heuristic baselines, and train an initial policy that demonstrably learns to clear dots and evade ghosts.
+**Goal:** a pure-Go `sim.Env` that plays full games deterministically with no Raylib, audio, or scene code linked.
 
-### Step 2.1 — Python package scaffold (`ml/`)
-- [ ] Create `ml/pyproject.toml` (or `ml/requirements.txt`) pinning `gymnasium`, `numpy`, and optional `[train]` extras (`torch`, `stable-baselines3`, `sb3-contrib`, `tensorboard`).
-- [ ] Create `ml/README.md` documenting how to build `pacfan-headless`, set up a virtualenv, run sanity checks, and start training.
+### Step 1.1 — Cut the audio/Raylib link out of `internal/system`
+- [ ] Move `RegisterAudioEventHandlers` from `internal/system/audio.go` to `internal/audio`; update `internal/game/engine.go` and any tests.
+- [ ] Add `assets/embed.go` (`package assets`) exposing the embedded FS and a pure-Go `GameAssetPath`; `render.GameAssetPath` delegates to it. Update `main.go` to use `assets.FS`.
+- [ ] **Verify:** `go list -deps ./internal/system ./internal/archetype | grep -E 'raylib|internal/audio'` prints nothing; `make check` passes.
 
-### Step 2.2 — Implement the Gymnasium wrapper (`ml/pacfan_env.py`)
-- [ ] Implement `PacFanEnv(gym.Env)` communicating with `pacfan-headless -api stdio` over `subprocess.Popen` (`stdin`/`stdout` line-buffered):
-  - Configurable `binary`, `pacman`, `start_level`, `step_mode` (`"frames"` | `"tile"` | `"intersection"`), `frames_per_step`, `episodic_life`, `compact_maze`, `max_steps`, `obs_mode` (`"grid"` | `"features"`), and reward shaping parameters.
-  - Support `action_masks() -> np.ndarray` method (required by `sb3-contrib`'s `MaskablePPO`) derived directly from `state["player"]["legal_actions"]`.
-  - Support automatic subprocess cleanup in `close()`, context manager (`__enter__`/`__exit__`), and clear stderr diagnostics if the child process exits unexpectedly.
-- [ ] Implement both observation encoders from `scriptable.md` §5.1 / `machine.md` §3.2:
-  - **Spatial Grid `(C, 31, 28)`** (`float32`): walls/door, dots, power pellets, tunnels, player, per-ghost dangerous channels + previous-tile velocity/heading trail, frightened ghosts (scaled by `fright_frames`), returning eyes, active fruit — plus a `Dict` observation option appending normalized global scalars (`fright_frames`, `wave_mode`, `dots_remaining`, `player.dir` one-hot, `lives`, `level`).
-  - **BFS Feature Vector** (`float32`): shortest maze-path distances & first-step directions to nearest dot, power pellet, active fruit, and each ghost (dangerous vs frightened), for fast MLP / neuroevolution / sanity baselines.
-- [ ] Implement configurable reward shaping wrapper (`gym.RewardWrapper`):
-  - Default scaled arcade score (`0.01 * score_delta`).
-  - Optional death penalty (`-5.0`), level-clear bonus (`+10.0`), and tiny step penalty (`-0.01`).
+### Step 1.2 — Seedable PRNG and start-at-level
+- [ ] `internal/component/prng.go`: `DefaultPRNGSeed = 42`, `InitWithSeed(seed int64)`; `Init()` delegates to it so the windowed game is unchanged.
+- [ ] `internal/system/level.go`: `StartGameAtLevel(w, level, isPixelLit)` (level clamped to `1..255`); `RestartGame` becomes `StartGameAtLevel(w, 1, ...)`.
+- [ ] Tests: same seed → same byte sequence; different seeds diverge; starting at level N loads the right maze index and level spec.
 
-### Step 2.3 — Validation suite and heuristic baselines (`ml/baselines.py`)
-- [ ] Run `gymnasium.utils.env_checker.check_env(PacFanEnv(...))` in a pytest test (`ml/tests/test_env.py`) to verify spaces, dtypes, seeding reproducibility, reset/step contracts, and `AsyncVectorEnv` parallel execution.
-- [ ] Implement two zero-ML baselines for benchmarking and reward calibration:
-  - `RandomLegalAgent`: uniformly samples from `legal_actions`.
-  - `GreedyBFSAgent`: chases nearest dot/frightened ghost via BFS while avoiding dangerous ghosts within distance `K`.
-- [ ] Log baseline mean/max score, dots eaten, survival ticks, and throughput (env steps/sec across 1, 4, 8 workers).
+### Step 1.3 — Pure-Go sheet and text maze set
+- [ ] `internal/sheet`: `Load(fsys fs.FS, path string)` and `LoadFile(path string)` decode the PNG once into a lit-pixel bitmap; expose `IsPixelLit(x, y)` (same rule as `render.Art.IsPixelLit`: any of R, G, B non-zero), `Name()` (base filename), and `SHA256()`.
+- [ ] `internal/component/maze.go`: split the pixel classification out of `LoadLevel` into `ParseMazeTemplate(mazeIndex, isPixelLit) MazeTemplate` (grid, dot count, ghost house, with tunnels marked) and `ParseMazeSet(isPixelLit) *MazeSet` for all five, plus `MazeSet.Hash()` and `MazeTemplate.Rows()`.
+- [ ] `MazeData.UseTemplates(*MazeSet)`: when set, `LoadLevel` copies the template and ignores `isPixelLit`. This keeps the `isPixelLit` parameter threaded through `internal/system/level.go` and the scenes unchanged, so the windowed game and its ~3,000 lines of tests are not disturbed.
+- [ ] Tests: template-backed `LoadLevel` equals pixel-sampled `LoadLevel` tile-for-tile for all five mazes; text round-trips (`Rows()` → parse → identical grid). Replace the duplicated `png.Decode` helpers in `system_test.go`, `scene_test.go`, and `renderer_test.go` with `internal/sheet` where it is a drop-in.
 
-### Step 2.4 — Training script, run directory layout, and checkpoint evaluation (`ml/train_ppo.py`)
-- [ ] Implement a training script using `AsyncVectorEnv` + `MaskablePPO` (from `sb3-contrib`, with a custom small CNN suited to `31×28` grids, since Atari NatureCNN expects `84×84` images).
-- [ ] Adopt the structured run-directory layout from `machine.md` §4.2:
+### Step 1.4 — `internal/sim`
+- [ ] `input.go`: `Action` (`Right=0 … Noop=4`) and `ScriptedInput` implementing `system.InputProvider` (never sets pause, mute, or start keys).
+- [ ] `events.go`: subscribe to `DotEaten`, `PowerUpEaten`, `GhostEaten`, `FruitEaten`, `ExtraLifeAwarded`, `PlayerEaten`, `LevelCompleted`; collect an event bitmask and the eaten-tile list per step into reusable buffers.
+- [ ] `env.go`:
+  - `Config{Mazes *component.MazeSet, PacmanMode, StartLevel, Seed, EpisodicLife, EndOnLevelClear, MaxTicks}`.
+  - `NewEnv(cfg)` builds the world the way `game.NewEngine` does minus art, audio, renderer, high score, and scenes: `CreateGameState`, `CreateMaze` (+ `UseTemplates`), `CreatePRNG`, `SpawnPlayer`, `SpawnAllGhosts`, `RegisterEventHandlers`, `NewPipeline(scriptedInput)`.
+  - `Reset(opts)`, `Step(action, mode, frames) StepResult`, `LegalActions() [4]bool`, `World()`, `Tick()`.
+  - One internal `tick()` that runs `Pipeline.Update` and then applies the three transition rules from Decision 1. Everything else (step modes, replay, viewer) goes through it.
+  - Step modes: `frames` (N ticks), `tile` (until Pac-Man is centred on a new tile, or stopped by a wall), `intersection` (until a centred tile with a choice other than straight-on or reverse). All modes stop early on death, level clear, or termination, always run through a ghost-eaten freeze, and have a tick cap so pushing into a wall cannot hang.
+  - `EpisodicLife`: a death sets `terminated` for the learner; the next `Reset` continues the same game if lives remain.
+- [ ] `hash.go`: `HashWorld(w) uint64` (FNV-1a over gameplay fields of `GameState`, the maze grid, actor transforms / motion / ghost state / dot counters, fruit state, `PRNG.Index`; excludes `Zoom` and `HighScore`).
+
+### Step 1.5 — Determinism, rule coverage, benchmark
+- [ ] Audit `internal/system` and `internal/component` for nondeterminism. Already checked: no `time.Now`, no map iteration, and `math/rand` is used only to fill the PRNG ROM. Still to confirm: donburi query iteration order is stable across worlds built the same way (the per-tick hash test below is the proof).
+- [ ] Determinism test: two `Env`s, same seed and action stream, 5,000+ ticks, Pac-Man and Ms. Pac-Man; `HashWorld` equal on every tick. Different seeds must diverge.
+- [ ] Rule tests: dots, power pellets, ghost eaten (freeze runs inside one step; eyes move), fruit, extra life, death with and without `EpisodicLife`, level clear → next maze index, `MaxTicks` truncation, wall-push never hangs in any step mode.
+- [ ] `BenchmarkEnvTick` (ticks/sec, allocs/op) as the baseline. Known allocation source to fix if it shows up: `donburi.NewQuery` called per use in `internal/system/level.go`.
+- [ ] Makefile: `check-headless-deps` fails if `go list -deps ./internal/sim` matches `raylib|internal/audio|internal/scene|internal/render`; add it to `check`.
+
+**Done when:** `make check` passes including the dependency check and per-tick determinism tests, and a Go test plays a scripted game from reset to game over.
+
+---
+
+## Phase 2: Wire Protocol, Headless Binary, and Replay Recording
+
+**Goal:** `pacfan-headless` plays full episodes over piped NDJSON and can write a replay file for any episode.
+
+### Step 2.1 — `internal/api`
+- [ ] `protocol.go`: request/response structs for `hello`, `reset`, `step`, `observe`, `close` per the sketch above. `action` accepts `0..4` or `"right"|"left"|"up"|"down"|"noop"`.
+- [ ] `session.go`: owns one `sim.Env`; builds the cached `hello` payload from the `MazeSet` and sheet identity; emits `maze_index` on reset and level change only.
+- [ ] `server.go`: `ServeNDJSON(r, w, session)` with `bufio` + `encoding/json`; malformed input yields `{"ok":false,"error":...}` and the loop continues; exits cleanly on `close` or EOF.
+
+### Step 2.2 — Replay file (`internal/sim`, extension `.pfr`)
+A small line-oriented text file, easy to read from Python and to diff:
+
+```text
+{"pfr":1,"art":{"file":"game.png","sha256":"..."},"maze_hash":"...","pacman":false,"level":1,"seed":7,"options":{...},"meta":{"run_id":"...","checkpoint":"...","episode":12,"git_commit":"..."}}
+a 2x8 1x24 3x16 ...          # run-length encoded: action x ticks
+h 600 9c41d2e07a3b1f55       # HashWorld checkpoint at tick 600
+a ...
+{"end":"game_over","ticks":5321,"score":18340,"level":3,"deaths":3}
+```
+
+- [ ] `Recorder`: appends the action for every tick inside `Env.tick()` (including freeze ticks), a hash line every 600 ticks, and the footer on termination/close.
+- [ ] `ReadReplay` + `Env.Replay(r)`: rejects a `maze_hash` mismatch outright, warns on an `art.sha256`-only mismatch, and reports the first tick whose hash differs.
+- [ ] `reset` accepts `record` (path) and `meta` (opaque object copied into the header).
+
+### Step 2.3 — `cmd/pacfan-headless`
+- [ ] Flags: `-art FILE` (default: embedded `game-real.png` else `game.png`), `-pacman`, `-level`, `-seed` (defaults for `reset`), `-verify FILE.pfr` (replay a file headlessly and exit non-zero on a hash mismatch), `-dump-mazes` (print the five text mazes and hashes, then exit).
+- [ ] Makefile: `build-headless`; extend `check-headless-deps` to `./cmd/pacfan-headless ./internal/api`.
+
+### Step 2.4 — Tests and benchmark
+- [ ] Round-trip `hello → reset → step… → close` through `ServeNDJSON`; malformed JSON; unknown command; step before reset.
+- [ ] Client-side maze reconstruction: apply `eaten` to the `hello` maze for a whole game and compare with `observe {maze:true}` at every step.
+- [ ] Record → replay in a fresh `Env` → identical `HashWorld` on every tick, both modes. Check in 2–3 tiny `.pfr` fixtures recorded on the tracked `game.png` (dots, ghost eaten, fruit, death, level clear) so rule regressions fail `go test ./...`.
+- [ ] `BenchmarkNDJSONStep`: end-to-end steps/sec and bytes per step response.
+
+**Done when:** `go list -deps ./cmd/pacfan-headless | grep -E 'raylib|audio|scene'` is empty, a shell pipe can play a game to game over, and `pacfan-headless -verify` passes on the checked-in fixtures.
+
+---
+
+## Phase 3: Python Gymnasium Environment and Baselines
+
+**Goal:** standard RL libraries train against `pacfan-headless`, and a first policy visibly learns.
+
+### Step 3.1 — `ml/` scaffold
+- [ ] `ml/pyproject.toml`: `gymnasium`, `numpy`; `[train]` extra with `torch`, `stable-baselines3`, `sb3-contrib`, `tensorboard`. `ml/README.md` with build, venv, sanity-check, and training commands.
+
+### Step 3.2 — `ml/pacfan_env.py`
+- [ ] `PacFanEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.
+- [ ] `reset(seed=...)` forwards the Gymnasium seed as the game seed; with no seed given, draw one from the env's RNG so episodes differ (Decision 6).
+- [ ] `action_masks()` from `state.player.legal` (for `MaskablePPO`); context-manager cleanup; surface child stderr if the process dies.
+- [ ] Observation encoders: spatial grid `(C, 31, 28)` float32 (walls/door, dots, power, tunnels, player, per-ghost dangerous / frightened / eyes, fruit, plus a small scalar vector) and a BFS feature vector (path distance and first step to nearest dot, power pellet, fruit, each ghost). See `scriptable.md` §5.1.
+- [ ] Reward wrapper: default `0.01 × score delta`; optional death penalty, level-clear bonus, step penalty.
+
+### Step 3.3 — Validation and zero-ML baselines
+- [ ] `ml/tests/test_env.py`: `check_env`, same seed + same actions → same trajectory, `AsyncVectorEnv` with several workers.
+- [ ] `ml/baselines.py`: `RandomLegalAgent` and `GreedyBFSAgent` (nearest dot or frightened ghost, avoid dangerous ghosts within K tiles). Log mean/max score, levels cleared, ticks survived, and env steps/sec at 1, 4, 8 workers.
+
+### Step 3.4 — Training and evaluation
+- [ ] `ml/train_ppo.py`: `MaskablePPO` with a small CNN sized for 31×28 grids, run directory:
   ```text
   runs/<run-id>/
-    run.json                 # hyperparameters, reward config, git commit, start time
-    episodes.jsonl           # episode metrics: episode, step, ckpt, score, level, ticks
-    checkpoints/             # saved model weights
-    eval/                    # fixed-seed deterministic eval metrics (and .pfr replays in Phase 3)
-    best/                    # highest-scoring checkpoint
+    run.json          # hyperparameters, reward config, git commit, art file + maze_hash
+    episodes.jsonl    # per-episode metrics
+    checkpoints/
+    eval/ckpt-XXXX/   # fixed-seed eval metrics + .pfr replays
+    best/
   ```
-- [ ] Run fixed-seed evaluation rollouts (`episodic_life=False`, deterministic policy, fixed list of seeds) at regular checkpoint intervals so learning curves are apples-to-apples comparable.
-- [ ] Add a `ml/eval.py` script that loads a checkpoint, runs evaluation episodes, and prints summary statistics.
+- [ ] Fixed-seed evaluation at each checkpoint (full games, deterministic policy, recorded to `.pfr`). `ml/eval.py` loads a checkpoint and prints summary statistics.
 
-**Phase 2 Done When:**
-- `pytest ml/tests` passes `check_env` and determinism tests across `AsyncVectorEnv`.
-- `GreedyBFSAgent` reliably scores thousands of points and clears dots quickly.
-- A short `MaskablePPO` run trains end-to-end, writes `runs/<run-id>/episodes.jsonl` + checkpoints, and beats `RandomLegalAgent` on fixed-seed evaluation.
+**Done when:** `pytest ml/tests` passes, `GreedyBFSAgent` reliably clears most of level 1, and a short PPO run writes the run directory and beats `RandomLegalAgent` on the fixed eval seeds.
 
 ---
 
-## Phase 3: Live Visual Spectating & Deterministic Replays
+## Phase 4: Watching Recorded Games in the Real Window
 
-**Goal:** Watch any trained agent play live in the real Raylib window with audio, AND record/replay both headless ML games and human games frame-for-frame using compact `.pfr` replay files.
+**Goal:** `pacfan -replay FILE_OR_DIR` shows any `.pfr` with the real graphics.
 
-### Step 3.1 — Replay file format & recording/playback primitives (`internal/sim/replay`)
-- [ ] Define the `.pfr` ("PacFan Replay") format from `machine.md` §4.1:
-  - Magic header `"PFR1"` + format version.
-  - Length-prefixed JSON header: `git_commit`, `pacman_mode`, `start_level`, `seed`, `timing_profile`, `real_art` (whether `game-real.png` was loaded), `recorded_at`, `run_id`, `checkpoint`, `episode`.
-  - Run-length encoded input stream: varint `(action, ticks_held)` pairs recorded at the `system.InputProvider` boundary.
-  - Periodic 64-bit `sim.HashWorld` checkpoints (e.g., every 600 ticks).
-  - JSON footer: `final_score`, `level_reached`, `total_ticks`, `deaths`, `dots_eaten`, `end_reason`.
-- [ ] Implement `RecordingInput` (wraps any `system.InputProvider` — works for both headless agents and human `RaylibInput`).
-- [ ] Implement `ReplayInput` (implements `system.InputProvider` from a decoded `.pfr` stream).
-- [ ] Wire optional replay recording into `sim.Env` and the NDJSON `reset`/`save_replay` (or `record_path` in `reset`) API so Phase 2 evaluation runs automatically save `runs/<run-id>/replays/eval/ckpt-XXXX/*.pfr` and `best/*.pfr`.
+- [ ] `internal/game`: a `ReplayViewer` that builds a `sim.Env` from the replay header, feeds it the recorded actions at the arcade clock rate, and draws `env.World()` with the existing `render.Renderer.DrawWorld`. Set `GameState.Zoom` from `-zoom` (it is excluded from `HashWorld`).
+- [ ] Art selection: load the embedded PNG whose base name equals `art.file` (or `-art FILE`); parse its `MazeSet` and refuse to play if `maze_hash` differs from the header, naming the file the replay needs.
+- [ ] `main.go` flags: `-replay FILE_OR_DIR` (directory = sorted playlist), `-replay-speed N` (`0.25..16`). No audio initialisation in this mode.
+- [ ] Controls read straight from Raylib: `Space` pause, `→` single tick while paused, `+`/`-` speed, `N`/`P` next/previous file. HUD line with run id, checkpoint, episode, tick, speed. Hash checkpoints verified as playback passes them.
+- [ ] Optional polish: cosmetic holds on death and level clear (draw with `DrawOptions{PlayerDying…}` / `FlashMaze` for a moment without ticking the sim).
+- [ ] Optional: `-sim` human play mode — the same viewer loop with `render.RaylibInput` instead of a replay and `-record FILE`, giving human demonstrations in exactly the format and timeline the agents use (for imitation learning).
+- [ ] Optional: live spectating. `pacfan -api tcp://127.0.0.1:PORT` runs the same viewer loop with actions arriving from an `api.Session` on a loopback socket; the main thread keeps rendering and ticks only when a `step` arrives.
 
-### Step 3.2 — Determinism & replay corpus tests
-- [ ] **Round-trip test:** Play random/scripted games for thousands of ticks while recording, replay in a fresh world, and assert identical `HashWorld` on **every** tick for both Pac-Man and Ms. Pac-Man and both `TimingFast` and `TimingArcade`.
-- [ ] **Headless-equals-windowed test:** Replay a headless-recorded `.pfr` through `game.Engine`'s scene pipeline (with a `NoopDrawer`) and verify zero hash mismatches.
-- [ ] **Replay corpus test:** Check in 2–3 tiny `.pfr` fixtures (e.g., `testdata/replays/*.pfr`, covering dots, ghost eaten, fruit, death, level clear) so accidental rule regressions fail `go test ./...`.
-
-### Step 3.3 — Windowed replay playback & human recording (`main.go` + `internal/game`)
-- [ ] Extend `game.Options` so `game.Engine` accepts an optional injected `system.InputProvider`, `TimingProfile`, `Seed`, `StartLevel`, and `SkipHighScorePersistence` (for replays).
-- [ ] Add CLI flags to `pacfan` (`main.go`):
-  - `-record FILE`: wraps `RaylibInput` in `RecordingInput` and writes `.pfr` on exit (great for human baselines and imitation learning!).
-  - `-replay FILE_OR_DIR`: loads one `.pfr` or iterates through all `.pfr` files in a directory in sorted order.
-  - `-replay-speed N`: playback speed multiplier (`0.25` to `16.0`, default `1.0`).
-- [ ] Implement replay viewer UX in the windowed loop:
-  - Read header, warn if `git_commit` differs, configure world with recorded mode/seed/level/timing profile.
-  - Add **cosmetic holds** for `TimingFast` replays (briefly pause rendering on death/round-clear without advancing simulation ticks so replays look natural while preserving exact tick hashes).
-  - Verify each recorded state hash as playback passes it and surface any mismatch immediately.
-  - Viewer controls (read directly from Raylib keyboard without polluting `ReplayInput`): `Space` pause, `Right Arrow` single-tick step while paused, `+`/`-` speed, `N`/`P` next/previous replay in directory.
-  - Minimal HUD overlay showing `run_id`, `checkpoint`, `episode`, `tick`, and speed.
-
-### Step 3.4 — Live visual spectating over local socket (`-api tcp://` and `unix://`)
-- [ ] Extend `internal/api/server.go` to listen on `unix:///path/to.sock` or `tcp://127.0.0.1:PORT` (reject or warn on non-loopback binds by default for safety).
-- [ ] Create `internal/api/remote_input.go`: thread-safe `RemoteInput` implementing `system.InputProvider`, bridging socket commands to the Raylib main-thread game loop (which must stay on the OS main thread on macOS).
-- [ ] Support two live-spectating behaviors in `main.go` when `-api` is set without `-headless`:
-  - **Lockstep visual mode** (default): main loop renders at 60.6 Hz (scaled by `-speed` if provided) and advances simulation frames in lockstep with incoming `step` commands from the connected Python policy (`ml/eval.py --connect tcp://127.0.0.1:7777`).
-  - Human can still press `Space` (pause), `M` (mute), or close the window cleanly.
-
-**Phase 3 Done When:**
-- A human game recorded with `pacfan -record human.pfr` replays identically with `pacfan -replay human.pfr`.
-- Headless evaluation replays from Phase 2 play back in the Raylib window with zero hash mismatches and working viewer controls.
-- A trained Python agent can play live in the Raylib window via `pacfan -api tcp://127.0.0.1:7777 -pacman -zoom 3`.
+**Done when:** evaluation replays from Phase 3 play in the window with no hash mismatches, and a replay recorded on different maze layouts is refused with a clear message.
 
 ---
 
-## Phase 4: High-Throughput Batching & Native Scaling (Optional)
+## Phase 5: Throughput (Only If Profiling Says So)
 
-**Goal:** Only execute this phase if Phase 2 profiling shows NDJSON IPC / Python subprocess serialization is the training bottleneck (versus neural network forward/backward time).
+Run this phase only if Phase 3 profiling shows the environment, not the neural network, is the bottleneck.
 
-### Step 4.1 — Profile first and set target bottlenecks
-- [ ] Profile end-to-end training step time (Go simulation vs JSON encode/decode vs pipe I/O vs PyTorch inference/update) across 8–32 workers.
-- [ ] Run `go test -cpuprofile` / `-memprofile` on `internal/sim` and eliminate per-tick heap allocations (e.g., cached `donburi.Query` instances in `internal/system/level.go` and `internal/sim`, zero-alloc observation writing into caller-owned `[]float32` buffers).
-
-### Step 4.2 — Go-native `VecEnv` and observation encoders (`internal/sim`)
-- [ ] Implement Go-native observation encoders (`ObserveGrid(dst []float32)` and `ObserveFeatures(dst []float32)`) directly inside `internal/sim` with zero per-step allocations.
-- [ ] Implement `sim.VecEnv`: manages `N` independent `*sim.Env` worlds on a worker goroutine pool, takes `actions []Action`, steps all `N` worlds in parallel, auto-resets terminated/truncated envs, and writes directly into contiguous `obs`, `rewards`, `terminated`, `truncated`, and `legalMasks` buffers.
-- [ ] Add `cmd/pacfan-train` (optional pure-Go CLI for ultra-fast Go baselines, MCTS/expectimax search, or evolutionary strategies).
-
-### Step 4.3 — Choose the fast Python bridge (two options, pick based on profiling)
-- **Option A — `c-shared` Go library (`machine.md` §3.4, fastest for Python):**
-  - Build `libpacfan.so` / `libpacfan.dylib` via `go build -buildmode=c-shared ./cmd/pacfan-capi` exporting a minimal C ABI (`pf_vec_new`, `pf_vec_reset`, `pf_vec_step`, `pf_vec_save_replay`, `pf_vec_free`).
-  - Wrap with `ctypes` / `cffi` in `ml/pacfan_vec_env.py` implementing `gymnasium.vector.VectorEnv`, writing observations directly into caller-owned NumPy arrays (one C call per batched step across all `N` environments).
-- **Option B — Binary framed / batched `step_batch` over `stdio` (`scriptable.md` Phase 4, zero CGo):**
-  - Add a length-prefixed binary mode (`-api stdio-bin`) and `step_batch` command stepping `N` worlds inside a single Go process over one pipe, avoiding CGo build complexity while eliminating JSON overhead.
-
-### Step 4.4 — Optional visualization & analysis extras (`machine.md` §4.3)
-- [ ] **Video export:** Render `.pfr` replays to an off-screen Raylib `RenderTexture` and pipe raw frames to `ffmpeg` to produce shareable MP4/GIF progression reels.
-- [ ] **Side-by-side comparison:** Render two `.pfr` replays with the same seed (e.g., early vs. late checkpoint) side-by-side.
-- [ ] **Heat maps:** Aggregate player position densities and death locations across a directory of `.pfr` replays onto a maze overlay.
-
-**Phase 4 Done When:**
-- `BenchmarkVecEnvStep` scales linearly across CPU cores with near-zero allocations per step.
-- Batched Python stepping measurably reduces environment-step wall time compared to Phase 2 `AsyncVectorEnv` + NDJSON.
+- [ ] Profile a training step across 8–32 workers: Go simulation vs JSON vs pipe I/O vs PyTorch.
+- [ ] Remove per-tick allocations found by `go test -cpuprofile/-memprofile` on `internal/sim`.
+- [ ] Go-native observation encoders writing into caller-owned `[]float32`, and `sim.VecEnv` stepping N worlds on a goroutine pool with auto-reset.
+- [ ] Bridge, one of: a `step_batch` command with length-prefixed binary frames over stdio (no CGo), or a `c-shared` library wrapped with `ctypes` (one C call per batched step).
+- [ ] Extras: MP4/GIF export of replays via an off-screen render texture and `ffmpeg`; side-by-side replays on one seed; position and death heat maps over a replay directory.
 
 ---
 
-## Suggested Execution Order & Checkpoints
+## Execution Order
 
-| Milestone | Key Deliverables | Verification Gate |
+| Milestone | Deliverables | Gate |
 | --- | --- | --- |
-| **1A** (Steps 1.1–1.3) | Raylib-free `internal/audio`, shared `assets.FS`, seedable `PRNG`, `internal/sheet` cache | `go list -deps` has zero `raylib` in core pkgs; `make check` green |
-| **1B** (Steps 1.4–1.7) | `internal/sim.Env`, `internal/api` NDJSON server, `cmd/pacfan-headless`, benchmarks | Determinism tests + NDJSON round-trip + benchmark baseline green |
-| **2A** (Steps 2.1–2.3) | `ml/pacfan_env.py`, grid & BFS encoders, `RandomLegalAgent` & `GreedyBFSAgent` | `check_env` & `AsyncVectorEnv` pytest green; baseline scores logged |
-| **2B** (Step 2.4) | `ml/train_ppo.py`, `runs/<run-id>/` layout, fixed-seed eval checkpoints | Policy improves over random baseline on fixed-seed eval |
-| **3A** (Steps 3.1–3.3) | `.pfr` replays, `RecordingInput`/`ReplayInput`, `-record`/`-replay` viewer + corpus tests | Round-trip, corpus, and headless-vs-windowed hash tests green |
-| **3B** (Step 3.4) | `-api tcp://` & `unix://`, `RemoteInput` live visual spectating | Python agent plays live in Raylib window at 60.6 Hz |
-| **4** (Steps 4.1–4.4) | Profile-guided zero-alloc `VecEnv`, `c-shared` or binary bridge, video/heatmap tools | Measurable steps/sec gain over Phase 2 without breaking Phase 1–3 tests |
+| **1A** (1.1–1.3) | Audio-free `system`, `assets.FS`, seedable PRNG, `internal/sheet`, text `MazeSet` | No `raylib`/`audio` under `internal/system`; template/pixel parity test; `make check` |
+| **1B** (1.4–1.5) | `sim.Env`, events, `HashWorld`, benchmark | Per-tick determinism + rule tests; dependency check |
+| **2** (2.1–2.4) | `internal/api`, `.pfr` record/verify, `cmd/pacfan-headless` | Piped game to game over; fixtures verify; client maze reconstruction test |
+| **3A** (3.1–3.3) | `PacFanEnv`, encoders, random + greedy baselines | `check_env` and vector-env tests; baseline scores logged |
+| **3B** (3.4) | PPO trainer, run directory, fixed-seed eval with replays | Beats random baseline on fixed seeds |
+| **4** | `pacfan -replay` viewer (+ optional human record, live spectate) | Eval replays play back with zero hash mismatches |
+| **5** | Profile-guided batching / native bridge | Measured steps/sec gain; Phase 1–4 tests still pass |
+
+Milestones 1A through 2 are the critical path: after them any language that can write a line of JSON to a pipe can train on the game, and every episode it plays can be saved and later watched.
