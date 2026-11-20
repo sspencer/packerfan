@@ -37,6 +37,7 @@ go.work.sum
 # ignore assets
 assets/*/*.wav
 assets/*.png
+!assets/*-example.png
 pacman
 tasks/
 notes/
