@@ -108,10 +108,10 @@ func ConsumeLifeOrSwitchPlayer(w donburi.World, isPixelLit func(x, y int) bool) 
 		gameState.UseGlobalDotCounter = true
 		gameState.GlobalDotCounter = 0
 	}
-	gameState.SaveActivePlayer(maze, snapshotGhostDotCounters(w))
 
-	// In 2-player mode, alternate to the other player if they still have lives.
+	// In 2-player mode, snapshot the outgoing player and alternate if the other player still has lives.
 	if gameState.PlayerCount == 2 {
+		gameState.SaveActivePlayer(maze, snapshotGhostDotCounters(w))
 		other := 1 - gameState.ActivePlayer
 		if gameState.Players[other].Lives > 0 {
 			if !gameState.Players[other].Started {

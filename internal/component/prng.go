@@ -16,8 +16,10 @@ const (
 // PRNGData models the arcade game's ROM-indexed pseudo-random byte generator
 // used by frightened ghosts and house exits, scoped to a single ECS World.
 type PRNGData struct {
-	ROM   [ROMSize]byte
-	Index uint
+	ROM         [ROMSize]byte
+	Index       uint
+	seed        int64
+	initialized bool
 }
 
 // NewPRNGData creates and seeds a deterministic simulated ROM table.
@@ -33,12 +35,19 @@ func (p *PRNGData) Init() {
 }
 
 // InitWithSeed fills the simulated ROM with reproducible pseudo-random bytes
-// derived from seed and rewinds the cursor to 0.
+// derived from seed and rewinds the cursor to 0. If the ROM is already filled
+// for seed, it simply rewinds Index to 0.
 func (p *PRNGData) InitWithSeed(seed int64) {
+	if p.initialized && p.seed == seed {
+		p.Index = 0
+		return
+	}
 	r := rand.New(rand.NewSource(seed))
 	for i := range p.ROM {
 		p.ROM[i] = byte(r.Intn(256))
 	}
+	p.seed = seed
+	p.initialized = true
 	p.Index = 0
 }
 

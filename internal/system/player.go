@@ -34,93 +34,124 @@ func (s *PlayerSystem) Update(w donburi.World) {
 	maze := component.MustFindMaze(w)
 
 	for entry := range s.playerQuery.Iter(w) {
-		transform := component.Transform.Get(entry)
-		motion := component.Motion.Get(entry)
-		anim := component.Animation.Get(entry)
-		input := component.PlayerInput.Get(entry)
-
-		const threshold = 3
-
-		tx := transform.Pos.X / config.Tile
-		ty := transform.Pos.Y / config.Tile
-		ox := transform.Pos.X % config.Tile
-		oy := transform.Pos.Y % config.Tile
-
-		// Direction change: opposite reversal is immediate; perpendicular turns
-		// trigger when near an intersection.
-		if input.Active || input.Requested != transform.Dir {
-			if transform.Dir.IsOpposite(input.Requested) {
-				transform.Dir = input.Requested
-			} else {
-				nearX := ox <= threshold || ox >= config.Tile-threshold
-				nearY := oy <= threshold || oy >= config.Tile-threshold
-
-				if transform.Dir == config.Up || transform.Dir == config.Down {
-					if nearY {
-						targetTy := ty
-						if oy > config.Half {
-							targetTy++
-						}
-						if CanPlayerMove(maze, tx, targetTy, input.Requested) {
-							transform.Dir = input.Requested
-						}
-					}
-				} else {
-					if nearX {
-						targetTx := tx
-						if ox > config.Half {
-							targetTx++
-						}
-						if CanPlayerMove(maze, targetTx, ty, input.Requested) {
-							transform.Dir = input.Requested
-						}
-					}
-				}
-			}
-		}
-
-		// Move if not blocked by a wall or ghost house door.
-		canMove := false
-		if transform.Dir == config.Up || transform.Dir == config.Down {
-			if oy != 0 {
-				canMove = true
-			} else {
-				targetTx := tx
-				if ox > config.Half {
-					targetTx++
-				}
-				canMove = CanPlayerMove(maze, targetTx, ty, transform.Dir)
-			}
-		} else {
-			if ox != 0 {
-				canMove = true
-			} else {
-				targetTy := ty
-				if oy > config.Half {
-					targetTy++
-				}
-				canMove = CanPlayerMove(maze, tx, targetTy, transform.Dir)
-			}
-		}
-
-		if canMove && MoveActor(transform, motion, playerSpeed(gameState)) {
-			updatePlayerAnimation(anim)
-		}
-
-		// Eat dots/powerups using center-aligned tile coordinates.
-		centerTile := transform.Pos.ToCenterTile()
-		if maze.InBounds(centerTile.X, centerTile.Y) {
-			tile := maze.GetCell(centerTile.X, centerTile.Y)
-			switch tile {
-			case component.Dot:
-				event.DotEaten.Publish(w, event.DotEatenEvent{X: centerTile.X, Y: centerTile.Y})
-			case component.Power:
-				event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: centerTile.X, Y: centerTile.Y})
-			}
-		}
-
-		WrapHorizontal(&transform.Pos)
+		updateSinglePlayer(
+			w, nil, gameState, maze,
+			component.Transform.Get(entry),
+			component.Motion.Get(entry),
+			component.Animation.Get(entry),
+			component.PlayerInput.Get(entry),
+		)
 	}
+}
+
+func (s *PlayerSystem) updateCached(w donburi.World, c *worldCache) {
+	for i := range c.players {
+		p := &c.players[i]
+		updateSinglePlayer(w, c.bus, c.gs, c.maze, p.transform, p.motion, p.anim, p.input)
+	}
+}
+
+func updateSinglePlayer(
+	w donburi.World,
+	bus *event.Bus,
+	gameState *component.GameStateData,
+	maze *component.MazeData,
+	transform *component.TransformData,
+	motion *component.MotionData,
+	anim *component.AnimationData,
+	input *component.PlayerInputData,
+) {
+	const threshold = 3
+
+	tx := transform.Pos.X / config.Tile
+	ty := transform.Pos.Y / config.Tile
+	ox := transform.Pos.X % config.Tile
+	oy := transform.Pos.Y % config.Tile
+
+	// Direction change: opposite reversal is immediate; perpendicular turns
+	// trigger when near an intersection.
+	if input.Active || input.Requested != transform.Dir {
+		if transform.Dir.IsOpposite(input.Requested) {
+			transform.Dir = input.Requested
+		} else {
+			nearX := ox <= threshold || ox >= config.Tile-threshold
+			nearY := oy <= threshold || oy >= config.Tile-threshold
+
+			if transform.Dir == config.Up || transform.Dir == config.Down {
+				if nearY {
+					targetTy := ty
+					if oy > config.Half {
+						targetTy++
+					}
+					if CanPlayerMove(maze, tx, targetTy, input.Requested) {
+						transform.Dir = input.Requested
+					}
+				}
+			} else {
+				if nearX {
+					targetTx := tx
+					if ox > config.Half {
+						targetTx++
+					}
+					if CanPlayerMove(maze, targetTx, ty, input.Requested) {
+						transform.Dir = input.Requested
+					}
+				}
+			}
+		}
+	}
+
+	// Move if not blocked by a wall or ghost house door.
+	canMove := false
+	if transform.Dir == config.Up || transform.Dir == config.Down {
+		if oy != 0 {
+			canMove = true
+		} else {
+			targetTx := tx
+			if ox > config.Half {
+				targetTx++
+			}
+			canMove = CanPlayerMove(maze, targetTx, ty, transform.Dir)
+		}
+	} else {
+		if ox != 0 {
+			canMove = true
+		} else {
+			targetTy := ty
+			if oy > config.Half {
+				targetTy++
+			}
+			canMove = CanPlayerMove(maze, tx, targetTy, transform.Dir)
+		}
+	}
+
+	if canMove && MoveActor(transform, motion, playerSpeed(gameState)) {
+		updatePlayerAnimation(anim)
+	}
+
+	// Eat dots/powerups using center-aligned tile coordinates.
+	centerTile := transform.Pos.ToCenterTile()
+	if maze.InBounds(centerTile.X, centerTile.Y) {
+		tile := maze.GetCell(centerTile.X, centerTile.Y)
+		switch tile {
+		case component.Dot:
+			ev := event.DotEatenEvent{X: centerTile.X, Y: centerTile.Y}
+			if bus != nil {
+				event.DotEaten.PublishTo(bus, ev)
+			} else {
+				event.DotEaten.Publish(w, ev)
+			}
+		case component.Power:
+			ev := event.PowerUpEatenEvent{X: centerTile.X, Y: centerTile.Y}
+			if bus != nil {
+				event.PowerUpEaten.PublishTo(bus, ev)
+			} else {
+				event.PowerUpEaten.Publish(w, ev)
+			}
+		}
+	}
+
+	WrapHorizontal(&transform.Pos)
 }
 
 // CanPlayerMove reports whether the tile adjacent to (tx, ty) in dir is passable for the player.
@@ -158,7 +189,10 @@ func CanPlayerMove(maze *component.MazeData, tx, ty int, dir config.Direction) b
 func updatePlayerAnimation(anim *component.AnimationData) {
 	const framesPerState = 5
 	const cycleLength = 4 * framesPerState
-	frameInCycle := anim.FrameCount % cycleLength
+	frameInCycle := anim.FrameCount
+	if frameInCycle >= cycleLength {
+		frameInCycle %= cycleLength
+	}
 	switch {
 	case frameInCycle < framesPerState:
 		anim.FrameIndex = 2 // Closed
@@ -170,7 +204,11 @@ func updatePlayerAnimation(anim *component.AnimationData) {
 		anim.FrameIndex = 1 // Half-open (returning)
 	}
 
-	anim.FrameCount = (anim.FrameCount + 1) % cycleLength
+	next := frameInCycle + 1
+	if next >= cycleLength {
+		next = 0
+	}
+	anim.FrameCount = next
 }
 
 func playerSpeed(gameState *component.GameStateData) uint32 {

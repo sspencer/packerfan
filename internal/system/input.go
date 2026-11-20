@@ -99,3 +99,13 @@ func (s *InputSystem) ApplyPlayerInput(w donburi.World) {
 		}
 	}
 }
+
+func (s *InputSystem) applyPlayerInputCached(c *worldCache) {
+	for i := range c.players {
+		input := c.players[i].input
+		input.Active = s.current.HasDirection
+		if s.current.HasDirection {
+			input.Requested = s.current.Direction
+		}
+	}
+}

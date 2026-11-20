@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/yohamta/donburi"
-	"github.com/yohamta/donburi/features/events"
 
 	"pacfan/internal/archetype"
 	"pacfan/internal/component"
@@ -298,7 +297,7 @@ func TestFrightModeExpirationRestoresGhostWaveState(t *testing.T) {
 
 	gameStateSys := system.NewGameStateSystem()
 	gameStateSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if gs.IsFrightMode {
 		t.Fatalf("expected IsFrightMode=false after FrightFrames expired")
@@ -320,7 +319,7 @@ func TestFrightModePausesScatterChaseWaveTimer(t *testing.T) {
 	gameStateSys := system.NewGameStateSystem()
 	for range 2 {
 		gameStateSys.Update(w)
-		events.ProcessAllEvents(w)
+		event.ProcessAllEvents(w)
 		if gs.WaveFrames != scatterEnd {
 			t.Fatalf("WaveFrames advanced during fright: got %d, want %d", gs.WaveFrames, scatterEnd)
 		}
@@ -331,7 +330,7 @@ func TestFrightModePausesScatterChaseWaveTimer(t *testing.T) {
 
 	// 3rd tick ends fright mode; wave timer stays paused on the expiration frame.
 	gameStateSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if gs.IsFrightMode {
 		t.Fatalf("expected FrightMode to end")
 	}
@@ -341,7 +340,7 @@ func TestFrightModePausesScatterChaseWaveTimer(t *testing.T) {
 
 	// Next tick resumes the wave timer and crosses scatterEnd -> Chase.
 	gameStateSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if gs.WaveFrames != scatterEnd+1 || gs.GhostState != config.Chase {
 		t.Fatalf("wave timer did not resume after fright: state=%v waveFrames=%d", gs.GhostState, gs.WaveFrames)
 	}
@@ -361,7 +360,7 @@ func TestPowerUpReversesGhostsOnNoFrightLevels(t *testing.T) {
 	pinky.Reverse = false
 
 	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 1, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if gs.IsFrightMode || gs.FrightFrames != 0 {
 		t.Fatalf("expected no fright mode on level 19, got IsFrightMode=%v FrightFrames=%d", gs.IsFrightMode, gs.FrightFrames)
@@ -570,7 +569,7 @@ func TestGhostHousePersonalGlobalCountersAndInactivityTimer(t *testing.T) {
 	// Eating 30 dots increments Inky's personal counter (not Clyde's) and releases Inky.
 	for range 30 {
 		event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
-		events.ProcessAllEvents(w)
+		event.ProcessAllEvents(w)
 	}
 	if inky.DotCounter != 30 || clyde.DotCounter != 0 {
 		t.Fatalf("unexpected personal counters: inky=%d clyde=%d (want 30, 0)", inky.DotCounter, clyde.DotCounter)
@@ -600,7 +599,7 @@ func TestGhostHousePersonalGlobalCountersAndInactivityTimer(t *testing.T) {
 	eatDots := func(n int) {
 		for range n {
 			event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
-			events.ProcessAllEvents(w)
+			event.ProcessAllEvents(w)
 		}
 	}
 
@@ -648,7 +647,7 @@ func TestGhostInHouseExitsFrightenedWhileEnergizerActive(t *testing.T) {
 	component.Transform.Get(blinkyEntry).Pos = blinky.EatenTarget
 
 	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 1, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if !pinky.FrightenedInHouse {
 		t.Fatalf("expected Pinky (InHouse) to be flagged FrightenedInHouse=true")
@@ -706,7 +705,7 @@ func TestGhostExitsHouseHeadingLeftByDefaultAndRightIfReversed(t *testing.T) {
 	inky.State = config.LeavingHouse
 	component.Transform.Get(inkyEntry).Pos = config.Vector{X: house.Entrance.X, Y: house.Entrance.Y + 1}
 	event.GhostStateChanged.Publish(w, event.GhostStateChangedEvent{State: config.Chase})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	ghostSys.Update(w)
 	if got := component.Transform.Get(inkyEntry).Dir; got != config.Right {
@@ -793,7 +792,7 @@ func TestPlayerCollisionWithFrightenedGhostMarksGhostEaten(t *testing.T) {
 
 	collisionSys := system.NewCollisionSystem()
 	collisionSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if !component.Actor.Get(blinkyEntry).IsEaten {
 		t.Fatalf("expected Blinky IsEaten=true after collision while frightened")
@@ -817,7 +816,7 @@ func TestGhostWaveChangeReversesActiveGhosts(t *testing.T) {
 
 	gameStateSys := system.NewGameStateSystem()
 	gameStateSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if gs.GhostState != config.Chase {
 		t.Fatalf("expected GameState.GhostState=Chase, got %v", gs.GhostState)
@@ -834,7 +833,7 @@ func TestLevelCompletedMarksLevelComplete(t *testing.T) {
 
 	gameStateSys := system.NewGameStateSystem()
 	gameStateSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if !gs.LevelComplete {
 		t.Fatalf("expected LevelComplete=true when DotsRemaining reaches 0")
@@ -849,8 +848,8 @@ func TestWorldIsolationNoGlobalStateLeakage(t *testing.T) {
 	w2, _, _ := newTestWorld(t)
 
 	event.DotEaten.Publish(w1, event.DotEatenEvent{X: 5, Y: 5})
-	events.ProcessAllEvents(w1)
-	events.ProcessAllEvents(w2)
+	event.ProcessAllEvents(w1)
+	event.ProcessAllEvents(w2)
 
 	if component.MustFindGameState(w1).Score != config.PelletScore {
 		t.Fatalf("w1 score = %d, want %d", component.MustFindGameState(w1).Score, config.PelletScore)
@@ -1224,7 +1223,7 @@ func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 	// Eat a power pellet to start frightened mode.
 	maze.SetCell(5, 5, component.Power)
 	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 5, Y: 5})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	wantPoints := []int{200, 400, 800, 1600}
 	wantTotal := config.PowerScore
@@ -1236,7 +1235,7 @@ func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 		component.Transform.Get(entry).Pos = pos
 
 		collisionSys.Update(w)
-		events.ProcessAllEvents(w)
+		event.ProcessAllEvents(w)
 
 		wantTotal += wantPoints[i]
 		if gs.NumGhostsEaten != i+1 {
@@ -1269,7 +1268,7 @@ func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 		X:      80,
 		Y:      80,
 	})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if gs.Score != wantTotal || gs.NumGhostsEaten != 4 {
 		t.Fatalf("duplicate GhostEaten altered state: Score=%d NumGhostsEaten=%d", gs.Score, gs.NumGhostsEaten)
 	}
@@ -1279,7 +1278,7 @@ func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 	component.Ghost.Get(ghosts[0]).State = config.Scatter
 	maze.SetCell(6, 5, component.Power)
 	event.PowerUpEaten.Publish(w, event.PowerUpEatenEvent{X: 6, Y: 5})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	wantTotal += config.PowerScore
 
 	if gs.NumGhostsEaten != 0 {
@@ -1290,7 +1289,7 @@ func TestSuccessiveGhostsEatenScoringAndPowerPelletReset(t *testing.T) {
 	component.Transform.Get(player).Pos = pos
 	component.Transform.Get(ghosts[0]).Pos = pos
 	collisionSys.Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	wantTotal += 200
 
 	if gs.Score != wantTotal || gs.GhostEatenScore != 200 || gs.NumGhostsEaten != 1 {
@@ -1527,7 +1526,7 @@ func TestBonusFruitSpawnsAt70And170DotsAndCollects(t *testing.T) {
 
 	// 70th dot spawns first bonus fruit.
 	event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if !gs.FruitActive || gs.FruitSpawnedCount != 1 {
 		t.Fatalf("expected fruit active after 70 dots: active=%v count=%d", gs.FruitActive, gs.FruitSpawnedCount)
 	}
@@ -1539,7 +1538,7 @@ func TestBonusFruitSpawnsAt70And170DotsAndCollects(t *testing.T) {
 	scoreBefore := gs.Score
 	component.Transform.Get(player).Pos = gs.FruitPos
 	system.NewCollisionSystem().Update(w)
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if gs.FruitActive {
 		t.Fatalf("expected FruitActive=false after eating fruit")
@@ -1555,7 +1554,7 @@ func TestBonusFruitSpawnsAt70And170DotsAndCollects(t *testing.T) {
 	// 170th dot spawns second fruit, which expires when its timer reaches 0.
 	gs.DotsEaten = 169
 	event.DotEaten.Publish(w, event.DotEatenEvent{X: 2, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if !gs.FruitActive || gs.FruitSpawnedCount != 2 {
 		t.Fatalf("expected second fruit at 170 dots: active=%v count=%d", gs.FruitActive, gs.FruitSpawnedCount)
 	}
@@ -1576,7 +1575,7 @@ func TestExtraLifeAwardedOnceAt10000Points(t *testing.T) {
 
 	// Crossing 10,000 awards +1 life.
 	event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if gs.Score != 10000 || gs.Lives != 4 || !gs.ExtraLifeAwarded {
 		t.Fatalf("expected extra life at 10,000: score=%d lives=%d awarded=%v", gs.Score, gs.Lives, gs.ExtraLifeAwarded)
 	}
@@ -1642,7 +1641,7 @@ func TestMsPacmanBouncingFruitSpawnsAt64And176AndExitsTunnel(t *testing.T) {
 
 	// 64th dot spawns Ms. Pac-Man's moving bouncing fruit at a side tunnel.
 	event.DotEaten.Publish(w, event.DotEatenEvent{X: 1, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 
 	if !gs.FruitActive || !gs.FruitMoving || gs.FruitSpawnedCount != 1 {
 		t.Fatalf("expected moving Ms. Pac-Man fruit at 64 dots: active=%v moving=%v count=%d",
@@ -1658,7 +1657,7 @@ func TestMsPacmanBouncingFruitSpawnsAt64And176AndExitsTunnel(t *testing.T) {
 	moved := false
 	for range 1200 {
 		fruitSys.Update(w)
-		events.ProcessAllEvents(w)
+		event.ProcessAllEvents(w)
 		if gs.FruitPos != startPos {
 			moved = true
 		}
@@ -1677,7 +1676,7 @@ func TestMsPacmanBouncingFruitSpawnsAt64And176AndExitsTunnel(t *testing.T) {
 	// 176th dot spawns the second Ms. Pac-Man fruit.
 	gs.DotsEaten = 175
 	event.DotEaten.Publish(w, event.DotEatenEvent{X: 2, Y: 1})
-	events.ProcessAllEvents(w)
+	event.ProcessAllEvents(w)
 	if !gs.FruitActive || gs.FruitSpawnedCount != 2 {
 		t.Fatalf("expected second Ms. Pac-Man fruit at 176 dots: active=%v count=%d", gs.FruitActive, gs.FruitSpawnedCount)
 	}
@@ -1699,7 +1698,7 @@ func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 		component.Transform.Get(blinky).Pos = pos
 
 		system.NewCollisionSystem().Update(w)
-		events.ProcessAllEvents(w)
+		event.ProcessAllEvents(w)
 
 		if component.MustFindGameState(w).PlayerDying || component.Actor.Get(player).IsEaten {
 			t.Fatalf("ghost in state %v must not eat player", state)
@@ -1716,7 +1715,7 @@ func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 		component.Transform.Get(blinky).Pos = config.Vector{X: 83, Y: 80}
 
 		system.NewCollisionSystem().Update(w)
-		events.ProcessAllEvents(w)
+		event.ProcessAllEvents(w)
 
 		if !component.MustFindGameState(w).PlayerDying {
 			t.Fatalf("expected PlayerDying=true when colliding with %v ghost", state)

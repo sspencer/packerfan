@@ -22,7 +22,7 @@ func BitIsSet(value uint32, n int) bool {
 
 // IsCentered reports whether a pixel coordinate is aligned to an 8x8 tile boundary.
 func IsCentered(pos config.Vector) bool {
-	return pos.X%config.Tile == 0 && pos.Y%config.Tile == 0
+	return (pos.X|pos.Y)&(config.Tile-1) == 0
 }
 
 // WrapHorizontal wraps an actor's X coordinate across the left/right tunnel edges.
@@ -44,8 +44,26 @@ func MoveActor(transform *component.TransformData, motion *component.MotionData,
 		return false
 	}
 
-	base := BitValue(speed, 31)
-	move := BitValue(speed, (speedMaskSize-1)-motion.SpeedIndex) + base
+	move := int((speed>>uint(15-motion.SpeedIndex))&1) + int(speed>>31)
+	motion.SpeedIndex = (motion.SpeedIndex + 1) & (speedMaskSize - 1)
+
+	if move == 0 {
+		return false
+	}
+
+	if move == 1 && !motion.CornerSnap {
+		switch transform.Dir {
+		case config.Up:
+			transform.Pos.Y--
+		case config.Right:
+			transform.Pos.X++
+		case config.Down:
+			transform.Pos.Y++
+		case config.Left:
+			transform.Pos.X--
+		}
+		return true
+	}
 
 	for range move {
 		switch transform.Dir {
@@ -83,6 +101,5 @@ func MoveActor(transform *component.TransformData, motion *component.MotionData,
 		}
 	}
 
-	motion.SpeedIndex = (motion.SpeedIndex + 1) % speedMaskSize
-	return move > 0
+	return true
 }

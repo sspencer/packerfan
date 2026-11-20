@@ -173,7 +173,7 @@ func (s *Session) handleReset(req *Request) any {
 		s.recorder = rec
 	}
 
-	maze := component.MustFindMaze(s.env.World())
+	maze := s.env.Maze()
 	return ResetResponse{
 		OK:        true,
 		Tick:      s.env.Tick(),
@@ -234,7 +234,7 @@ func (s *Session) handleObserve(req *Request) any {
 	if !s.hasReset {
 		return ErrorResponse{OK: false, Error: "must call reset before observe"}
 	}
-	maze := component.MustFindMaze(s.env.World())
+	maze := s.env.Maze()
 	resp := ObserveResponse{
 		OK:        true,
 		Tick:      s.env.Tick(),
