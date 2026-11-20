@@ -41,7 +41,8 @@ assets/text-real.png
 pacman
 tasks/
 notes/
-pacfan
+/pacfan
+/pacfan-headless
 
 .DS_Store
 .codegraph

@@ -1,13 +1,17 @@
-GO         ?= go
-BINARY     ?= pacfan
-ARGS       ?=
-GOFLAGS    ?=
-COVER_FILE ?= coverage.out
+GO              ?= go
+BINARY          ?= pacfan
+HEADLESS_BINARY ?= pacfan-headless
+ARGS            ?=
+GOFLAGS         ?=
+COVER_FILE      ?= coverage.out
 
-.PHONY: build run test test-race cover fmt vet fix check check-headless-deps generate deps clean help
+.PHONY: build build-headless run test test-race cover fmt vet fix check check-headless-deps generate deps clean help
 
 build: ## Build the binary
 	$(GO) build $(GOFLAGS) -o $(BINARY) .
+
+build-headless: ## Build the headless NDJSON simulation server
+	$(GO) build $(GOFLAGS) -o $(HEADLESS_BINARY) ./cmd/pacfan-headless
 
 run: build ## Build and run the binary (e.g. make run ARGS="-pacman -zoom 4")
 	./$(BINARY) $(ARGS)
@@ -32,7 +36,7 @@ fix: ## Run go fix modernizers
 	$(GO) fix ./...
 
 check-headless-deps: ## Verify headless packages do not import Raylib, audio, scene, or render
-	@if $(GO) list -deps ./internal/sim | grep -E 'raylib|internal/audio|internal/scene|internal/render'; then \
+	@if $(GO) list -deps ./internal/sim ./internal/api ./cmd/pacfan-headless | grep -E 'raylib|internal/audio|internal/scene|internal/render'; then \
 		echo "ERROR: forbidden dependency found in headless packages"; \
 		exit 1; \
 	fi
@@ -48,7 +52,7 @@ deps: ## Download and tidy module dependencies
 
 clean: ## Remove build and coverage artifacts
 	$(GO) clean
-	rm -f $(BINARY) $(COVER_FILE)
+	rm -f $(BINARY) $(HEADLESS_BINARY) $(COVER_FILE)
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "; printf "Available targets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)

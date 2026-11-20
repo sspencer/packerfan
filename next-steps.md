@@ -225,8 +225,8 @@ a ...
 - [x] `reset` accepts `record` (path) and `meta` (opaque object copied into the header).
 
 ### Step 2.3 — `cmd/pacfan-headless`
-- [ ] Flags: `-art FILE` (default: embedded `game-real.png` else `game.png`), `-pacman`, `-level`, `-seed` (defaults for `reset`), `-verify FILE.pfr` (replay a file headlessly and exit non-zero on a hash mismatch), `-dump-mazes` (print the five text mazes and hashes, then exit).
-- [ ] Makefile: `build-headless`; extend `check-headless-deps` to `./cmd/pacfan-headless ./internal/api`.
+- [x] Flags: `-art FILE` (default: embedded `game-real.png` else `game.png`), `-pacman`, `-level`, `-seed` (defaults for `reset`), `-verify FILE.pfr` (replay a file headlessly and exit non-zero on a hash mismatch), `-dump-mazes` (print the five text mazes and hashes, then exit).
+- [x] Makefile: `build-headless`; extend `check-headless-deps` to `./cmd/pacfan-headless ./internal/api`.
 
 ### Step 2.4 — Tests and benchmark
 - [ ] Round-trip `hello → reset → step… → close` through `ServeNDJSON`; malformed JSON; unknown command; step before reset.
