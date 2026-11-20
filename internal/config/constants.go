@@ -14,7 +14,7 @@ const (
 	PelletPause                 = 1
 	PowerScore                  = 50
 	PowerPause                  = 3
-	GhostEatenPause             = 30
+	GhostEatenPause             = 61
 	ReadyDuration               = 122
 	RoundClearedHoldFrames      = 61
 	RoundClearedFlashHalfFrames = 14
