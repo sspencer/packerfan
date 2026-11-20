@@ -190,11 +190,11 @@ Values below are illustrative.
 - [x] `hash.go`: `HashWorld(w) uint64` (FNV-1a over gameplay fields of `GameState`, the maze grid, actor transforms / motion / ghost state / dot counters, fruit state, `PRNG.Index`; excludes `Zoom` and `HighScore`).
 
 ### Step 1.5 — Determinism, rule coverage, benchmark
-- [ ] Audit `internal/system` and `internal/component` for nondeterminism. Already checked: no `time.Now`, no map iteration, and `math/rand` is used only to fill the PRNG ROM. Still to confirm: donburi query iteration order is stable across worlds built the same way (the per-tick hash test below is the proof).
-- [ ] Determinism test: two `Env`s, same seed and action stream, 5,000+ ticks, Pac-Man and Ms. Pac-Man; `HashWorld` equal on every tick. Different seeds must diverge.
-- [ ] Rule tests: dots, power pellets, ghost eaten (freeze runs inside one step; eyes move), fruit, extra life, death with and without `EpisodicLife`, level clear → next maze index, `MaxTicks` truncation, wall-push never hangs in any step mode.
-- [ ] `BenchmarkEnvTick` (ticks/sec, allocs/op) as the baseline. Known allocation source to fix if it shows up: `donburi.NewQuery` called per use in `internal/system/level.go`.
-- [ ] Makefile: `check-headless-deps` fails if `go list -deps ./internal/sim` matches `raylib|internal/audio|internal/scene|internal/render`; add it to `check`.
+- [x] Audit `internal/system` and `internal/component` for nondeterminism. Already checked: no `time.Now`, no map iteration, and `math/rand` is used only to fill the PRNG ROM. Still to confirm: donburi query iteration order is stable across worlds built the same way (the per-tick hash test below is the proof).
+- [x] Determinism test: two `Env`s, same seed and action stream, 5,000+ ticks, Pac-Man and Ms. Pac-Man; `HashWorld` equal on every tick. Different seeds must diverge.
+- [x] Rule tests: dots, power pellets, ghost eaten (freeze runs inside one step; eyes move), fruit, extra life, death with and without `EpisodicLife`, level clear → next maze index, `MaxTicks` truncation, wall-push never hangs in any step mode.
+- [x] `BenchmarkEnvTick` (ticks/sec, allocs/op) as the baseline. Known allocation source to fix if it shows up: `donburi.NewQuery` called per use in `internal/system/level.go`.
+- [x] Makefile: `check-headless-deps` fails if `go list -deps ./internal/sim` matches `raylib|internal/audio|internal/scene|internal/render`; add it to `check`.
 
 **Done when:** `make check` passes including the dependency check and per-tick determinism tests, and a Go test plays a scripted game from reset to game over.
 

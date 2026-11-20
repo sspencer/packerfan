@@ -322,12 +322,10 @@ func (e *Env) Step(action Action, mode StepMode, frames int) StepResult {
 
 		if mode == StepTile || mode == StepIntersection {
 			tr := component.Transform.Get(e.player)
-			motion := component.Motion.Get(e.player)
 			pos := tr.Pos
 
-			// Stopped by a wall: player did not move and is not in a dot-eating pause
-			// and cannot continue in its current direction.
-			if pos == prevPos && motion.DotPause == 0 && !canPlayerContinue(maze, pos, tr.Dir) {
+			// Stopped by a wall: player did not move and cannot continue in its current direction.
+			if pos == prevPos && !canPlayerContinue(maze, pos, tr.Dir) {
 				break
 			}
 

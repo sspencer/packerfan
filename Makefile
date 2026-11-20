@@ -4,7 +4,7 @@ ARGS       ?=
 GOFLAGS    ?=
 COVER_FILE ?= coverage.out
 
-.PHONY: build run test test-race cover fmt vet fix check generate deps clean help
+.PHONY: build run test test-race cover fmt vet fix check check-headless-deps generate deps clean help
 
 build: ## Build the binary
 	$(GO) build $(GOFLAGS) -o $(BINARY) .
@@ -31,7 +31,13 @@ vet: ## Run go vet static analysis
 fix: ## Run go fix modernizers
 	$(GO) fix ./...
 
-check: fmt vet test-race ## Run fmt, vet, and race-checked tests
+check-headless-deps: ## Verify headless packages do not import Raylib, audio, scene, or render
+	@if $(GO) list -deps ./internal/sim | grep -E 'raylib|internal/audio|internal/scene|internal/render'; then \
+		echo "ERROR: forbidden dependency found in headless packages"; \
+		exit 1; \
+	fi
+
+check: fmt vet check-headless-deps test-race ## Run fmt, vet, dependency checks, and race-checked tests
 
 generate: ## Run go generate (regenerate stringer enum helpers)
 	$(GO) generate ./...

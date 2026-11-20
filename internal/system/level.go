@@ -8,39 +8,38 @@ import (
 	"pacfan/internal/config"
 )
 
-// ResetActors restores the player and all ghosts to their initial spawn state.
-func ResetActors(w donburi.World) {
-	playerQuery := donburi.NewQuery(
+var (
+	levelPlayerQuery = donburi.NewQuery(
 		filter.Contains(component.PlayerTag, component.Spawn, component.Transform),
 	)
-	for entry := range playerQuery.Iter(w) {
-		component.ResetPlayer(entry)
-	}
-
-	ghostQuery := donburi.NewQuery(
+	levelGhostResetQuery = donburi.NewQuery(
 		filter.Contains(component.GhostTag, component.Ghost, component.Spawn, component.Transform),
 	)
-	for entry := range ghostQuery.Iter(w) {
+	levelGhostQuery = donburi.NewQuery(
+		filter.Contains(component.GhostTag, component.Ghost),
+	)
+)
+
+// ResetActors restores the player and all ghosts to their initial spawn state.
+func ResetActors(w donburi.World) {
+	for entry := range levelPlayerQuery.Iter(w) {
+		component.ResetPlayer(entry)
+	}
+	for entry := range levelGhostResetQuery.Iter(w) {
 		component.ResetGhost(entry)
 	}
 }
 
 // ResetGhostDotCounters zeroes every ghost's personal house dot counter (used on new level/game).
 func ResetGhostDotCounters(w donburi.World) {
-	ghostQuery := donburi.NewQuery(
-		filter.Contains(component.GhostTag, component.Ghost),
-	)
-	for entry := range ghostQuery.Iter(w) {
+	for entry := range levelGhostQuery.Iter(w) {
 		component.Ghost.Get(entry).DotCounter = 0
 	}
 }
 
 func snapshotGhostDotCounters(w donburi.World) [4]int {
 	var counters [4]int
-	ghostQuery := donburi.NewQuery(
-		filter.Contains(component.GhostTag, component.Ghost),
-	)
-	for entry := range ghostQuery.Iter(w) {
+	for entry := range levelGhostQuery.Iter(w) {
 		g := component.Ghost.Get(entry)
 		if idx := int(g.AIKind); idx >= 0 && idx < len(counters) {
 			counters[idx] = g.DotCounter
@@ -50,10 +49,7 @@ func snapshotGhostDotCounters(w donburi.World) [4]int {
 }
 
 func restoreGhostDotCounters(w donburi.World, counters [4]int) {
-	ghostQuery := donburi.NewQuery(
-		filter.Contains(component.GhostTag, component.Ghost),
-	)
-	for entry := range ghostQuery.Iter(w) {
+	for entry := range levelGhostQuery.Iter(w) {
 		g := component.Ghost.Get(entry)
 		if idx := int(g.AIKind); idx >= 0 && idx < len(counters) {
 			g.DotCounter = counters[idx]
