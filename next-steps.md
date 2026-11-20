@@ -167,9 +167,9 @@ Values below are illustrative.
 - [x] **Verify:** `go list -deps ./internal/system ./internal/archetype | grep -E 'raylib|internal/audio'` prints nothing; `make check` passes.
 
 ### Step 1.2 — Seedable PRNG and start-at-level
-- [ ] `internal/component/prng.go`: `DefaultPRNGSeed = 42`, `InitWithSeed(seed int64)`; `Init()` delegates to it so the windowed game is unchanged.
-- [ ] `internal/system/level.go`: `StartGameAtLevel(w, level, isPixelLit)` (level clamped to `1..255`); `RestartGame` becomes `StartGameAtLevel(w, 1, ...)`.
-- [ ] Tests: same seed → same byte sequence; different seeds diverge; starting at level N loads the right maze index and level spec.
+- [x] `internal/component/prng.go`: `DefaultPRNGSeed = 42`, `InitWithSeed(seed int64)`; `Init()` delegates to it so the windowed game is unchanged.
+- [x] `internal/system/level.go`: `StartGameAtLevel(w, level, isPixelLit)` (level clamped to `1..255`); `RestartGame` becomes `StartGameAtLevel(w, 1, ...)`.
+- [x] Tests: same seed → same byte sequence; different seeds diverge; starting at level N loads the right maze index and level spec.
 
 ### Step 1.3 — Pure-Go sheet and text maze set
 - [ ] `internal/sheet`: `Load(fsys fs.FS, path string)` and `LoadFile(path string)` decode the PNG once into a lit-pixel bitmap; expose `IsPixelLit(x, y)` (same rule as `render.Art.IsPixelLit`: any of R, G, B non-zero), `Name()` (base filename), and `SHA256()`.

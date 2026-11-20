@@ -8,7 +8,10 @@ import (
 	"pacfan/internal/config"
 )
 
-const ROMSize = 8192
+const (
+	ROMSize         = 8192
+	DefaultPRNGSeed = 42
+)
 
 // PRNGData models the arcade game's ROM-indexed pseudo-random byte generator
 // used by frightened ghosts and house exits, scoped to a single ECS World.
@@ -24,9 +27,15 @@ func NewPRNGData() PRNGData {
 	return p
 }
 
-// Init fills the simulated ROM with reproducible pseudo-random bytes.
+// Init fills the simulated ROM with reproducible pseudo-random bytes using DefaultPRNGSeed.
 func (p *PRNGData) Init() {
-	r := rand.New(rand.NewSource(42))
+	p.InitWithSeed(DefaultPRNGSeed)
+}
+
+// InitWithSeed fills the simulated ROM with reproducible pseudo-random bytes
+// derived from seed and rewinds the cursor to 0.
+func (p *PRNGData) InitWithSeed(seed int64) {
+	r := rand.New(rand.NewSource(seed))
 	for i := range p.ROM {
 		p.ROM[i] = byte(r.Intn(256))
 	}

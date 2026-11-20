@@ -170,17 +170,25 @@ func StartNewGame(w donburi.World, playerCount int, isPixelLit func(x, y int) bo
 // RestartGame resets the world to Level 1 with full lives, zero score (keeping
 // HighScore), a freshly loaded Level 1 maze, rewound PRNG, and spawned actors.
 func RestartGame(w donburi.World, isPixelLit func(x, y int) bool) {
+	StartGameAtLevel(w, 1, isPixelLit)
+}
+
+// StartGameAtLevel resets the world to the given level (clamped to 1..255) with
+// full lives, zero score (preserving HighScore, Zoom, PacmanMode, and
+// PlayerCount), a freshly loaded maze, rewound PRNG, and spawned actors.
+func StartGameAtLevel(w donburi.World, level int, isPixelLit func(x, y int) bool) {
+	level = max(1, min(level, 255))
 	gameState := component.MustFindGameState(w)
 	maze := component.MustFindMaze(w)
 
 	dotsRemaining := 0
 	if isPixelLit != nil {
-		dotsRemaining = maze.LoadLevel(1, isPixelLit)
+		dotsRemaining = maze.LoadLevel(level, isPixelLit)
 	} else {
-		maze.Level = 1
+		maze.Level = level
 	}
 
-	gameState.ResetForNewGame(dotsRemaining)
+	gameState.ResetForNewGameAtLevel(level, dotsRemaining)
 	component.MustFindPRNG(w).Reset()
 	ResetActors(w)
 	ResetGhostDotCounters(w)
