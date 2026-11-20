@@ -14,7 +14,7 @@ func CreateGameState(w donburi.World, pacmanMode bool, zoom float32) *donburi.En
 		Zoom:       zoom,
 		PacmanMode: pacmanMode,
 		Level:      1,
-		Lives:      3,
+		Lives:      config.InitialLives,
 		GhostState: config.Scatter,
 	}
 	state.SetLevel(1)

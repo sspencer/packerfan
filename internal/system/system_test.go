@@ -973,3 +973,59 @@ func TestConsumeLifeAndRespawnPreservesDotsAndHandlesGameOver(t *testing.T) {
 		t.Fatalf("after last life: Lives=%d GameOver=%v PlayerDying=%v", gs.Lives, gs.GameOver, gs.PlayerDying)
 	}
 }
+
+func TestRestartGameResetsToLevel1AndPreservesHighScore(t *testing.T) {
+	w, player, ghosts := newTestWorld(t)
+	gs := component.MustFindGameState(w)
+	maze := component.MustFindMaze(w)
+	prng := component.MustFindPRNG(w)
+
+	gs.SetLevel(4)
+	maze.Level = 4
+	gs.Lives = 0
+	gs.Score = 8400
+	gs.HighScore = 12000
+	gs.FrameCount = 1234
+	gs.DotsEaten = 200
+	gs.DotsRemaining = 10
+	gs.GameOver = true
+	gs.PlayerDying = true
+	gs.LevelComplete = true
+	gs.Paused = true
+	prng.NextByte()
+
+	component.Actor.Get(player).IsEaten = true
+	component.Transform.Get(player).Pos = config.Vector{X: 32, Y: 32}
+	component.Transform.Get(ghosts[0]).Pos = config.Vector{X: 48, Y: 48}
+	component.Ghost.Get(ghosts[0]).State = config.Chase
+
+	system.RestartGame(w, nil)
+
+	if gs.Level != 1 || maze.Level != 1 {
+		t.Fatalf("expected Level=1, got gs.Level=%d maze.Level=%d", gs.Level, maze.Level)
+	}
+	if gs.Lives != config.InitialLives {
+		t.Fatalf("Lives = %d, want %d", gs.Lives, config.InitialLives)
+	}
+	if gs.Score != 0 {
+		t.Fatalf("Score = %d, want 0", gs.Score)
+	}
+	if gs.HighScore != 12000 {
+		t.Fatalf("HighScore = %d, want preserved 12000", gs.HighScore)
+	}
+	if gs.GameOver || gs.PlayerDying || gs.LevelComplete || gs.Paused || gs.FrameCount != 0 || gs.DotsEaten != 0 {
+		t.Fatalf("stale flags after RestartGame: %+v", gs)
+	}
+	if gs.Spec != config.GetLevelSpec(1) || gs.GhostState != config.Scatter || prng.Index != 0 {
+		t.Fatalf("level 1 spec/wave/PRNG not reset: spec=%+v ghostState=%v prng=%d", gs.Spec, gs.GhostState, prng.Index)
+	}
+	if component.Actor.Get(player).IsEaten {
+		t.Fatalf("expected player IsEaten=false after RestartGame")
+	}
+	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
+		t.Fatalf("player Pos = %v, want spawn %v", got, want)
+	}
+	if got, want := component.Transform.Get(ghosts[0]).Pos, component.Spawn.Get(ghosts[0]).StartPos; got != want {
+		t.Fatalf("Blinky Pos = %v, want spawn %v", got, want)
+	}
+}

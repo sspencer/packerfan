@@ -82,6 +82,15 @@ func (g *GameStateData) ResetForNextLife() {
 	g.PlayerDying = false
 }
 
+// ResetForNewGame resets the session back to level 1 with full lives and zero
+// score while preserving HighScore, Zoom, and PacmanMode.
+func (g *GameStateData) ResetForNewGame(dotsRemaining int) {
+	g.Lives = config.InitialLives
+	g.Score = 0
+	g.Paused = false
+	g.ResetForNextLevel(1, dotsRemaining)
+}
+
 var GameState = donburi.NewComponentType[GameStateData]()
 
 // MustFindGameState returns the singleton GameState component in the world.

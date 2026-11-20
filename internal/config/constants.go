@@ -9,6 +9,7 @@ const (
 	Tile                        = 8
 	Sprite                      = 16
 	Half                        = Tile / 2
+	InitialLives                = 3
 	PelletScore                 = 10
 	PelletPause                 = 1
 	PowerScore                  = 50
@@ -22,6 +23,7 @@ const (
 	PlayerDyingFrameCount       = 11
 	PlayerDyingFrameTicks       = 7
 	PlayerDyingPostFrames       = 30
+	GameOverRestartDelay        = 61
 	TargetFPS                   = 61
 	ArcadeFPS                   = 60.606061
 )

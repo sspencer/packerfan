@@ -15,8 +15,15 @@ func NewRaylibInput() *RaylibInput {
 }
 
 func (r *RaylibInput) Sample() system.InputState {
+	pausePressed := rl.IsKeyPressed(rl.KeySpace)
+	anyKeyPressed := pausePressed
+	for rl.GetKeyPressed() != 0 {
+		anyKeyPressed = true
+	}
+
 	state := system.InputState{
-		PausePressed: rl.IsKeyPressed(rl.KeySpace),
+		PausePressed:  pausePressed,
+		AnyKeyPressed: anyKeyPressed,
 	}
 
 	switch {

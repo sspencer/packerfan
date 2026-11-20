@@ -579,3 +579,55 @@ func TestLosingLastLifeTransitionsToGameOverScene(t *testing.T) {
 		t.Fatalf("unexpected GameOver draw options: %+v", last)
 	}
 }
+
+func TestGameOverRestartsOnAnyKeyAfterOneSecond(t *testing.T) {
+	ctx, input, _, player, ghosts := newSceneHarness(t, false)
+	gs := component.MustFindGameState(ctx.World)
+	maze := component.MustFindMaze(ctx.World)
+
+	// Simulate dying on Level 3 (Ms. Pac-Man maze index 1) with score & high score.
+	gs.SetLevel(3)
+	maze.Level = 3
+	gs.Lives = 0
+	gs.Score = 7500
+	gs.HighScore = 9000
+	gs.GameOver = true
+	component.Transform.Get(player).Pos = config.Vector{X: 40, Y: 40}
+	component.Transform.Get(ghosts[0]).Pos = config.Vector{X: 56, Y: 56}
+
+	ctx.Manager.Start(scene.NewGameOverScene(ctx))
+
+	// Pressing any key during the first 60 frames (< 1 second at 61 FPS) must NOT restart.
+	input.state = system.InputState{AnyKeyPressed: true}
+	for i := range config.GameOverRestartDelay - 1 {
+		ctx.Manager.Update()
+		if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
+			t.Fatalf("restarted too early on frame %d (before 1s delay)", i+1)
+		}
+	}
+
+	// Once 1 full second has elapsed (frame 61), pressing no key still stays in GameOverScene.
+	input.state = system.InputState{AnyKeyPressed: false}
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.GameOverScene); !ok {
+		t.Fatalf("restarted without a key press")
+	}
+
+	// Now pressing any key restarts the game cleanly into ReadyScene on Level 1.
+	input.state = system.InputState{AnyKeyPressed: true}
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.ReadyScene); !ok {
+		t.Fatalf("expected transition to ReadyScene on key press after 1s, got %T", ctx.Manager.Current())
+	}
+	if gs.Level != 1 || maze.Level != 1 || maze.GetIndex() != 0 {
+		t.Fatalf("expected Level 1 (maze index 0) after restart, got level=%d mazeLevel=%d index=%d",
+			gs.Level, maze.Level, maze.GetIndex())
+	}
+	if gs.Lives != config.InitialLives || gs.Score != 0 || gs.HighScore != 9000 || gs.GameOver {
+		t.Fatalf("unexpected GameState after restart: Lives=%d Score=%d HighScore=%d GameOver=%v",
+			gs.Lives, gs.Score, gs.HighScore, gs.GameOver)
+	}
+	if got, want := component.Transform.Get(player).Pos, component.Spawn.Get(player).StartPos; got != want {
+		t.Fatalf("player did not reset to spawn: got %v, want %v", got, want)
+	}
+}

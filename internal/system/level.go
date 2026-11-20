@@ -66,3 +66,21 @@ func ConsumeLifeAndRespawn(w donburi.World) bool {
 	ResetActors(w)
 	return true
 }
+
+// RestartGame resets the world to Level 1 with full lives, zero score (keeping
+// HighScore), a freshly loaded Level 1 maze, rewound PRNG, and spawned actors.
+func RestartGame(w donburi.World, isPixelLit func(x, y int) bool) {
+	gameState := component.MustFindGameState(w)
+	maze := component.MustFindMaze(w)
+
+	dotsRemaining := 0
+	if isPixelLit != nil {
+		dotsRemaining = maze.LoadLevel(1, isPixelLit)
+	} else {
+		maze.Level = 1
+	}
+
+	gameState.ResetForNewGame(dotsRemaining)
+	component.MustFindPRNG(w).Reset()
+	ResetActors(w)
+}
