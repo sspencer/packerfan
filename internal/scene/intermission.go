@@ -3,6 +3,7 @@ package scene
 import (
 	"fmt"
 
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 	"pacfan/internal/config"
 )
@@ -44,6 +45,8 @@ func (s *IntermissionScene) Act() int {
 
 func (s *IntermissionScene) Enter() {
 	s.frame = 0
+	s.ctx.audio().SetLoop(audio.LoopNone)
+	s.ctx.audio().Play(audio.IntermissionSound(s.act))
 }
 
 func (s *IntermissionScene) Update() {

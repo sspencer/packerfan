@@ -82,10 +82,11 @@ type GameStateData struct {
 }
 
 // AddScore increments Score, updates HighScore, and awards a one-time extra
-// life upon reaching config.ExtraLifeScore (10,000 points).
-func (g *GameStateData) AddScore(points int) {
+// life upon reaching config.ExtraLifeScore (10,000 points). It returns true
+// when this score increment triggered the extra life.
+func (g *GameStateData) AddScore(points int) bool {
 	if points <= 0 {
-		return
+		return false
 	}
 	g.Score += points
 	if g.ActivePlayer >= 0 && g.ActivePlayer < len(g.PlayerScores) {
@@ -97,7 +98,9 @@ func (g *GameStateData) AddScore(points int) {
 	if !g.ExtraLifeAwarded && g.Score >= config.ExtraLifeScore {
 		g.ExtraLifeAwarded = true
 		g.Lives++
+		return true
 	}
+	return false
 }
 
 // ActivePlayerName returns "PLAYER ONE" or "PLAYER TWO" for banner overlays.

@@ -1,6 +1,9 @@
 package scene
 
-import "pacfan/internal/component"
+import (
+	"pacfan/internal/audio"
+	"pacfan/internal/component"
+)
 
 // PlayingScene runs the normal per-frame ECS simulation pipeline and routes
 // transitions when a ghost is eaten or all dots and pellets are cleared.
@@ -30,6 +33,8 @@ func (s *PlayingScene) Update() {
 		s.ctx.Manager.Transition(NewGhostEatenFreezeScene(s.ctx))
 		return
 	}
+
+	s.ctx.audio().SetLoop(audio.SelectBackgroundLoop(s.ctx.World))
 }
 
 func (s *PlayingScene) Draw() {
@@ -38,4 +43,6 @@ func (s *PlayingScene) Draw() {
 	}
 }
 
-func (s *PlayingScene) Exit() {}
+func (s *PlayingScene) Exit() {
+	s.ctx.audio().SetLoop(audio.LoopNone)
+}

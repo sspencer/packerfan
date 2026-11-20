@@ -3,6 +3,7 @@ package scene
 import (
 	"github.com/yohamta/donburi"
 
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 )
 
@@ -26,6 +27,7 @@ func (s *GhostEatenFreezeScene) Update() {
 
 	gameState := component.MustFindGameState(s.ctx.World)
 	if gameState.Paused {
+		s.ctx.audio().SetLoop(audio.LoopNone)
 		return
 	}
 
@@ -34,6 +36,11 @@ func (s *GhostEatenFreezeScene) Update() {
 	}
 	if s.ctx.Pipeline != nil {
 		s.ctx.Pipeline.UpdateEatenGhosts(s.ctx.World)
+	}
+	if audio.HasOtherRetreatingEyes(s.ctx.World) {
+		s.ctx.audio().SetLoop(audio.LoopEyes)
+	} else {
+		s.ctx.audio().SetLoop(audio.LoopNone)
 	}
 
 	if gameState.GhostEatenPause > 0 {

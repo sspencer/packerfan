@@ -1,6 +1,9 @@
 package scene
 
-import "pacfan/internal/component"
+import (
+	"pacfan/internal/audio"
+	"pacfan/internal/component"
+)
 
 // ReadyScene displays the maze and "READY!" prompt while holding gameplay until
 // the pre-round delay elapses. On a fresh game start (NewGameStartReadyScene),
@@ -30,8 +33,10 @@ func NewGameStartReadyScene(ctx *Context) *ReadyScene {
 }
 
 func (s *ReadyScene) Enter() {
+	s.ctx.audio().SetLoop(audio.LoopNone)
 	if s.showPlayerOne {
 		s.introRemaining = s.ctx.playerOneDuration()
+		s.ctx.audio().Play(audio.SoundStart)
 	} else {
 		s.introRemaining = 0
 	}

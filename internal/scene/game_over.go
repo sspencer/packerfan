@@ -1,6 +1,9 @@
 package scene
 
-import "pacfan/internal/system"
+import (
+	"pacfan/internal/audio"
+	"pacfan/internal/system"
+)
 
 // GameOverScene freezes gameplay, displays the GAME OVER banner over the maze,
 // and after at least one second allows any key press to restart from Level 1.
@@ -15,6 +18,7 @@ func NewGameOverScene(ctx *Context) *GameOverScene {
 }
 
 func (s *GameOverScene) Enter() {
+	s.ctx.audio().SetLoop(audio.LoopNone)
 	s.elapsed = 0
 	s.restartDelay = s.ctx.gameOverRestartDelay()
 }

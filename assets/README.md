@@ -56,4 +56,4 @@ Main maze atlas and spritesheet.
 
 ## Audio
 
-`.gitignore` excludes `assets/*/*.wav` for local sound collections (`assets/pacman/`, `assets/ms-pacman/`). Audio playback is not currently wired into the engine.
+`.gitignore` excludes `assets/*/*.wav` for local sound collections (`assets/pacman/` and `assets/ms-pacman/`). When present at build time, `internal/audio` loads mode-appropriate WAV clips (start jingle, credit, waka-waka chomp, 5-stage dynamic siren, frightened hum, retreating eyes hum, eat ghost/fruit, extra life, death, and intermission music). Missing WAV files degrade silently so the game still runs without audio assets (or pass `-mute`).

@@ -6,6 +6,7 @@ import (
 	"github.com/yohamta/donburi"
 
 	"pacfan/internal/archetype"
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 	"pacfan/internal/render"
 	"pacfan/internal/scene"
@@ -17,14 +18,16 @@ type Options struct {
 	PacmanMode    bool
 	Zoom          float32
 	Players       int    // Default player count selected on the attract screen (1 or 2)
+	Mute          bool   // Disable audio playback when true
 	HighScorePath string // Optional override for high-score persistence file
 }
 
 // Engine ties together the Donburi ECS World, simulation system pipeline,
-// scene manager, loaded Raylib art assets, and renderer without any package-level globals.
+// scene manager, loaded Raylib art/audio assets, and renderer without any package-level globals.
 type Engine struct {
 	World              donburi.World
 	art                *render.Art
+	audio              audio.Player
 	renderer           *render.Renderer
 	pipeline           *system.Pipeline
 	scenes             *scene.Manager
@@ -65,7 +68,13 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	archetype.SpawnPlayer(world)
 	archetype.SpawnAllGhosts(world)
 
+	var audioPlayer audio.Player = audio.NoopPlayer{}
+	if !opts.Mute {
+		audioPlayer = audio.NewRaylibPlayer(assetsFS, opts.PacmanMode)
+	}
+
 	system.RegisterEventHandlers(world)
+	system.RegisterAudioEventHandlers(world, audioPlayer)
 
 	renderer := render.NewRenderer(art)
 	pipeline := system.NewPipeline(render.NewRaylibInput())
@@ -75,6 +84,7 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 		Input:          pipeline.Input(),
 		Pipeline:       pipeline,
 		Drawer:         renderer,
+		Audio:          audioPlayer,
 		IsPixelLit:     art.IsPixelLit,
 		DefaultPlayers: players,
 	}
@@ -85,6 +95,7 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	return &Engine{
 		World:              world,
 		art:                art,
+		audio:              audioPlayer,
 		renderer:           renderer,
 		pipeline:           pipeline,
 		scenes:             manager,
@@ -104,9 +115,10 @@ func (e *Engine) Draw() {
 	e.scenes.Draw()
 }
 
-// Unload persists any new high score and releases GPU textures, images, and shaders.
+// Unload persists any new high score and releases audio, GPU textures, images, and shaders.
 func (e *Engine) Unload() {
 	e.persistHighScoreIfNeeded()
+	e.audio.Unload()
 	e.art.Unload()
 }
 

@@ -24,9 +24,11 @@ func main() {
 	var zoom int
 	var pacman bool
 	var players int
+	var mute bool
 	flag.IntVar(&zoom, "zoom", 3, "zoom level")
 	flag.BoolVar(&pacman, "pacman", false, "pacman mode")
 	flag.IntVar(&players, "players", 1, "default number of players (1 or 2)")
+	flag.BoolVar(&mute, "mute", false, "disable audio playback")
 	flag.Parse()
 
 	zoom = max(1, min(zoom, 10))
@@ -58,6 +60,7 @@ binary at build time, so adding them without rebuilding has no effect.
 		PacmanMode: pacman,
 		Zoom:       float32(zoom),
 		Players:    players,
+		Mute:       mute,
 	}, assetsFS)
 	defer engine.Unload()
 

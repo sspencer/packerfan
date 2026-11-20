@@ -1,6 +1,7 @@
 package scene
 
 import (
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/system"
@@ -22,6 +23,7 @@ func NewRoundClearedScene(ctx *Context) *RoundClearedScene {
 }
 
 func (s *RoundClearedScene) Enter() {
+	s.ctx.audio().SetLoop(audio.LoopNone)
 	s.frame = 0
 	s.completedLevel = component.MustFindGameState(s.ctx.World).Level
 	s.holdFrames = s.ctx.roundClearedHoldFrames()

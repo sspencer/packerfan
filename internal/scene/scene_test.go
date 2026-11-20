@@ -9,8 +9,10 @@ import (
 	"github.com/yohamta/donburi"
 
 	"pacfan/internal/archetype"
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 	"pacfan/internal/config"
+	"pacfan/internal/event"
 	"pacfan/internal/scene"
 	"pacfan/internal/system"
 )
@@ -815,5 +817,99 @@ func TestTwoPlayerAlternatesOnDeathWithIndependentBoards(t *testing.T) {
 	}
 	if maze.GetCell(10, 10) != component.Empty || maze.GetCell(11, 10) != component.Dot {
 		t.Fatalf("P1 maze board was not preserved across P2 turn")
+	}
+}
+
+type recordingAudio struct {
+	played  []audio.SoundID
+	loops   []audio.LoopID
+	stopped int
+}
+
+func (a *recordingAudio) Play(id audio.SoundID)     { a.played = append(a.played, id) }
+func (a *recordingAudio) SetLoop(loop audio.LoopID) { a.loops = append(a.loops, loop) }
+func (a *recordingAudio) StopAll()                  { a.stopped++ }
+func (a *recordingAudio) Unload()                   {}
+
+func (a *recordingAudio) hasSound(want audio.SoundID) bool {
+	for _, s := range a.played {
+		if s == want {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *recordingAudio) hasLoop(want audio.LoopID) bool {
+	for _, l := range a.loops {
+		if l == want {
+			return true
+		}
+	}
+	return false
+}
+
+func TestAudioEventsAndSceneLoopTransitions(t *testing.T) {
+	ctx, input, _, player, ghosts := newSceneHarness(t, true)
+	rec := &recordingAudio{}
+	ctx.Audio = rec
+	ctx.PlayerOneDuration = 1
+	ctx.ReadyDuration = 1
+	system.RegisterAudioEventHandlers(ctx.World, rec)
+
+	// Attract -> start game plays Credit + Start jingle.
+	ctx.Manager.Start(scene.NewAttractScene(ctx))
+	input.state = system.InputState{Start1PPressed: true}
+	ctx.Manager.Update()
+	input.state = system.InputState{}
+	gs := component.MustFindGameState(ctx.World)
+	gs.DotsRemaining = 100
+	if !rec.hasSound(audio.SoundCredit) || !rec.hasSound(audio.SoundStart) {
+		t.Fatalf("expected Credit and Start sounds on game start, got %v", rec.played)
+	}
+
+	// Finish two-stage Ready -> PlayingScene activates dynamic siren loop.
+	ctx.Manager.Update()
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.PlayingScene); !ok {
+		t.Fatalf("expected PlayingScene, got %T", ctx.Manager.Current())
+	}
+	ctx.Manager.Update()
+	if !rec.hasLoop(audio.LoopSiren0) {
+		t.Fatalf("expected siren loop during PlayingScene, got %v", rec.loops)
+	}
+
+	// Eating dot, ghost, fruit, and extra life emit their respective SFX.
+	gs.Score = 9990
+	maze := component.MustFindMaze(ctx.World)
+	maze.SetCell(1, 1, component.Dot)
+	event.DotEaten.Publish(ctx.World, event.DotEatenEvent{X: 1, Y: 1})
+	gs.FruitActive = true
+	event.FruitEaten.Publish(ctx.World, event.FruitEatenEvent{Points: 100})
+	component.Ghost.Get(ghosts[0]).State = config.Frightened
+	event.GhostEaten.Publish(ctx.World, event.GhostEatenEvent{Entity: ghosts[0].Entity()})
+	ctx.Pipeline.Update(ctx.World) // flushes events
+
+	for _, want := range []audio.SoundID{audio.SoundChomp, audio.SoundEatFruit, audio.SoundEatGhost, audio.SoundExtraLife} {
+		if !rec.hasSound(want) {
+			t.Errorf("expected sound %v to play, played=%v", want, rec.played)
+		}
+	}
+
+	// Entering PacmanDyingScene plays SoundDeath when hold frames finish.
+	component.Actor.Get(player).IsEaten = true
+	gs.PlayerDying = true
+	ctx.Manager.Start(scene.NewPacmanDyingScene(ctx))
+	for range ctx.PlayerDyingHoldFrames {
+		ctx.Manager.Update()
+	}
+	if !rec.hasSound(audio.SoundDeath) {
+		t.Fatalf("expected SoundDeath on death animation start, played=%v", rec.played)
+	}
+
+	// Entering IntermissionScene Act 2 plays SoundIntermission2.
+	ctx.Manager.Start(scene.NewIntermissionScene(ctx, 2))
+	if !rec.hasSound(audio.SoundIntermission2) {
+		t.Fatalf("expected SoundIntermission2, played=%v", rec.played)
 	}
 }

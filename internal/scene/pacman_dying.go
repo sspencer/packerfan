@@ -1,6 +1,7 @@
 package scene
 
 import (
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/system"
@@ -23,6 +24,7 @@ func NewPacmanDyingScene(ctx *Context) *PacmanDyingScene {
 }
 
 func (s *PacmanDyingScene) Enter() {
+	s.ctx.audio().SetLoop(audio.LoopNone)
 	s.frame = 0
 	s.holdFrames = s.ctx.playerDyingHoldFrames()
 	s.frameTicks = s.ctx.playerDyingFrameTicks()
@@ -41,6 +43,9 @@ func (s *PacmanDyingScene) Update() {
 	}
 
 	s.frame++
+	if s.frame == s.holdFrames {
+		s.ctx.audio().Play(audio.SoundDeath)
+	}
 	if s.frame < s.total {
 		return
 	}

@@ -3,6 +3,7 @@ package scene
 import (
 	"github.com/yohamta/donburi"
 
+	"pacfan/internal/audio"
 	"pacfan/internal/config"
 	"pacfan/internal/system"
 )
@@ -71,6 +72,7 @@ type Context struct {
 	Input          *system.InputSystem
 	Pipeline       *system.Pipeline
 	Drawer         Drawer
+	Audio          audio.Player
 	IsPixelLit     func(x, y int) bool
 	DefaultPlayers int
 
@@ -94,6 +96,13 @@ type Context struct {
 	// IntermissionFactory optionally overrides how intermission scenes are created.
 	// Return nil to skip an intermission and proceed directly to ReadyScene.
 	IntermissionFactory func(ctx *Context, act int) Scene
+}
+
+func (c *Context) audio() audio.Player {
+	if c.Audio != nil {
+		return c.Audio
+	}
+	return audio.NoopPlayer{}
 }
 
 func (c *Context) playerOneDuration() int {

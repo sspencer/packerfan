@@ -1,6 +1,7 @@
 package scene
 
 import (
+	"pacfan/internal/audio"
 	"pacfan/internal/component"
 	"pacfan/internal/config"
 	"pacfan/internal/system"
@@ -31,6 +32,7 @@ func NewAttractScene(ctx *Context) *AttractScene {
 
 func (s *AttractScene) Enter() {
 	s.frame = 0
+	s.ctx.audio().StopAll()
 }
 
 func (s *AttractScene) Update() {
@@ -53,6 +55,7 @@ func (s *AttractScene) Update() {
 }
 
 func (s *AttractScene) startGame(playerCount int) {
+	s.ctx.audio().Play(audio.SoundCredit)
 	system.StartNewGame(s.ctx.World, playerCount, s.ctx.IsPixelLit)
 	s.ctx.Manager.Transition(NewGameStartReadyScene(s.ctx))
 }
