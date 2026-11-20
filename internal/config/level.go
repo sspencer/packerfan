@@ -173,6 +173,17 @@ func GetGhostWaveState(level, frameCount int) GhostState {
 	return Chase
 }
 
+// IsFirstScatterWave reports whether waveFrames is still within the opening
+// Scatter phase for level (used for Ms. Pac-Man's random Blinky/Pinky scatter).
+func IsFirstScatterWave(level, waveFrames int) bool {
+	for _, pt := range ghostModePhaseTable {
+		if level >= pt.LevelMin && level <= pt.LevelMax {
+			return waveFrames <= pt.Phases[0].DurationFrames
+		}
+	}
+	return false
+}
+
 // IntermissionForLevel returns the 1-based arcade intermission act number (1, 2, or 3)
 // to play after completing completedLevel, or 0 if gameplay proceeds directly to the next level.
 func IntermissionForLevel(completedLevel int, pacmanMode bool) int {

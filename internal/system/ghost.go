@@ -92,16 +92,16 @@ func (s *GhostSystem) Update(w donburi.World) {
 				if isCruiseElroy(gameState, ghost) && playerTransform != nil {
 					target = computeChaseTarget(ghost, transform, playerTransform, blinkyTransform)
 				}
-				updateGhostTurnWithLookahead(maze, prng, transform, ghost, target)
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, target, isMsPacmanRandomScatter(gameState, ghost))
 			}
 		case config.Chase:
 			if IsCentered(transform.Pos) && playerTransform != nil {
 				target := computeChaseTarget(ghost, transform, playerTransform, blinkyTransform)
-				updateGhostTurnWithLookahead(maze, prng, transform, ghost, target)
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, target, false)
 			}
 		case config.Frightened:
 			if IsCentered(transform.Pos) {
-				updateGhostTurnWithLookahead(maze, prng, transform, ghost, config.Vector{})
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, config.Vector{}, true)
 			}
 		case config.Eaten:
 			if transform.Pos == house.Entrance {
@@ -111,7 +111,7 @@ func (s *GhostSystem) Update(w donburi.World) {
 				continue
 			}
 			if IsCentered(transform.Pos) {
-				updateGhostTurnWithLookahead(maze, prng, transform, ghost, house.Entrance)
+				updateGhostTurnWithLookahead(maze, prng, transform, ghost, house.Entrance, false)
 			}
 		default:
 			fmt.Printf("unhandled %q state for ghost %s\n", ghost.State.String(), actor.ID.String())
@@ -167,7 +167,7 @@ func (s *GhostSystem) UpdateEatenGhosts(w donburi.World) {
 			continue
 		}
 		if IsCentered(transform.Pos) {
-			updateGhostTurnWithLookahead(maze, prng, transform, ghost, house.Entrance)
+			updateGhostTurnWithLookahead(maze, prng, transform, ghost, house.Entrance, false)
 		}
 
 		oldPos := transform.Pos
@@ -277,9 +277,17 @@ func updateGhostTurnWithLookahead(
 	transform *component.TransformData,
 	ghost *component.GhostData,
 	target config.Vector,
+	randomTurn bool,
 ) {
 	curTile := transform.Pos.ToTile()
 	ghost.Target = target
+
+	choose := func(tile config.Vector, curDir config.Direction) config.Direction {
+		if randomTurn {
+			return chooseFrightenedDirectionAt(maze, prng, tile, curDir, ghost.State)
+		}
+		return chooseDirectionAt(maze, prng, tile, curDir, ghost.State, target)
+	}
 
 	switch {
 	case ghost.Reverse:
@@ -298,7 +306,7 @@ func updateGhostTurnWithLookahead(
 		}
 	default:
 		ghost.HasNextDir = false
-		dir := chooseDirectionAt(maze, prng, curTile, transform.Dir, ghost.State, target)
+		dir := choose(curTile, transform.Dir)
 		if dir != transform.Dir && ghost.PixelsMoved >= config.Tile {
 			transform.Dir = dir
 			ghost.PixelsMoved = 0
@@ -315,7 +323,7 @@ func updateGhostTurnWithLookahead(
 		return
 	}
 
-	ghost.NextDir = chooseDirectionAt(maze, prng, nextTile, transform.Dir, ghost.State, target)
+	ghost.NextDir = choose(nextTile, transform.Dir)
 	ghost.PlannedTile = nextTile
 	ghost.HasNextDir = true
 }

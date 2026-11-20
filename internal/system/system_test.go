@@ -1611,6 +1611,39 @@ func TestExtraLifeAwardedOnceAt10000Points(t *testing.T) {
 	}
 }
 
+func TestMsPacmanFirstScatterUsesPRNGForBlinkyAndPinky(t *testing.T) {
+	// In Ms. Pac-Man during wave 0 (first Scatter), Blinky consumes PRNG bytes;
+	// in classic Pac-Man (or after wave 0), Blinky uses deterministic corner targeting without advancing PRNG.
+	runOnce := func(pacmanMode bool, waveFrames int) uint {
+		w, _, ghosts := newTestWorld(t)
+		gs := component.MustFindGameState(w)
+		gs.PacmanMode = pacmanMode
+		gs.DotsRemaining = 100
+		gs.GhostState = config.Scatter
+		gs.WaveFrames = waveFrames
+
+		blinky := ghosts[0]
+		component.Ghost.Get(blinky).State = config.Scatter
+		component.Transform.Get(blinky).Pos = config.Vector{X: 10 * config.Tile, Y: 10 * config.Tile}
+		component.Transform.Get(blinky).Dir = config.Left
+
+		prng := component.MustFindPRNG(w)
+		prng.Reset()
+		system.NewGhostSystem().Update(w)
+		return prng.Index
+	}
+
+	if idx := runOnce(false, 10); idx == 0 {
+		t.Fatalf("expected Ms. Pac-Man first scatter to advance PRNG for Blinky, got index=0")
+	}
+	if idx := runOnce(true, 10); idx != 0 {
+		t.Fatalf("expected classic Pac-Man first scatter NOT to advance PRNG, got index=%d", idx)
+	}
+	if idx := runOnce(false, config.SecondsToFrames(30)); idx != 0 {
+		t.Fatalf("expected Ms. Pac-Man later scatter wave NOT to advance PRNG, got index=%d", idx)
+	}
+}
+
 func TestGhostEatsPlayerOnlyWhenChaseOrScatter(t *testing.T) {
 	for _, state := range []config.GhostState{
 		config.Eaten,

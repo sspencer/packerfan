@@ -244,6 +244,19 @@ func chooseFrightenedDirectionAt(
 	return curDir
 }
 
+func isMsPacmanRandomScatter(gameState *component.GameStateData, ghost *component.GhostData) bool {
+	if gameState.PacmanMode || ghost.State != config.Scatter {
+		return false
+	}
+	if ghost.AIKind != component.BlinkyAI && ghost.AIKind != component.PinkyAI {
+		return false
+	}
+	if isCruiseElroy(gameState, ghost) {
+		return false
+	}
+	return config.IsFirstScatterWave(gameState.Level, gameState.WaveFrames)
+}
+
 func isCruiseElroy(gameState *component.GameStateData, ghost *component.GhostData) bool {
 	return ghost.AIKind == component.BlinkyAI &&
 		!gameState.ElroySuspended &&
