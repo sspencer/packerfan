@@ -170,10 +170,13 @@ func (r *Renderer) drawHUD(gameState *component.GameStateData) {
 	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, rl.White)
 	rl.EndMode2D()
 
-	// Bottom HUD remaining lives
+	// Bottom HUD remaining lives and level bonus symbols
 	textCamera.Offset.Y = ((config.GameHeight+3)*config.Tile)*zoom + 2
 	rl.BeginMode2D(textCamera)
 	r.drawLives(gameState)
+	rl.BeginShaderMode(r.art.Shader)
+	r.drawLevelSymbols(gameState)
+	rl.EndShaderMode()
 	rl.EndMode2D()
 }
 
@@ -251,6 +254,34 @@ func (r *Renderer) drawLives(gameState *component.GameStateData) {
 	for range gameState.Lives - 1 {
 		r.drawSprite(pos, sprite, 1)
 		pos.X += config.Sprite
+	}
+}
+
+// LevelBonusSymbols returns up to the 7 most recent level bonus symbols ordered
+// from rightmost (oldest in the window) to leftmost (current level).
+func LevelBonusSymbols(level int) []config.BonusSymbol {
+	if level < 1 {
+		return nil
+	}
+	if level > 255 {
+		level = 255
+	}
+	start := max(1, level-6)
+	symbols := make([]config.BonusSymbol, 0, level-start+1)
+	for lvl := start; lvl <= level; lvl++ {
+		symbols = append(symbols, config.GetLevelSpec(lvl).BonusSymbol)
+	}
+	return symbols
+}
+
+func (r *Renderer) drawLevelSymbols(gameState *component.GameStateData) {
+	symbols := LevelBonusSymbols(gameState.Level)
+	pos := config.Vector{X: (config.GameWidth - 4) * config.Tile, Y: 0}
+	for _, sym := range symbols {
+		if sprite, ok := BonusFruitSprite(gameState.PacmanMode, sym); ok {
+			r.drawSprite(pos, sprite, 0)
+		}
+		pos.X -= config.Sprite
 	}
 }
 

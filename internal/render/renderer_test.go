@@ -213,3 +213,32 @@ func TestEnergizerAndOneUpBlinking(t *testing.T) {
 		t.Fatalf("OneUpVisible did not toggle every 16 frames")
 	}
 }
+
+func TestLevelBonusSymbolsWindow(t *testing.T) {
+	l1 := render.LevelBonusSymbols(1)
+	if len(l1) != 1 || l1[0] != config.BonusCherries {
+		t.Fatalf("Level 1 symbols = %v, want [Cherries]", l1)
+	}
+
+	l2 := render.LevelBonusSymbols(2)
+	if len(l2) != 2 || l2[0] != config.BonusCherries || l2[1] != config.BonusStrawberry {
+		t.Fatalf("Level 2 symbols = %v, want [Cherries Strawberry]", l2)
+	}
+
+	// Level 8 slides the 7-symbol window to levels 2..8.
+	l8 := render.LevelBonusSymbols(8)
+	if len(l8) != 7 || l8[0] != config.BonusStrawberry || l8[6] != config.BonusGrapes {
+		t.Fatalf("Level 8 symbols = %v, want len 7 starting Strawberry ending Grapes", l8)
+	}
+
+	// Level 19+ displays 7 Keys.
+	l19 := render.LevelBonusSymbols(19)
+	if len(l19) != 7 {
+		t.Fatalf("Level 19 symbols len = %d, want 7", len(l19))
+	}
+	for i, s := range l19 {
+		if s != config.BonusKey {
+			t.Fatalf("Level 19 symbol[%d] = %v, want Key", i, s)
+		}
+	}
+}
