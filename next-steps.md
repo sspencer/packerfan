@@ -220,9 +220,9 @@ a ...
 {"end":"game_over","ticks":5321,"score":18340,"level":3,"deaths":3}
 ```
 
-- [ ] `Recorder`: appends the action for every tick inside `Env.tick()` (including freeze ticks), a hash line every 600 ticks, and the footer on termination/close.
-- [ ] `ReadReplay` + `Env.Replay(r)`: rejects a `maze_hash` mismatch outright, warns on an `art.sha256`-only mismatch, and reports the first tick whose hash differs.
-- [ ] `reset` accepts `record` (path) and `meta` (opaque object copied into the header).
+- [x] `Recorder`: appends the action for every tick inside `Env.tick()` (including freeze ticks), a hash line every 600 ticks, and the footer on termination/close.
+- [x] `ReadReplay` + `Env.Replay(r)`: rejects a `maze_hash` mismatch outright, warns on an `art.sha256`-only mismatch, and reports the first tick whose hash differs.
+- [x] `reset` accepts `record` (path) and `meta` (opaque object copied into the header).
 
 ### Step 2.3 — `cmd/pacfan-headless`
 - [ ] Flags: `-art FILE` (default: embedded `game-real.png` else `game.png`), `-pacman`, `-level`, `-seed` (defaults for `reset`), `-verify FILE.pfr` (replay a file headlessly and exit non-zero on a hash mismatch), `-dump-mazes` (print the five text mazes and hashes, then exit).

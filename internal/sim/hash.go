@@ -94,20 +94,22 @@ func HashWorld(w donburi.World) uint64 {
 
 	// Fruit state.
 	h.writeBool(gs.FruitActive)
-	h.writeBool(gs.FruitMoving)
-	h.writeBool(gs.FruitExiting)
-	h.writeInt(gs.FruitTimer)
 	h.writeInt(gs.FruitSpawnedCount)
-	h.writeInt(int(gs.FruitSymbol))
-	h.writeInt(gs.FruitPoints)
 	h.writeInt(gs.FruitScoreTimer)
 	h.writeInt(gs.FruitScoreValue)
-	h.writeVec(gs.FruitPos)
-	h.writeInt(int(gs.FruitDir))
-	h.writeVec(gs.FruitTarget)
-	h.writeVec(gs.FruitExitPos)
-	h.writeMotion(&gs.FruitMotion)
-	h.writeInt(gs.FruitBounceFrame)
+	if gs.FruitActive {
+		h.writeBool(gs.FruitMoving)
+		h.writeBool(gs.FruitExiting)
+		h.writeInt(gs.FruitTimer)
+		h.writeInt(int(gs.FruitSymbol))
+		h.writeInt(gs.FruitPoints)
+		h.writeVec(gs.FruitPos)
+		h.writeInt(int(gs.FruitDir))
+		h.writeVec(gs.FruitTarget)
+		h.writeVec(gs.FruitExitPos)
+		h.writeMotion(&gs.FruitMotion)
+		h.writeInt(gs.FruitBounceFrame)
+	}
 
 	// Maze grid.
 	maze := component.MustFindMaze(w)
@@ -168,9 +170,11 @@ func HashWorld(w donburi.World) uint64 {
 		h.writeInt(g.PixelsMoved)
 		h.writeBool(g.Reverse)
 		h.writeBool(g.FrightenedInHouse)
-		h.writeInt(int(g.NextDir))
-		h.writeVec(g.PlannedTile)
 		h.writeBool(g.HasNextDir)
+		if g.HasNextDir {
+			h.writeInt(int(g.NextDir))
+			h.writeVec(g.PlannedTile)
+		}
 		h.writeInt(g.DotCounter)
 	}
 

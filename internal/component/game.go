@@ -230,6 +230,7 @@ func (g *GameStateData) ResetForNextLevel(level, dotsRemaining int) {
 	g.FruitScoreTimer = 0
 	g.FruitScoreValue = 0
 	g.FruitPos = config.Vector{}
+	g.FruitDir = 0
 	g.FruitTarget = config.Vector{}
 	g.FruitExitPos = config.Vector{}
 	g.FruitMotion = MotionData{}

@@ -24,6 +24,7 @@ type Session struct {
 	env      *sim.Env
 	hello    HelloResponse
 	hasReset bool
+	recorder *sim.Recorder
 }
 
 // NewSession constructs a Session with a cached hello payload and an underlying sim.Env.
@@ -104,6 +105,11 @@ func (s *Session) Handle(req *Request) (any, bool) {
 
 // Close releases any resources held by the session (such as open replay recorders).
 func (s *Session) Close() error {
+	if s.recorder != nil {
+		err := s.recorder.Close()
+		s.recorder = nil
+		return err
+	}
 	return nil
 }
 
@@ -133,6 +139,18 @@ func (s *Session) handleReset(req *Request) any {
 		maxTicks = *req.MaxTicks
 	}
 
+	// Close any previous recorder unless continuing the same EpisodicLife game
+	// without opening a new replay file.
+	continuing := s.env.ContinuingEpisodicLife() && req.Record == "" &&
+		pacman == s.env.Config().PacmanMode &&
+		max(1, min(level, 255)) == s.env.Config().StartLevel &&
+		episodicLife
+	if !continuing && s.recorder != nil {
+		_ = s.recorder.Close()
+		s.recorder = nil
+	}
+
+	forceFull := req.Record != ""
 	s.env.Reset(&sim.ResetOptions{
 		PacmanMode:      &pacman,
 		StartLevel:      &level,
@@ -140,8 +158,20 @@ func (s *Session) handleReset(req *Request) any {
 		EpisodicLife:    &episodicLife,
 		EndOnLevelClear: &endOnLevelClear,
 		MaxTicks:        &maxTicks,
+		ForceFullReset:  forceFull,
 	})
 	s.hasReset = true
+
+	if req.Record != "" {
+		rec, err := sim.NewFileRecorder(s.env, req.Record, sim.ArtInfo{
+			File:   s.art.File,
+			SHA256: s.art.SHA256,
+		}, req.Meta)
+		if err != nil {
+			return ErrorResponse{OK: false, Error: err.Error()}
+		}
+		s.recorder = rec
+	}
 
 	maze := component.MustFindMaze(s.env.World())
 	return ResetResponse{
@@ -168,6 +198,10 @@ func (s *Session) handleStep(req *Request) any {
 	}
 
 	res := s.env.Step(action, mode, req.Frames)
+	if s.recorder != nil && ((res.Terminated && !s.env.ContinuingEpisodicLife()) || res.Truncated) {
+		_ = s.recorder.Close()
+		s.recorder = nil
+	}
 
 	events := res.Events.Strings()
 	if events == nil {
