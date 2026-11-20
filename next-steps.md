@@ -205,9 +205,9 @@ Values below are illustrative.
 **Goal:** `pacfan-headless` plays full episodes over piped NDJSON and can write a replay file for any episode.
 
 ### Step 2.1 — `internal/api`
-- [ ] `protocol.go`: request/response structs for `hello`, `reset`, `step`, `observe`, `close` per the sketch above. `action` accepts `0..4` or `"right"|"left"|"up"|"down"|"noop"`.
-- [ ] `session.go`: owns one `sim.Env`; builds the cached `hello` payload from the `MazeSet` and sheet identity; emits `maze_index` on reset and level change only.
-- [ ] `server.go`: `ServeNDJSON(r, w, session)` with `bufio` + `encoding/json`; malformed input yields `{"ok":false,"error":...}` and the loop continues; exits cleanly on `close` or EOF.
+- [x] `protocol.go`: request/response structs for `hello`, `reset`, `step`, `observe`, `close` per the sketch above. `action` accepts `0..4` or `"right"|"left"|"up"|"down"|"noop"`.
+- [x] `session.go`: owns one `sim.Env`; builds the cached `hello` payload from the `MazeSet` and sheet identity; emits `maze_index` on reset and level change only.
+- [x] `server.go`: `ServeNDJSON(r, w, session)` with `bufio` + `encoding/json`; malformed input yields `{"ok":false,"error":...}` and the loop continues; exits cleanly on `close` or EOF.
 
 ### Step 2.2 — Replay file (`internal/sim`, extension `.pfr`)
 A small line-oriented text file, easy to read from Python and to diff:
