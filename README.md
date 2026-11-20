@@ -20,7 +20,7 @@ go run .
 
 ### Controls
 
-- **Arrow Keys** (`Up`, `Down`, `Left`, `Right`): Steer Pac-Man / Ms. Pac-Man
+- **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume simulation
 
 ### Useful Make Targets

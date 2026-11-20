@@ -27,16 +27,16 @@ func (r *RaylibInput) Sample() system.InputState {
 	}
 
 	switch {
-	case rl.IsKeyDown(rl.KeyUp):
+	case rl.IsKeyDown(rl.KeyUp) || rl.IsKeyDown(rl.KeyW):
 		state.HasDirection = true
 		state.Direction = config.Up
-	case rl.IsKeyDown(rl.KeyDown):
+	case rl.IsKeyDown(rl.KeyDown) || rl.IsKeyDown(rl.KeyS):
 		state.HasDirection = true
 		state.Direction = config.Down
-	case rl.IsKeyDown(rl.KeyLeft):
+	case rl.IsKeyDown(rl.KeyLeft) || rl.IsKeyDown(rl.KeyA):
 		state.HasDirection = true
 		state.Direction = config.Left
-	case rl.IsKeyDown(rl.KeyRight):
+	case rl.IsKeyDown(rl.KeyRight) || rl.IsKeyDown(rl.KeyD):
 		state.HasDirection = true
 		state.Direction = config.Right
 	}
