@@ -253,8 +253,8 @@ a ...
 - [x] Reward wrapper: default `0.01 × score delta`; optional death penalty, level-clear bonus, step penalty.
 
 ### Step 3.3 — Validation and zero-ML baselines
-- [ ] `ml/tests/test_env.py`: `check_env`, same seed + same actions → same trajectory, `AsyncVectorEnv` with several workers.
-- [ ] `ml/baselines.py`: `RandomLegalAgent` and `GreedyBFSAgent` (nearest dot or frightened ghost, avoid dangerous ghosts within K tiles). Log mean/max score, levels cleared, ticks survived, and env steps/sec at 1, 4, 8 workers.
+- [x] `ml/tests/test_env.py`: `check_env`, same seed + same actions → same trajectory, `AsyncVectorEnv` with several workers.
+- [x] `ml/baselines.py`: `RandomLegalAgent` and `GreedyBFSAgent` (nearest dot or frightened ghost, avoid dangerous ghosts within K tiles). Log mean/max score, levels cleared, ticks survived, and env steps/sec at 1, 4, 8 workers.
 
 ### Step 3.4 — Training and evaluation
 - [ ] `ml/train_ppo.py`: `MaskablePPO` with a small CNN sized for 31×28 grids, run directory:
