@@ -22,6 +22,7 @@ const (
 	SoundExtraLife
 	SoundDeath
 	SoundIntermission1
+	SoundIntermission1Bump
 	SoundIntermission2
 	SoundIntermission3
 )
@@ -84,6 +85,8 @@ func SoundPaths(pacmanMode bool, id SoundID) []string {
 			return []string{"assets/pacman/death.wav", "assets/ms-pacman/death.wav"}
 		case SoundIntermission1, SoundIntermission2, SoundIntermission3:
 			return []string{"assets/pacman/intermission.wav", "assets/ms-pacman/intermission1.wav"}
+		case SoundIntermission1Bump:
+			return []string{"assets/ms-pacman/intermission1_bump.wav"}
 		}
 		return nil
 	}
@@ -105,6 +108,8 @@ func SoundPaths(pacmanMode bool, id SoundID) []string {
 		return []string{"assets/ms-pacman/death.wav", "assets/pacman/death.wav"}
 	case SoundIntermission1:
 		return []string{"assets/ms-pacman/intermission1.wav", "assets/pacman/intermission.wav"}
+	case SoundIntermission1Bump:
+		return []string{"assets/ms-pacman/intermission1_bump.wav"}
 	case SoundIntermission2:
 		return []string{"assets/ms-pacman/intermission2.wav", "assets/pacman/intermission.wav"}
 	case SoundIntermission3:
@@ -162,6 +167,7 @@ var AllSounds = []SoundID{
 	SoundExtraLife,
 	SoundDeath,
 	SoundIntermission1,
+	SoundIntermission1Bump,
 	SoundIntermission2,
 	SoundIntermission3,
 }

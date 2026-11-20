@@ -1006,3 +1006,80 @@ func TestPauseSynchronizesAudioPauseAndResume(t *testing.T) {
 		t.Fatalf("expected Muted()=false after pressing M again")
 	}
 }
+
+func TestAuthenticIntermissionSpritesAndAct1BumpSound(t *testing.T) {
+	// Ms. Pac-Man Act 1 plays SoundIntermission1Bump when Ms. Pac-Man and Pac-Man meet.
+	ctx, _, drawer, _, _ := newSceneHarness(t, false)
+	rec := &recordingAudio{}
+	ctx.Audio = rec
+	ctx.Manager.Start(scene.NewIntermissionScene(ctx, 1))
+	for range 250 {
+		ctx.Manager.Draw()
+		ctx.Manager.Update()
+	}
+	if !rec.hasSound(audio.SoundIntermission1Bump) {
+		t.Fatalf("expected SoundIntermission1Bump during Ms. Pac-Man Act 1, played=%v", rec.played)
+	}
+
+	// Ms. Pac-Man Act 3 renders stork (Y=176), bundle (488,192), and Junior (504,192).
+	drawer.intermissionCalls = nil
+	ctx.Manager.Start(scene.NewIntermissionScene(ctx, 3))
+	sawStork, sawBundle, sawJunior := false, false, false
+	for range 340 {
+		ctx.Manager.Draw()
+		for _, sp := range drawer.intermissionCalls[len(drawer.intermissionCalls)-1].Sprites {
+			if sp.Src.Y == 176 {
+				sawStork = true
+			}
+			if sp.Src == (config.Vector{X: 488, Y: 192}) {
+				sawBundle = true
+			}
+			if sp.Src == (config.Vector{X: 504, Y: 192}) {
+				sawJunior = true
+			}
+		}
+		ctx.Manager.Update()
+	}
+	if !sawStork || !sawBundle || !sawJunior {
+		t.Fatalf("Ms. Pac-Man Act 3 missing sprites: stork=%v bundle=%v junior=%v", sawStork, sawBundle, sawJunior)
+	}
+
+	// Classic Pac-Man Act 2 uses nail/torn-sheet sprites (Y=1088, 1104) and Act 3 uses patched/bare Blinky (Y=1104, 1136).
+	pacCtx, _, pacDrawer, _, _ := newSceneHarness(t, true)
+	pacCtx.Manager.Start(scene.NewIntermissionScene(pacCtx, 2))
+	sawNail, sawSnagged := false, false
+	for range 340 {
+		pacCtx.Manager.Draw()
+		for _, sp := range pacDrawer.intermissionCalls[len(pacDrawer.intermissionCalls)-1].Sprites {
+			if sp.Src.Y == 1088 {
+				sawNail = true
+			}
+			if sp.Src.Y == 1104 {
+				sawSnagged = true
+			}
+		}
+		pacCtx.Manager.Update()
+	}
+	if !sawNail || !sawSnagged {
+		t.Fatalf("Pac-Man Act 2 missing sprites: nail=%v snagged=%v", sawNail, sawSnagged)
+	}
+
+	pacDrawer.intermissionCalls = nil
+	pacCtx.Manager.Start(scene.NewIntermissionScene(pacCtx, 3))
+	sawPatched, sawBare := false, false
+	for range 340 {
+		pacCtx.Manager.Draw()
+		for _, sp := range pacDrawer.intermissionCalls[len(pacDrawer.intermissionCalls)-1].Sprites {
+			if sp.Src == (config.Vector{X: 616, Y: 1104}) {
+				sawPatched = true
+			}
+			if sp.Src.Y == 1136 {
+				sawBare = true
+			}
+		}
+		pacCtx.Manager.Update()
+	}
+	if !sawPatched || !sawBare {
+		t.Fatalf("Pac-Man Act 3 missing sprites: patched=%v bare=%v", sawPatched, sawBare)
+	}
+}
