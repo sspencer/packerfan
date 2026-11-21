@@ -30,6 +30,14 @@ go run . --ms --zoom 4     # or: go run . -m -z 4
 
 Long flags use a double dash (`--zoom 4` or `--zoom=4`); short flags use a single dash and can be combined (`-mz 4`).
 
+### macOS App
+
+```sh
+make install-app   # build bin/Pacfan.app and copy it to /Applications
+```
+
+This builds a universal (Apple silicon + Intel), ad-hoc signed `Pacfan.app` you can launch from Finder, Launchpad, Spotlight, or the Dock. It starts with the default flags (classic Pac-Man, fullscreen); press **3** on the attract screen to switch to Ms. Pac-Man. Assets are embedded at build time, so place any local artwork or audio before building. `make app` builds the bundle without installing it, and `make icon` regenerates the icon source `packaging/macos/icon.png` from `tools/genicon`.
+
 ### CLI Flags
 
 | Flag | Default | Description |
@@ -47,6 +55,7 @@ Long flags use a double dash (`--zoom 4` or `--zoom=4`); short flags use a singl
 
 - **1 / 2** (on Attract screen): Start a 1-player or 2-player game
 - **Enter / Space** (on Attract screen): Start with the selected player count
+- **3** (on Attract screen): Switch between Pac-Man and Ms. Pac-Man (each keeps its own high score)
 - **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume gameplay
 - **M**: Mute / unmute audio
@@ -74,6 +83,9 @@ See [docs/headless.md](docs/headless.md#7-watching-and-verifying-replays) for th
 
 ```sh
 make build      # Build the ./pacfan binary
+make all        # Cross-compile all binaries into bin/ (plus bin/Pacfan.app on macOS)
+make app        # Build the macOS app bundle bin/Pacfan.app
+make install-app # Build the macOS app and copy it to /Applications
 make run        # Build and launch ./pacfan (pass flags via ARGS="--ms --zoom 4")
 make test       # Run all unit, ECS simulation, and scene tests
 make test-race  # Run all tests with the race detector enabled

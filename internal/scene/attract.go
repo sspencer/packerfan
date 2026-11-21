@@ -13,6 +13,7 @@ const attractLoopFrames = 720 // ~12 seconds per full cast + demo chase cycle
 // looping demo chase animation, and 1P/2P player selection prompt.
 // Pressing "1" starts a 1-player game, "2" starts a 2-player game, and Enter or
 // Space starts using the currently selected player count (defaulting to Context.DefaultPlayers).
+// Pressing "3" switches between Pac-Man and Ms. Pac-Man when Context.SwitchMode is set.
 type AttractScene struct {
 	ctx             *Context
 	frame           int
@@ -48,6 +49,9 @@ func (s *AttractScene) Update() {
 			return
 		case s.ctx.Input.ConfirmPressed() || s.ctx.Input.PausePressed():
 			s.startGame(s.selectedPlayers)
+			return
+		case s.ctx.Input.SwitchModePressed() && s.ctx.SwitchMode != nil:
+			s.ctx.SwitchMode()
 			return
 		}
 	}
@@ -92,6 +96,12 @@ func (s *AttractScene) buildView(pacmanMode bool) AttractView {
 		Cast:           fullCast[:visibleRows],
 		PelletPos:      config.Vector{X: 32, Y: 148},
 		PelletBlink:    (s.frame/10)%2 == 0,
+	}
+	if s.ctx.SwitchMode != nil {
+		view.SwitchModeLabel = "MS PAC-MAN"
+		if !pacmanMode {
+			view.SwitchModeLabel = "PAC-MAN"
+		}
 	}
 
 	if s.frame < 150 {

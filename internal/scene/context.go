@@ -56,6 +56,9 @@ type AttractView struct {
 	PelletPos      config.Vector
 	Cast           []AttractCastRow
 	Sprites        []IntermissionSprite
+	// SwitchModeLabel names the game the "3" key switches to ("MS PAC-MAN" or
+	// "PAC-MAN"); empty when switching is unavailable.
+	SwitchModeLabel string
 }
 
 // Drawer decouples scene presentation from Ebitengine so scenes can be tested headlessly.
@@ -76,6 +79,10 @@ type Context struct {
 	Audio          audio.Player
 	IsPixelLit     func(x, y int) bool
 	DefaultPlayers int
+	// SwitchMode, when non-nil, is called from the attract screen to toggle
+	// between Pac-Man and Ms. Pac-Man. The owner should rebuild the session
+	// after the current frame rather than inside the call.
+	SwitchMode func()
 
 	// PlayerOneDuration overrides config.ReadyDuration for the initial
 	// "PLAYER ONE" stage of NewGameStartReadyScene when > 0 (useful in tests).

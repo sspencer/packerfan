@@ -29,7 +29,8 @@ func (e *EbitenInput) Poll() {
 	confirmPressed := (!altDown && inpututil.IsKeyJustPressed(ebiten.KeyEnter)) || inpututil.IsKeyJustPressed(ebiten.KeyNumpadEnter)
 	start1P := inpututil.IsKeyJustPressed(ebiten.KeyDigit1) || inpututil.IsKeyJustPressed(ebiten.KeyNumpad1)
 	start2P := inpututil.IsKeyJustPressed(ebiten.KeyDigit2) || inpututil.IsKeyJustPressed(ebiten.KeyNumpad2)
-	anyKeyPressed := pausePressed || confirmPressed || start1P || start2P
+	switchMode := inpututil.IsKeyJustPressed(ebiten.KeyDigit3) || inpututil.IsKeyJustPressed(ebiten.KeyNumpad3)
+	anyKeyPressed := pausePressed || confirmPressed || start1P || start2P || switchMode
 
 	e.keyBuf = inpututil.AppendJustPressedKeys(e.keyBuf[:0])
 	for _, key := range e.keyBuf {
@@ -49,6 +50,7 @@ func (e *EbitenInput) Poll() {
 	e.pending.ConfirmPressed = e.pending.ConfirmPressed || confirmPressed
 	e.pending.Start1PPressed = e.pending.Start1PPressed || start1P
 	e.pending.Start2PPressed = e.pending.Start2PPressed || start2P
+	e.pending.SwitchModePressed = e.pending.SwitchModePressed || switchMode
 	e.pending.AnyKeyPressed = e.pending.AnyKeyPressed || anyKeyPressed
 }
 
