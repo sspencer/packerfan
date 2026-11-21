@@ -37,7 +37,7 @@ Main maze atlas and spritesheet.
 
 - **Mazes (`224×248` px = `28×31` tiles each, 5 rows at `y = index * 248`)**:
   - Indices `0..3` (`y = 0, 248, 496, 744`): Ms. Pac-Man mazes 1–4.
-  - Index `4` (`y = 992`): Classic Pac-Man maze (`-pacman` mode).
+  - Index `4` (`y = 992`): Classic Pac-Man maze (default mode; `--ms` selects Ms. Pac-Man).
   - Left column (`x = 0`): Mazes with dots, power pellets, and ghost-house doors baked in. `MazeData.LoadLevel` samples 8×8 pixel bitmasks here to classify each tile (`Empty`, `Dot`, `Power`, `Door`, `Wall`), and `Renderer.drawMaze` extracts individual 8×8 dot and power-pellet tiles from `x = 8`.
   - Middle column (`x = 228`): Matching empty maze backgrounds (no dots/pellets) rendered behind gameplay.
 - **Sprites (`x >= 456`)**:
@@ -62,7 +62,7 @@ Main maze atlas and spritesheet.
 
 ## Audio
 
-`.gitignore` excludes `assets/*/*.wav` for local sound collections (`assets/pacman/` and `assets/ms-pacman/`). On startup (unless `-mute` is passed), `audio.MissingAssets` verifies via `fs.Stat` which WAV files are embedded before initializing audio and prints a warning listing any missing files; missing files degrade silently so the game still runs without audio.
+`.gitignore` excludes `assets/*/*.wav` for local sound collections (`assets/pacman/` and `assets/ms-pacman/`). On startup (unless `--mute` is passed), `audio.MissingAssets` verifies via `fs.Stat` which WAV files are embedded before initializing audio and prints a warning listing any missing files; missing files degrade silently so the game still runs without audio.
 
 Expected optional WAV files:
 

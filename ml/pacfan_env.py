@@ -88,7 +88,7 @@ class PacFanEnv(gym.Env[Any, int]):
         *,
         binary: str | None = None,
         art: str | None = None,
-        pacman: bool = False,
+        ms_pacman: bool = False,
         start_level: int = 1,
         step_mode: str = "tile",
         frames_per_step: int = 4,
@@ -109,7 +109,7 @@ class PacFanEnv(gym.Env[Any, int]):
 
         self.binary = binary or default_binary_path()
         self.art = art
-        self.pacman = pacman
+        self.ms_pacman = ms_pacman
         self.start_level = max(1, min(255, int(start_level)))
         self.step_mode = step_mode
         self.frames_per_step = max(1, int(frames_per_step))
@@ -170,11 +170,11 @@ class PacFanEnv(gym.Env[Any, int]):
     def _start_process(self) -> None:
         cmd = [self.binary]
         if self.art:
-            cmd.extend(["-art", str(self.art)])
-        if self.pacman:
-            cmd.append("-pacman")
+            cmd.extend(["--art", str(self.art)])
+        if self.ms_pacman:
+            cmd.append("--ms")
         if self.start_level != 1:
-            cmd.extend(["-level", str(self.start_level)])
+            cmd.extend(["--level", str(self.start_level)])
 
         self._proc = subprocess.Popen(
             cmd,
@@ -254,7 +254,7 @@ class PacFanEnv(gym.Env[Any, int]):
 
         req: dict[str, Any] = {
             "cmd": "reset",
-            "pacman": self.pacman,
+            "pacman": not self.ms_pacman,
             "level": self.start_level,
             "seed": game_seed,
             "episodic_life": self.episodic_life,

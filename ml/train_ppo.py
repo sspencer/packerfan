@@ -76,7 +76,7 @@ def make_train_env(
     *,
     binary: str,
     art: str | None,
-    pacman: bool,
+    ms_pacman: bool,
     start_level: int,
     step_mode: str,
     frames_per_step: int,
@@ -93,7 +93,7 @@ def make_train_env(
         base = PacFanEnv(
             binary=binary,
             art=art,
-            pacman=pacman,
+            ms_pacman=ms_pacman,
             start_level=start_level,
             step_mode=step_mode,
             frames_per_step=frames_per_step,
@@ -219,7 +219,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Train MaskablePPO on headless pacfan.")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=None)
-    parser.add_argument("--pacman", action="store_true")
+    parser.add_argument("--ms", action="store_true", help="Ms. Pac-Man instead of classic Pac-Man")
     parser.add_argument("--start-level", type=int, default=1)
     parser.add_argument("--step-mode", default="tile", choices=["frames", "tile", "intersection"])
     parser.add_argument("--frames-per-step", type=int, default=4)
@@ -255,7 +255,7 @@ def main() -> None:
     commit = _git_commit()
 
     # Probe hello metadata once for run.json.
-    with PacFanEnv(binary=args.binary, art=args.art, pacman=args.pacman, obs_mode=args.obs_mode) as probe:
+    with PacFanEnv(binary=args.binary, art=args.art, ms_pacman=args.ms, obs_mode=args.obs_mode) as probe:
         hello = probe.hello_info
 
     run_meta = {
@@ -265,7 +265,7 @@ def main() -> None:
         "art": hello.get("art", {}),
         "maze_hash": hello.get("maze_hash", ""),
         "env": {
-            "pacman": args.pacman,
+            "pacman": not args.ms,
             "start_level": args.start_level,
             "step_mode": args.step_mode,
             "frames_per_step": args.frames_per_step,
@@ -297,7 +297,7 @@ def main() -> None:
         make_train_env(
             binary=args.binary,
             art=args.art,
-            pacman=args.pacman,
+            ms_pacman=args.ms,
             start_level=args.start_level,
             step_mode=args.step_mode,
             frames_per_step=args.frames_per_step,
@@ -334,7 +334,7 @@ def main() -> None:
         eval_kwargs={
             "binary": args.binary,
             "art": args.art,
-            "pacman": args.pacman,
+            "ms_pacman": args.ms,
             "start_level": args.start_level,
             "step_mode": args.step_mode,
             "frames_per_step": args.frames_per_step,

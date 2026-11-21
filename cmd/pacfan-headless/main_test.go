@@ -76,7 +76,7 @@ func BenchmarkHeadlessProcess(b *testing.B) {
 	for _, m := range modes {
 		b.Run(m.name, func(b *testing.B) {
 			// Use the placeholder art so results are comparable across machines.
-			cmd := exec.Command(bin, "-art", filepath.Join("..", "..", "assets", "game.png"))
+			cmd := exec.Command(bin, "--art", filepath.Join("..", "..", "assets", "game.png"))
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
 				b.Fatal(err)

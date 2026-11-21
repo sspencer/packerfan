@@ -74,7 +74,7 @@ func ResolveReplayArt(assetsFS fs.FS, artOverride string, rep *sim.Replay) (*Rep
 	if artOverride != "" {
 		data, err = os.ReadFile(artOverride)
 		if err != nil {
-			return nil, fmt.Errorf("replay: read -art %q: %w", artOverride, err)
+			return nil, fmt.Errorf("replay: read --art %q: %w", artOverride, err)
 		}
 		name = filepath.Base(artOverride)
 	} else {
@@ -107,7 +107,7 @@ func ResolveReplayArt(assetsFS fs.FS, artOverride string, rep *sim.Replay) (*Rep
 			needFile = "matching artwork PNG"
 		}
 		return nil, fmt.Errorf(
-			"replay maze_hash mismatch: replay requires %q (maze_hash=%s), but loaded %q (maze_hash=%s); pass -art FILE with matching mazes",
+			"replay maze_hash mismatch: replay requires %q (maze_hash=%s), but loaded %q (maze_hash=%s); pass --art FILE with matching mazes",
 			needFile, rep.Header.MazeHash, name, mazes.Hash(),
 		)
 	}

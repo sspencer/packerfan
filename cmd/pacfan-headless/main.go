@@ -1,9 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
+
+	flag "github.com/spf13/pflag"
 
 	"pacfan/assets"
 	"pacfan/internal/api"
@@ -15,17 +16,17 @@ import (
 func main() {
 	var (
 		artFile    string
-		pacman     bool
+		msPacman   bool
 		level      int
 		seed       int64
 		verifyFile string
 		dumpMazes  bool
 	)
 
-	flag.StringVar(&artFile, "art", "", "path to game spritesheet PNG (default: embedded game-real.png else game.png)")
-	flag.BoolVar(&pacman, "pacman", false, "default to classic Pac-Man mode for reset")
-	flag.IntVar(&level, "level", 1, "default starting level for reset (1..255)")
-	flag.Int64Var(&seed, "seed", component.DefaultPRNGSeed, "default PRNG seed for reset")
+	flag.StringVarP(&artFile, "art", "a", "", "path to game spritesheet PNG (default: embedded game-real.png else game.png)")
+	flag.BoolVarP(&msPacman, "ms", "m", false, "default to Ms. Pac-Man mode for reset (default: classic Pac-Man)")
+	flag.IntVarP(&level, "level", "l", 1, "default starting level for reset (1..255)")
+	flag.Int64VarP(&seed, "seed", "s", component.DefaultPRNGSeed, "default PRNG seed for reset")
 	flag.StringVar(&verifyFile, "verify", "", "replay a .pfr file headlessly and exit non-zero on mismatch")
 	flag.BoolVar(&dumpMazes, "dump-mazes", false, "print the five parsed text mazes and hashes, then exit")
 	flag.Parse()
@@ -72,7 +73,7 @@ func main() {
 		Sheet: s,
 		Mazes: mazes,
 		Defaults: sim.Config{
-			PacmanMode: pacman,
+			PacmanMode: !msPacman,
 			StartLevel: max(1, min(level, 255)),
 			Seed:       seed,
 		},

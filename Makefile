@@ -15,7 +15,7 @@ build: ## Build the binary
 build-headless: ## Build the headless NDJSON simulation server
 	$(GO) build $(GOFLAGS) -o $(HEADLESS_BINARY) ./cmd/pacfan-headless
 
-run: build ## Build and run the binary (e.g. make run ARGS="-pacman -zoom 4")
+run: build ## Build and run the binary (e.g. make run ARGS="--ms --zoom 4")
 	./$(BINARY) $(ARGS)
 
 test: ## Run all tests

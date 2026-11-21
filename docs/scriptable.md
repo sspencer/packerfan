@@ -26,8 +26,8 @@ Supporting two modes lets you **train fast headlessly** and **visually watch tra
 
 | Mode | CLI Example | Window / Audio | Pacing | Intended Use |
 | --- | --- | --- | --- | --- |
-| **Headless Lockstep (Training)** | `pacfan -headless -api stdio -pacman` | None (`NoopPlayer`, no Raylib) | Stepped strictly on demand (no 60.6 Hz sleep) | RL training (`PPO`, `DQN`, `MCTS`, genetic/evolutionary), vectorized parallel rollouts (10k–50k+ frames/sec per worker) |
-| **Visual Lockstep / Spectate** | `pacfan -api tcp://127.0.0.1:7777 -pacman -zoom 3` | Full Raylib window + optional audio | 60.6 Hz (or `-speed 2.0` fast-forward) | Watching a trained policy live, recording demos, debugging failure cases |
+| **Headless Lockstep (Training)** | `pacfan --headless --api stdio` | None (`NoopPlayer`, no Raylib) | Stepped strictly on demand (no 60.6 Hz sleep) | RL training (`PPO`, `DQN`, `MCTS`, genetic/evolutionary), vectorized parallel rollouts (10k–50k+ frames/sec per worker) |
+| **Visual Lockstep / Spectate** | `pacfan --api tcp://127.0.0.1:7777 --zoom 3` | Full Raylib window + optional audio | 60.6 Hz (or `--speed 2.0` fast-forward) | Watching a trained policy live, recording demos, debugging failure cases |
 
 In **Headless Lockstep** mode, non-interactive presentation scenes (`AttractScene`, `ReadyScene`, `GhostEatenFreezeScene`, `RoundClearedScene`, `IntermissionScene`, `PacmanDyingScene`) are bypassed (or collapsed to 0 frames) so 100% of CPU time goes into gameplay transitions and decisions.
 
@@ -37,11 +37,11 @@ In **Headless Lockstep** mode, non-interactive presentation scenes (`AttractScen
 
 ### Recommended Primary Transport: Newline-Delimited JSON (`NDJSON`)
 
-- **`stdio` (`-api stdio`)** — Default for ML training. The trainer (e.g., Python Gymnasium) spawns `pacfan -headless -api stdio` as a child process, writes one JSON command per line to `stdin`, and reads one JSON response per line from `stdout`.
+- **`stdio` (`--api stdio`)** — Default for ML training. The trainer (e.g., Python Gymnasium) spawns `pacfan --headless --api stdio` as a child process, writes one JSON command per line to `stdin`, and reads one JSON response per line from `stdout`.
   - Zero port collisions when spawning `N` parallel environments (`AsyncVectorEnv`).
   - Automatic cleanup on EOF if the Python trainer crashes or exits.
   - Zero third-party Go dependencies (`encoding/json` + `bufio.Scanner`).
-- **Local Socket (`-api unix:///tmp/pacfan.sock` or `-api tcp://127.0.0.1:7777`)** — Best for attaching an external agent to a live visual window (bind TCP strictly to `127.0.0.1` by default).
+- **Local Socket (`--api unix:///tmp/pacfan.sock` or `--api tcp://127.0.0.1:7777`)** — Best for attaching an external agent to a live visual window (bind TCP strictly to `127.0.0.1` by default).
 
 > **Future Performance Path**: NDJSON over `stdio` typically sustains 10,000–30,000 steps/sec per worker (and scales linearly across CPU cores). If serialization ever becomes the bottleneck, the same `Session` Go API can be exposed over length-prefixed binary frames (or batched multi-world stepping inside one Go process) without changing any ECS code.
 
@@ -70,7 +70,7 @@ All interactions follow a **lockstep request → response** cycle (matching the 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `seed` | `int64` | `42` | Seed for `component.PRNG` (deterministic episode replay) |
-| `pacman` | `bool` | CLI `-pacman` | `true` for classic Pac-Man, `false` for Ms. Pac-Man |
+| `pacman` | `bool` | `true` (`false` with CLI `--ms`) | `true` for classic Pac-Man, `false` for Ms. Pac-Man |
 | `level` | `int` | `1` | Starting level (`1..255`, useful for curriculum learning) |
 | `episodic_life` | `bool` | `false` | If `true`, sets `terminated: true` on losing a single life (standard Atari/Pac-Man RL convention) |
 | `compact_maze` | `bool` | `false` | If `true`, omits the static wall layout on `step` responses (sending it only on `reset` and level advance) and sends only remaining dot/power coordinates |
@@ -266,7 +266,7 @@ internal/
 │   ├── remote_input.go          # system.InputProvider adapter for live visual spectating
 │   └── api_test.go              # Determinism, action legality, event capture & throughput benchmarks
 └── ...
-main.go                          # Add -headless, -api, and -seed CLI flags
+main.go                          # Add --headless, --api, and --seed CLI flags
 ```
 
 ### 6.2 How `Session.Step` Executes Headlessly
@@ -325,7 +325,7 @@ func (s *Session) Step(req StepRequest) Response {
 
 ### 6.3 Live Visual Spectating Flow
 
-When running with a Raylib window (`pacfan -api tcp://127.0.0.1:7777`):
+When running with a Raylib window (`pacfan --api tcp://127.0.0.1:7777`):
 
 1. `main.go` starts a goroutine listening on `127.0.0.1:7777` (accepting one agent connection at a time).
 2. A thread-safe `api.RemoteInput` implements `system.InputProvider` and feeds the agent's latest requested direction into `Pipeline`.
@@ -347,7 +347,7 @@ from gymnasium import spaces
 
 
 class PacFanEnv(gym.Env):
-    """Gymnasium wrapper communicating with `pacfan -headless -api stdio`."""
+    """Gymnasium wrapper communicating with `pacfan --headless --api stdio`."""
 
     metadata = {"render_modes": ["none"]}
 
@@ -357,9 +357,9 @@ class PacFanEnv(gym.Env):
         self.frames_per_step = frames_per_step
         self.episodic_life = episodic_life
 
-        args = [binary, "-headless", "-api", "stdio"]
-        if pacman:
-            args.append("-pacman")
+        args = [binary, "--headless", "--api", "stdio"]
+        if not pacman:
+            args.append("--ms")
         self.proc = subprocess.Popen(
             args,
             stdin=subprocess.PIPE,
@@ -453,7 +453,7 @@ class PacFanEnv(gym.Env):
 
 | Phase | Scope | Effort |
 | --- | --- | :---: |
-| **Phase 1: Core Headless API** | Seedable `PRNG`, pure-Go PNG maze loader, `internal/api` `Session` + `stdio` NDJSON protocol, `-headless` / `-api stdio` flags, determinism & benchmark tests | **M** |
+| **Phase 1: Core Headless API** | Seedable `PRNG`, pure-Go PNG maze loader, `internal/api` `Session` + `stdio` NDJSON protocol, `--headless` / `--api stdio` flags, determinism & benchmark tests | **M** |
 | **Phase 2: Python Gymnasium Env & Baseline Agent** | `ml/pacfan_env.py` wrapper, random/heuristic sanity check, `MaskablePPO` or `DQN` training script with vectorized `AsyncVectorEnv` | **M** |
-| **Phase 3: Live Visual Spectating & Replays** | Unix/TCP socket transport (`-api tcp://127.0.0.1:7777`), `RemoteInput` provider for rendered Raylib window, optional action-log replay recording/playback | **S** |
+| **Phase 3: Live Visual Spectating & Replays** | Unix/TCP socket transport (`--api tcp://127.0.0.1:7777`), `RemoteInput` provider for rendered Raylib window, optional action-log replay recording/playback | **S** |
 | **Phase 4: High-Throughput Batching (Optional)** | Compact binary framing or multi-world batched `step_batch` command if training exceeds NDJSON IPC throughput | **M** |

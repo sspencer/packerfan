@@ -117,7 +117,7 @@ def evaluate_agent(
     seeds: list[int],
     binary: str,
     art: str | None,
-    pacman: bool,
+    ms_pacman: bool,
     step_mode: str,
     max_ticks: int,
 ) -> dict[str, float]:
@@ -130,7 +130,7 @@ def evaluate_agent(
     with PacFanEnv(
         binary=binary,
         art=art,
-        pacman=pacman,
+        ms_pacman=ms_pacman,
         step_mode=step_mode,
         max_ticks=max_ticks,
         obs_mode="grid",
@@ -174,7 +174,7 @@ def benchmark_workers(
     steps_per_worker: int,
     binary: str,
     art: str | None,
-    pacman: bool,
+    ms_pacman: bool,
     step_mode: str,
     obs_mode: str,
 ) -> None:
@@ -182,7 +182,7 @@ def benchmark_workers(
     for n in worker_counts:
         if n == 1:
             t0 = time.perf_counter()
-            with PacFanEnv(binary=binary, art=art, pacman=pacman, step_mode=step_mode, obs_mode=obs_mode) as env:
+            with PacFanEnv(binary=binary, art=art, ms_pacman=ms_pacman, step_mode=step_mode, obs_mode=obs_mode) as env:
                 env.reset(seed=7)
                 for s in range(steps_per_worker):
                     _, _, term, trunc, _ = env.step(s % 4)
@@ -193,7 +193,7 @@ def benchmark_workers(
             continue
 
         def make_thunk():
-            return PacFanEnv(binary=binary, art=art, pacman=pacman, step_mode=step_mode, obs_mode=obs_mode)
+            return PacFanEnv(binary=binary, art=art, ms_pacman=ms_pacman, step_mode=step_mode, obs_mode=obs_mode)
 
         vec = AsyncVectorEnv([make_thunk for _ in range(n)])
         try:
@@ -213,7 +213,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Run zero-ML pacfan baselines and throughput benchmarks.")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=None)
-    parser.add_argument("--pacman", action="store_true")
+    parser.add_argument("--ms", action="store_true", help="Ms. Pac-Man instead of classic Pac-Man")
     parser.add_argument("--episodes", type=int, default=5)
     parser.add_argument("--step-mode", default="tile", choices=["frames", "tile", "intersection"])
     parser.add_argument("--obs-mode", default="grid", choices=["grid", "grid_only", "bfs"])
@@ -231,7 +231,7 @@ def main() -> None:
         seeds=seeds,
         binary=args.binary,
         art=args.art,
-        pacman=args.pacman,
+        ms_pacman=args.ms,
         step_mode=args.step_mode,
         max_ticks=args.max_ticks,
     )
@@ -242,7 +242,7 @@ def main() -> None:
         seeds=seeds,
         binary=args.binary,
         art=args.art,
-        pacman=args.pacman,
+        ms_pacman=args.ms,
         step_mode=args.step_mode,
         max_ticks=args.max_ticks,
     )
@@ -253,7 +253,7 @@ def main() -> None:
             steps_per_worker=args.benchmark_steps,
             binary=args.binary,
             art=args.art,
-            pacman=args.pacman,
+            ms_pacman=args.ms,
             step_mode=args.step_mode,
             obs_mode=args.obs_mode,
         )

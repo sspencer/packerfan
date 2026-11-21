@@ -1,6 +1,6 @@
 # Packer Fan (`pacfan`)
 
-Arcade dot-eating maze game with ghosts built in Go using [Raylib](https://github.com/gen2brain/raylib-go) and the [Donburi](https://github.com/yohamta/donburi) Entity Component System (ECS). Supports both **Ms. Pac-Man** (default) and classic **Pac-Man** (`-pacman`) mazes, sprites, death animations, and intermissions.
+Arcade dot-eating maze game with ghosts built in Go using [Raylib](https://github.com/gen2brain/raylib-go) and the [Donburi](https://github.com/yohamta/donburi) Entity Component System (ECS). Supports both classic **Pac-Man** (default) and **Ms. Pac-Man** (`--ms`) mazes, sprites, death animations, and intermissions.
 
 ![Ms. Pac-Man gameplay using the placeholder example artwork](docs/example-screenshot.png)
 
@@ -25,21 +25,23 @@ go run .
 Pass CLI flags directly when running with `go run`, for example:
 
 ```sh
-go run . -pacman -zoom 4
+go run . --ms --zoom 4     # or: go run . -m -z 4
 ```
+
+Long flags use a double dash (`--zoom 4` or `--zoom=4`); short flags use a single dash and can be combined (`-mz 4`).
 
 ### CLI Flags
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-fullscreen` | `true` | Run in fullscreen mode with a black background, zoomed to the maximum fit and centered (`-fullscreen=false` for windowed mode) |
-| `-zoom` | `0` | Integer display scale factor (`1..10`; `0` auto-fits to maximum scale in fullscreen or `3x` in windowed mode) |
-| `-pacman` | `false` | Use classic Pac-Man maze, sprites, death animation, and intermissions instead of Ms. Pac-Man |
-| `-players` | `1` | Default player count on the attract screen (`1` or `2`) |
-| `-mute` | `false` | Disable arcade audio playback |
-| `-replay` | | Play back a recorded `.pfr` replay file, or every `.pfr` file in a directory (recursively, sorted) as a playlist, instead of starting a game |
-| `-replay-speed` | `1` | Starting replay playback speed multiplier (`0.25..16`) |
-| `-art` | | Override the game spritesheet PNG used in `-replay` mode (needed when the replay's mazes differ from the embedded artwork) |
+| `--fullscreen` | `true` | Run in fullscreen mode with a black background, zoomed to the maximum fit and centered (`--fullscreen=false` for windowed mode) |
+| `-z`, `--zoom` | `0` | Integer display scale factor (`1..10`; `0` auto-fits to maximum scale in fullscreen or `3x` in windowed mode) |
+| `-m`, `--ms` | `false` | Use Ms. Pac-Man mazes, sprites, death animation, and intermissions instead of classic Pac-Man |
+| `-p`, `--players` | `1` | Default player count on the attract screen (`1` or `2`) |
+| `--mute` | `false` | Disable arcade audio playback |
+| `-r`, `--replay` | | Play back a recorded `.pfr` replay file, or every `.pfr` file in a directory (recursively, sorted) as a playlist, instead of starting a game |
+| `-s`, `--replay-speed` | `1` | Starting replay playback speed multiplier (`0.25..16`) |
+| `-a`, `--art` | | Override the game spritesheet PNG used in `--replay` mode (needed when the replay's mazes differ from the embedded artwork) |
 
 ### Controls
 
@@ -56,7 +58,7 @@ go run . -pacman -zoom 4
 Replays (`.pfr` files) are recorded by the headless simulator, for example by the Python AI's evaluations. Watch one with:
 
 ```sh
-go run . -replay path/to/game.pfr        # or a directory of .pfr files
+go run . --replay path/to/game.pfr        # or a directory of .pfr files
 ```
 
 - **Space**: Pause / resume playback
@@ -72,7 +74,7 @@ See [docs/headless.md](docs/headless.md#7-watching-and-verifying-replays) for th
 
 ```sh
 make build      # Build the ./pacfan binary
-make run        # Build and launch ./pacfan (pass flags via ARGS="-pacman -zoom 4")
+make run        # Build and launch ./pacfan (pass flags via ARGS="--ms --zoom 4")
 make test       # Run all unit, ECS simulation, and scene tests
 make test-race  # Run all tests with the race detector enabled
 make cover      # Run tests and print statement coverage

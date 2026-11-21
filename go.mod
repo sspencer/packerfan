@@ -4,6 +4,7 @@ go 1.27
 
 require (
 	github.com/gen2brain/raylib-go/raylib v0.63.0
+	github.com/spf13/pflag v1.0.10
 	github.com/yohamta/donburi v1.15.8
 )
 

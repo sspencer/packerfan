@@ -19,7 +19,7 @@ def evaluate_checkpoint(
     seeds: list[int],
     binary: str,
     art: str | None = None,
-    pacman: bool = False,
+    ms_pacman: bool = False,
     start_level: int = 1,
     step_mode: str = "tile",
     frames_per_step: int = 4,
@@ -36,7 +36,7 @@ def evaluate_checkpoint(
     with PacFanEnv(
         binary=binary,
         art=art,
-        pacman=pacman,
+        ms_pacman=ms_pacman,
         start_level=start_level,
         step_mode=step_mode,
         frames_per_step=frames_per_step,
@@ -104,7 +104,7 @@ def main() -> None:
     parser.add_argument("checkpoint", type=Path, help="Path to saved .zip checkpoint")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=None)
-    parser.add_argument("--pacman", action="store_true")
+    parser.add_argument("--ms", action="store_true", help="Ms. Pac-Man instead of classic Pac-Man")
     parser.add_argument("--start-level", type=int, default=1)
     parser.add_argument("--step-mode", default="tile", choices=["frames", "tile", "intersection"])
     parser.add_argument("--frames-per-step", type=int, default=4)
@@ -122,7 +122,7 @@ def main() -> None:
         seeds=seeds,
         binary=args.binary,
         art=args.art,
-        pacman=args.pacman,
+        ms_pacman=args.ms,
         start_level=args.start_level,
         step_mode=args.step_mode,
         frames_per_step=args.frames_per_step,

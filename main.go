@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"runtime/debug"
 	"strings"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
+	flag "github.com/spf13/pflag"
 
 	"pacfan/assets"
 	"pacfan/internal/audio"
@@ -24,21 +24,22 @@ func main() {
 
 	var zoom int
 	var fullscreen bool
-	var pacman bool
+	var msPacman bool
 	var players int
 	var mute bool
 	var replayPath string
 	var replaySpeed float64
 	var artFile string
-	flag.IntVar(&zoom, "zoom", 0, "zoom level (1..10; 0 = auto-fit fullscreen or 3x windowed)")
+	flag.IntVarP(&zoom, "zoom", "z", 0, "zoom level (1..10; 0 = auto-fit fullscreen or 3x windowed)")
 	flag.BoolVar(&fullscreen, "fullscreen", true, "run in fullscreen mode")
-	flag.BoolVar(&pacman, "pacman", false, "pacman mode")
-	flag.IntVar(&players, "players", 1, "default number of players (1 or 2)")
+	flag.BoolVarP(&msPacman, "ms", "m", false, "Ms. Pac-Man mode (default: classic Pac-Man)")
+	flag.IntVarP(&players, "players", "p", 1, "default number of players (1 or 2)")
 	flag.BoolVar(&mute, "mute", false, "disable audio playback")
-	flag.StringVar(&replayPath, "replay", "", "play a recorded .pfr replay file or directory")
-	flag.Float64Var(&replaySpeed, "replay-speed", 1.0, "replay playback speed multiplier (0.25..16)")
-	flag.StringVar(&artFile, "art", "", "override game spritesheet PNG path for -replay mode")
+	flag.StringVarP(&replayPath, "replay", "r", "", "play a recorded .pfr replay file or directory")
+	flag.Float64VarP(&replaySpeed, "replay-speed", "s", 1.0, "replay playback speed multiplier (0.25..16)")
+	flag.StringVarP(&artFile, "art", "a", "", "override game spritesheet PNG path for --replay mode")
 	flag.Parse()
+	pacman := !msPacman
 
 	var maxZoom float32
 	windowZoom := defaultWindowedZoom
@@ -77,7 +78,7 @@ Rebuild afterwards: the assets are embedded into the binary at build time.
 
 Audio files are not included in this repository for copyright reasons.
 Place WAV files under assets/pacman/ or assets/ms-pacman/ (see assets/README.md)
-and rebuild to enable missing sounds, or pass -mute to silence this warning.
+and rebuild to enable missing sounds, or pass --mute to silence this warning.
 `, strings.Join(missing, "\n  "))
 		}
 	}

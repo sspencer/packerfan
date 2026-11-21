@@ -72,5 +72,5 @@ See [docs/headless.md](../docs/headless.md#9-benchmarks) for all benchmarks and 
 Verify any recorded `.pfr` replay headlessly:
 
 ```bash
-../pacfan-headless -verify ../runs/ppo-demo/eval/ckpt-00025000/seed-1000.pfr
+../pacfan-headless --verify ../runs/ppo-demo/eval/ckpt-00025000/seed-1000.pfr
 ```

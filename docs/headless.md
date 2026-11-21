@@ -35,10 +35,10 @@ The pieces involved are:
 
 | Path | Role |
 | --- | --- |
-| [`cmd/pacfan-headless/main.go`](../cmd/pacfan-headless/main.go) | Command-line entry point: flags, `-verify`, `-dump-mazes`, and the NDJSON server. |
+| [`cmd/pacfan-headless/main.go`](../cmd/pacfan-headless/main.go) | Command-line entry point: flags, `--verify`, `--dump-mazes`, and the NDJSON server. |
 | [`internal/sim`](../internal/sim) | `sim.Env`: a deterministic, play-only simulation (`Reset`, `Step`, `TickOne`), the world hash, and `.pfr` recording, parsing and verification. |
 | [`internal/api`](../internal/api) | The NDJSON protocol: request/response types, the `Session` that maps commands to `sim.Env` calls, and the read/dispatch/write loop. |
-| [`internal/game/replay_player.go`](../internal/game/replay_player.go), [`replay_viewer.go`](../internal/game/replay_viewer.go) | Plays `.pfr` files back in the normal game window (`pacfan -replay`). |
+| [`internal/game/replay_player.go`](../internal/game/replay_player.go), [`replay_viewer.go`](../internal/game/replay_viewer.go) | Plays `.pfr` files back in the normal game window (`pacfan --replay`). |
 | [`ml/`](../ml) | The Python Gymnasium environment, baseline agents, PPO training and evaluation scripts. |
 
 `make check` includes a `check-headless-deps` step that fails if `internal/sim`, `internal/api` or `cmd/pacfan-headless` ever import Raylib, audio, scenes or rendering, so the headless binary stays pure Go and builds without a C toolchain or GPU.
@@ -66,12 +66,12 @@ printf '%s\n' \
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-art FILE` | embedded `game-real.png` if present, else `game.png` | Game spritesheet PNG. The maze layouts are **parsed from this image**, so it decides which mazes are played (see [Artwork and `maze_hash`](#artwork-and-maze_hash)). |
-| `-pacman` | `false` | Default to classic Pac-Man instead of Ms. Pac-Man when a `reset` does not say. |
-| `-level N` | `1` | Default starting level (`1..255`) for `reset`. |
-| `-seed N` | `42` | Default PRNG seed for `reset`. |
-| `-verify FILE.pfr` | | Replay a `.pfr` file headlessly, check every hash checkpoint, print a summary and exit (non-zero on mismatch). No server is started. |
-| `-dump-mazes` | | Print the art file name, its SHA-256, the `maze_hash`, and the five parsed text mazes, then exit. |
+| `-a`, `--art FILE` | embedded `game-real.png` if present, else `game.png` | Game spritesheet PNG. The maze layouts are **parsed from this image**, so it decides which mazes are played (see [Artwork and `maze_hash`](#artwork-and-maze_hash)). |
+| `-m`, `--ms` | `false` | Default to Ms. Pac-Man instead of classic Pac-Man when a `reset` does not say. |
+| `-l`, `--level N` | `1` | Default starting level (`1..255`) for `reset`. |
+| `-s`, `--seed N` | `42` | Default PRNG seed for `reset`. |
+| `--verify FILE.pfr` | | Replay a `.pfr` file headlessly, check every hash checkpoint, print a summary and exit (non-zero on mismatch). No server is started. |
+| `--dump-mazes` | | Print the art file name, its SHA-256, the `maze_hash`, and the five parsed text mazes, then exit. |
 
 Values passed in a `reset` request always win over these defaults.
 
@@ -144,7 +144,7 @@ So the server reports two identities:
 - `art.sha256`: the SHA-256 of the PNG file.
 - `maze_hash`: a hash of the five parsed maze layouts. **This is what matters for gameplay.** Two PNGs with different pictures but identical mazes have the same `maze_hash`.
 
-Replays store both. A replay can only be played back with art whose `maze_hash` matches; an `art.sha256` difference alone just prints a warning. Use `./pacfan-headless -dump-mazes` (optionally with `-art FILE`) to see which mazes and hashes a PNG gives.
+Replays store both. A replay can only be played back with art whose `maze_hash` matches; an `art.sha256` difference alone just prints a warning. Use `./pacfan-headless --dump-mazes` (optionally with `--art FILE`) to see which mazes and hashes a PNG gives.
 
 There are five mazes (indexes `0..4`):
 
@@ -226,7 +226,7 @@ Because the layouts never change, a client can read them once from `hello` and t
 ### `reset`
 
 ```json
-{"cmd":"reset","pacman":false,"level":1,"seed":7,"episodic_life":false,
+{"cmd":"reset","pacman":true,"level":1,"seed":7,"episodic_life":false,
  "end_on_level_clear":false,"max_ticks":0,
  "record":"runs/demo/ep-0001.pfr","meta":{"run_id":"demo","episode":1}}
 ```
@@ -235,7 +235,7 @@ Every field except `cmd` is optional; missing fields use the server's flag defau
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `pacman` | bool | Classic Pac-Man (`true`) or Ms. Pac-Man (`false`). |
+| `pacman` | bool | Classic Pac-Man (`true`) or Ms. Pac-Man (`false`). Defaults to `true` unless the server was started with `--ms`. |
 | `level` | int | Starting level, clamped to `1..255`. |
 | `seed` | int | PRNG seed. Same seed + same actions = same game. |
 | `episodic_life` | bool | See [Episodes and options](#episodes-and-options). |
@@ -405,7 +405,7 @@ proc.wait()
 Then watch the game it recorded:
 
 ```sh
-go run . -replay runs/demo/first-game.pfr
+go run . --replay runs/demo/first-game.pfr
 ```
 
 ### Tips
@@ -461,21 +461,21 @@ Example replays live in [`internal/sim/testdata/`](../internal/sim/testdata). Th
 ### Watching in the game window
 
 ```sh
-go run . -replay path/to/game.pfr               # one file
-go run . -replay runs/ppo-demo/eval             # a directory: every .pfr in it, recursively, sorted
-go run . -replay game.pfr -replay-speed 4       # start at 4x speed
-go run . -replay game.pfr -art assets/game.png  # use a specific spritesheet
-go run . -replay game.pfr -zoom 4
+go run . --replay path/to/game.pfr               # one file
+go run . --replay runs/ppo-demo/eval             # a directory: every .pfr in it, recursively, sorted
+go run . --replay game.pfr --replay-speed 4       # start at 4x speed
+go run . --replay game.pfr --art assets/game.png  # use a specific spritesheet
+go run . --replay game.pfr --zoom 4
 ```
 
-(or `make build` and run `./pacfan -replay ...`.)
+(or `make build` and run `./pacfan --replay ...`.)
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-replay PATH` | | A `.pfr` file, or a directory to play every `.pfr` file in it (searched recursively, sorted by path) as a playlist. |
-| `-replay-speed X` | `1` | Starting playback speed, `0.25` to `16`. |
-| `-art FILE` | (see below) | Spritesheet PNG to use. |
-| `-zoom N` | `3` | Window scale. |
+| `-r`, `--replay PATH` | | A `.pfr` file, or a directory to play every `.pfr` file in it (searched recursively, sorted by path) as a playlist. |
+| `-s`, `--replay-speed X` | `1` | Starting playback speed, `0.25` to `16`. |
+| `-a`, `--art FILE` | (see below) | Spritesheet PNG to use. |
+| `-z`, `--zoom N` | `3` | Window scale. |
 
 Controls:
 
@@ -490,21 +490,21 @@ Controls:
 
 The bar at the bottom of the window shows the replay's `run_id`, `checkpoint` and `episode` from `meta` (or the file name if there are none), the playlist position, `t=<tick>/<total>` and the speed. Hash checkpoints are checked during playback: if the game ever differs from the recording, playback stops and the bar shows the mismatch in red. The viewer has no audio and does not show the attract or intermission screens.
 
-**Choosing the artwork.** With no `-art`, the viewer uses the embedded asset whose file name matches the replay header's `art.file` (for example `game.png` or `game-real.png`), or the default asset if there is no match. If the `maze_hash` of that art does not match the replay, it refuses to play and tells you which art file the replay needs, in which case pass `-art` with a PNG that has the right mazes.
+**Choosing the artwork.** With no `--art`, the viewer uses the embedded asset whose file name matches the replay header's `art.file` (for example `game.png` or `game-real.png`), or the default asset if there is no match. If the `maze_hash` of that art does not match the replay, it refuses to play and tells you which art file the replay needs, in which case pass `--art` with a PNG that has the right mazes.
 
 ### Verifying without a window
 
 ```sh
-./pacfan-headless -verify path/to/game.pfr
+./pacfan-headless --verify path/to/game.pfr
 # OK ticks=3949 score=3480 level=1 checkpoints=7 hash=488ab9e1e13872fa
 ```
 
-`-verify` replays the file as fast as possible, checks every checkpoint, and exits with status 0 and an `OK` line, or non-zero with `VERIFY FAILED: ...`. It is useful in scripts and CI, and for checking that a gameplay code change has not changed how existing replays play out.
+`--verify` replays the file as fast as possible, checks every checkpoint, and exits with status 0 and an `OK` line, or non-zero with `VERIFY FAILED: ...`. It is useful in scripts and CI, and for checking that a gameplay code change has not changed how existing replays play out.
 
-`-verify` always uses the art given by `-art`, or the default embedded art; it does **not** pick art from the header. For example, if you have `assets/game-real.png` locally, the bundled test replays (recorded with the placeholder art) need:
+`--verify` always uses the art given by `--art`, or the default embedded art; it does **not** pick art from the header. For example, if you have `assets/game-real.png` locally, the bundled test replays (recorded with the placeholder art) need:
 
 ```sh
-./pacfan-headless -art assets/game.png -verify internal/sim/testdata/mspacman_play.pfr
+./pacfan-headless --art assets/game.png --verify internal/sim/testdata/mspacman_play.pfr
 ```
 
 ---
@@ -565,8 +565,8 @@ These give a floor that a learned agent should beat.
 | `--step-mode` | `tile` | `frames`, `tile` or `intersection`. |
 | `--max-ticks` | `12000` | Truncation limit per episode. |
 | `--avoid-dist` | `3` | GreedyBFSAgent's danger distance, in tiles. |
-| `--pacman` | off | Classic Pac-Man. |
-| `--art` | | Spritesheet passed to the server as `-art`. |
+| `--ms` | off | Ms. Pac-Man instead of classic Pac-Man. |
+| `--art` | | Spritesheet passed to the server as `--art`. |
 | `--benchmark-workers N ...` | | Run the throughput benchmark with these worker counts. |
 | `--benchmark-steps` | `300` | Steps per worker in the benchmark. |
 
@@ -603,7 +603,7 @@ Main options:
 | `--seed` | `42` | Training seed. |
 | `--eval-freq`, `--eval-episodes`, `--eval-seed-start` | `25000`, `5`, `1000` | Evaluation schedule. |
 | `--run-dir` | `runs/ppo-<timestamp>` | Output directory. |
-| `--start-level`, `--pacman`, `--art`, `--binary` | | Game and server settings. |
+| `--start-level`, `--ms`, `--art`, `--binary` | | Game and server settings. |
 
 Output layout:
 
@@ -626,18 +626,18 @@ The evaluation replays carry `run_id`, `checkpoint` and `episode` in their `meta
 
 ```sh
 cd ..                                   # back to the repository root
-go run . -replay runs/ppo-demo/eval -replay-speed 2
+go run . --replay runs/ppo-demo/eval --replay-speed 2
 ```
 
 ### 8.5 Evaluate a checkpoint
 
 ```sh
 python eval.py ../runs/ppo-demo/best/model.zip --episodes 10 --record-dir ../runs/ppo-demo/eval-manual
-../pacfan-headless -verify ../runs/ppo-demo/eval-manual/seed-1000.pfr
-cd .. && go run . -replay runs/ppo-demo/eval-manual
+../pacfan-headless --verify ../runs/ppo-demo/eval-manual/seed-1000.pfr
+cd .. && go run . --replay runs/ppo-demo/eval-manual
 ```
 
-`eval.py` plays `--episodes` games on seeds from `--seed-start` (default `1000`) and prints a summary. With `--record-dir` it writes `seed-<N>.pfr` for each game plus `metrics.json`. Use the same `--step-mode`, `--obs-mode` and `--frames-per-step` as the model was trained with. Other options: `--max-ticks` (default `20000`), `--start-level`, `--pacman`, `--art`, `--binary`.
+`eval.py` plays `--episodes` games on seeds from `--seed-start` (default `1000`) and prints a summary. With `--record-dir` it writes `seed-<N>.pfr` for each game plus `metrics.json`. Use the same `--step-mode`, `--obs-mode` and `--frames-per-step` as the model was trained with. Other options: `--max-ticks` (default `20000`), `--start-level`, `--ms`, `--art`, `--binary`.
 
 ### 8.6 Using `PacFanEnv` directly
 
@@ -660,8 +660,8 @@ Constructor options:
 | Option | Default | Description |
 | --- | --- | --- |
 | `binary` | found automatically | Path to `pacfan-headless`. |
-| `art` | | Spritesheet PNG passed as `-art`. |
-| `pacman` | `False` | Classic Pac-Man. |
+| `art` | | Spritesheet PNG passed as `--art`. |
+| `ms_pacman` | `False` | Ms. Pac-Man instead of classic Pac-Man (passes `--ms` to the server). |
 | `start_level` | `1` | Starting level. |
 | `step_mode` | `"tile"` | `"frames"`, `"tile"` or `"intersection"`. |
 | `frames_per_step` | `4` | Ticks per step in `frames` mode. |
@@ -732,7 +732,7 @@ go test -run '^$' -bench EnvStep/tile -cpuprofile cpu.out ./internal/sim
 go tool pprof -top cpu.out                 # or: go tool pprof -http=:8080 cpu.out
 ```
 
-Whatever you change, `go test ./...` (in particular the replay tests and `-verify` of existing `.pfr` files) must still pass: a speedup must not change how the game plays.
+Whatever you change, `go test ./...` (in particular the replay tests and `--verify` of existing `.pfr` files) must still pass: a speedup must not change how the game plays.
 
 ### Baseline (Apple M1)
 
@@ -757,9 +757,9 @@ A single tick costs about 3.5-4.5 µs. What these numbers say:
 
 | Problem | Cause and fix |
 | --- | --- |
-| `replay maze_hash mismatch: replay requires "game.png" ...` | The replay was recorded with different maze layouts. Pass `-art` with the PNG it names (for example `-art assets/game.png` for the bundled test replays when `assets/game-real.png` exists). |
+| `replay maze_hash mismatch: replay requires "game.png" ...` | The replay was recorded with different maze layouts. Pass `--art` with the PNG it names (for example `--art assets/game.png` for the bundled test replays when `assets/game-real.png` exists). |
 | `warning: artwork SHA-256 differs ...` | The PNG is different but the mazes match. Harmless; the replay plays the same. |
-| `replay hash mismatch at tick N` | The game played out differently from the recording, usually because gameplay code changed after the replay was recorded. Re-record, or find the change with `-verify` and `git bisect`. |
+| `replay hash mismatch at tick N` | The game played out differently from the recording, usually because gameplay code changed after the replay was recorded. Re-record, or find the change with `--verify` and `git bisect`. |
 | `must call reset before step` | Send `reset` first. |
 | `unknown step mode "..."` / `unknown action "..."` | Use `frames`/`tile`/`intersection` and `0..4` or `right`/`left`/`up`/`down`/`noop`. |
 | Python: `pacfan-headless died (...)` | The server exited; the message includes its exit code and stderr. Check the binary is built (`make build-headless`) and that any `--art` path exists. |

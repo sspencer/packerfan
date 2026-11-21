@@ -43,8 +43,8 @@ The rest of this plan is about protecting that determinism, making the headless 
        ┌───────────────────────────┴───────┐        ┌─────────────┴──────────────────────┐
        │ internal/sim  (NEW, no Raylib)    │        │ main.go + internal/render (Raylib) │
        │  Env: Reset / Step / Observe      │        │  normal play                       │
-       │  ScriptedInput, NoopDrawer        │        │  -record  (save human games)       │
-       │  replay.Writer / replay.Reader    │        │  -replay  (watch any saved game)   │
+       │  ScriptedInput, NoopDrawer        │        │  --record (save human games)       │
+       │  replay.Writer / replay.Reader    │        │  --replay (watch any saved game)   │
        └───────────────▲───────────────────┘        └─────────────▲──────────────────────┘
                        │                                          │
        ┌───────────────┴───────────────────┐                      │
@@ -182,7 +182,7 @@ checkpoints: every 600 ticks, a 64-bit hash of the world state
 footer (JSON): final score, level reached, ticks, deaths, dots eaten, cause of end
 ```
 
-- **Inputs are recorded at the `InputProvider` boundary.** A `RecordingInput` wrapper wraps any provider and logs what it returned on each `Sample()` call. Because it wraps any provider, the same code records agent games and **human games** (a `-record` flag on the normal game), which gives demonstration data for imitation learning and a human baseline to compare against.
+- **Inputs are recorded at the `InputProvider` boundary.** A `RecordingInput` wrapper wraps any provider and logs what it returned on each `Sample()` call. Because it wraps any provider, the same code records agent games and **human games** (a `--record` flag on the normal game), which gives demonstration data for imitation learning and a human baseline to compare against.
 - **State hashes catch desyncs.** The hash covers `GameState`, the maze grid, actor positions and states, and the PRNG cursor. If playback ever disagrees with a recorded hash, the player reports the first bad tick instead of silently showing a different game.
 - **The header pins the game version.** A rule change makes old replays play out differently, so the player warns when the commit differs, and a small "replay corpus" test (below) catches changes that break replays by accident.
 
@@ -208,9 +208,9 @@ New flags on the normal `pacfan` binary:
 
 | Flag | Meaning |
 | --- | --- |
-| `-replay FILE` | Play one replay, or every `.pfr` in a directory in order |
-| `-replay-speed N` | Playback speed multiplier (0.25 to 16) |
-| `-record FILE` | Save the game a person plays |
+| `--replay FILE` | Play one replay, or every `.pfr` in a directory in order |
+| `--replay-speed N` | Playback speed multiplier (0.25 to 16) |
+| `--record FILE` | Save the game a person plays |
 
 How playback works:
 
@@ -248,7 +248,7 @@ Replays are only trustworthy if the same inputs always produce the same game. I 
 | 1 | Pure-Go `sheet` loader, cached maze grids, seedable PRNG | Tests run the full game with no Raylib calls |
 | 2 | `internal/sim` `Env` with fast timing profile, `ScriptedInput`, events, rewards | A random agent plays complete games headlessly; benchmark shows ticks per second |
 | 3 | `RecordingInput`, `.pfr` writer and reader, state hashes, determinism tests | Round-trip and corpus tests pass |
-| 4 | `-replay` and `-record` in the windowed game, viewer controls, cosmetic holds | A headless game plays back in the window with no hash mismatch |
+| 4 | `--replay` and `--record` in the windowed game, viewer controls, cosmetic holds | A headless game plays back in the window with no hash mismatch |
 | 5 | `VecEnv`, observation encoders, `cmd/pacfan-train` with a simple Go baseline agent (greedy dot-chaser that avoids ghosts) and run-directory layout | A training run produces checkpoints, evaluation replays, and `episodes.jsonl` |
 | 6 | c-shared library and Python Gymnasium wrapper; a PPO example | A Python agent trains and its evaluation replays visibly improve |
 | 7 (optional) | Video export, side-by-side and heat-map views, intersection stepping | Learning progress can be shared as clips |

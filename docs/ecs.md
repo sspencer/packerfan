@@ -194,7 +194,7 @@ system.Pipeline.Update(world)
 
 ### Audio (`internal/audio/`)
 
-`audio.MissingAssets` / `audio.HasAnyAssets` verify optional WAV files via `fs.Stat` before initializing Raylib's audio device; missing files warn on `stderr` and degrade silently (or disable via `-mute` / toggle in-game with `M`). `RaylibPlayer` alternates chomp pitch for waka-waka cadence, plays optional `*_firstloop.wav` intro clips before seamlessly cycling `siren0..4.wav` / `eyes.wav`, and pauses/resumes all active sounds cleanly with `Space`.
+`audio.MissingAssets` / `audio.HasAnyAssets` verify optional WAV files via `fs.Stat` before initializing Raylib's audio device; missing files warn on `stderr` and degrade silently (or disable via `--mute` / toggle in-game with `M`). `RaylibPlayer` alternates chomp pitch for waka-waka cadence, plays optional `*_firstloop.wav` intro clips before seamlessly cycling `siren0..4.wav` / `eyes.wav`, and pauses/resumes all active sounds cleanly with `Space`.
 
 ### Rendering (`internal/render/renderer.go`)
 
