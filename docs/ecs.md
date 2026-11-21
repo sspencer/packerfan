@@ -6,7 +6,7 @@ Core design principles:
 
 1. **Data vs. Behavior Separation**: Components in `internal/component` are plain data structs (with small reset/lookup helpers). Per-frame gameplay rules live in focused systems in `internal/system`, and phase-level transitions live in `internal/scene`.
 2. **World-Scoped State**: Global singletons (`GameState`, `Maze`, `PRNG`) are stored as singleton entities in `donburi.World`, and gameplay events use Donburi's world-scoped event bus (`donburi/features/events`). Multiple worlds can run concurrently (e.g., in tests) with complete isolation.
-3. **Simulation Decoupled from Raylib**: Only `main.go`, `internal/render`, and `internal/audio/raylib.go` import `raylib-go`. Input polling (`system.InputProvider`), scene rendering (`scene.Drawer`), audio playback (`audio.Player`), and spritesheet pixel sampling (`isPixelLit`) are injected via interfaces/callbacks so the ECS simulation, scene state machine, and audio logic run headlessly in `go test`.
+3. **Simulation Decoupled from Ebitengine**: Only `main.go`, `internal/render`, and `internal/audio/ebiten.go` import Ebitengine. Input polling (`system.InputProvider`), scene rendering (`scene.Drawer`), audio playback (`audio.Player`), and spritesheet pixel sampling (`isPixelLit`) are injected via interfaces/callbacks so the ECS simulation, scene state machine, and audio logic run headlessly in `go test`.
 4. **Archetype-Friendly Entities**: All four ghosts share an identical component layout so Donburi stores them contiguously in a single archetype in canonical update/draw order (`Blinky`, `Inky`, `Pinky`, `Clyde`).
 
 ---
@@ -15,7 +15,7 @@ Core design principles:
 
 ```text
 pacfan/
-├── main.go                          # Entry point: CLI flags, asset checks, Raylib window, fixed-timestep arcade loop
+├── main.go                          # Entry point: CLI flags, asset checks, Ebitengine window, fixed-timestep arcade loop
 ├── assets/                          # Chroma-key shader (tracked) + local spritesheet, bitmap font & WAVs (embedded at build time)
 └── internal/
     ├── config/                      # Shared constants, math types, enums, clock, and arcade lookup tables
@@ -41,11 +41,11 @@ pacfan/
     │   ├── world.go                 # CreateGameState, CreateMaze, CreatePRNG
     │   ├── player.go                # SpawnPlayer
     │   └── ghost.go                 # SpawnBlinky, SpawnInky, SpawnPinky, SpawnClyde, SpawnAllGhosts
-    ├── audio/                       # Decoupled arcade audio interface, loop selector & Raylib WAV player
+    ├── audio/                       # Decoupled arcade audio interface, loop selector & Ebitengine WAV player
     │   ├── audio.go                 # Player/NoopPlayer, fs.Stat MissingAssets/HasAnyAssets checks, SirenLoopForDots, SelectBackgroundLoop
-    │   ├── raylib.go                # RaylibPlayer (waka-waka pitch alternation, *_firstloop.wav intros, pause/resume, mute)
+    │   ├── ebiten.go                # EbitenPlayer (waka-waka pitch alternation, *_firstloop.wav intros, pause/resume, mute)
     │   └── audio_test.go            # Siren escalation, loop priority, and fs.Stat asset verification tests
-    ├── system/                      # ECS simulation systems (zero Raylib dependencies)
+    ├── system/                      # ECS simulation systems (zero Ebitengine dependencies)
     │   ├── pipeline.go              # Per-frame ordered system scheduler, event flushes, and UpdateEatenGhosts
     │   ├── input.go                 # InputProvider interface, InputState (arrows/WASD, 1/2, Enter, Space, M), & InputSystem
     │   ├── game_state.go            # Frame/wave counters (pausing wave timer in fright), fright & fruit timers, level-clear fallback
@@ -59,7 +59,7 @@ pacfan/
     │   ├── audio.go                 # RegisterAudioEventHandlers bridging ECS events to audio.Player
     │   ├── level.go                 # StartNewGame, RestartGame, AdvanceToNextLevel, ConsumeLifeOrSwitchPlayer (1P/2P), ResetActors
     │   └── system_test.go           # Headless ECS unit & integration tests
-    ├── scene/                       # High-level game phase state machine (zero Raylib dependencies)
+    ├── scene/                       # High-level game phase state machine (zero Ebitengine dependencies)
     │   ├── manager.go               # Scene interface & Manager (Exit/Enter lifecycle and deferred transitions)
     │   ├── context.go               # Shared Context, Drawer interface, DrawOptions, AttractView, IntermissionView, audio sync helpers
     │   ├── attract.go               # AttractScene (cast roll-call, scoring legend, chase demo, 1P/2P selection)
@@ -71,10 +71,10 @@ pacfan/
     │   ├── pacman_dying.go          # PacmanDyingScene (collision hold, 11-frame death anim + SFX, 1P/2P respawn or Game Over)
     │   ├── game_over.go             # GameOverScene ("GAME OVER" banner returning to AttractScene after 3s or key press after 1s)
     │   └── scene_test.go            # Headless scene lifecycle, 2P alternation, attract & audio transition tests
-    ├── render/                      # Raylib presentation & hardware input adapter
-    │   ├── art.go                   # CheckAssets + embedded asset loader (textures, image, chroma-key & inline white-flash shaders)
+    ├── render/                      # Ebitengine presentation & hardware input adapter
+    │   ├── art.go                   # CheckAssets + embedded asset loader (textures, CPU chroma-keying, inline white-flash shader)
     │   ├── font.go                  # 8x8 uppercase bitmap arcade font renderer
-    │   ├── input.go                 # RaylibInput adapter implementing system.InputProvider
+    │   ├── input.go                 # EbitenInput adapter implementing system.InputProvider
     │   ├── renderer.go              # Renderer implementing scene.Drawer (world, HUD, blinking pellets/1UP/2UP, fruit, PAUSED, attract, intermissions)
     │   └── renderer_test.go         # Sprite coordinate, flash count, blinking, fruit & spritesheet pixel validation tests
     └── game/                        # Composition root tying World, Pipeline, Scene Manager, Art, Audio, HighScore, and Renderer together
@@ -194,16 +194,16 @@ system.Pipeline.Update(world)
 
 ### Audio (`internal/audio/`)
 
-`audio.MissingAssets` / `audio.HasAnyAssets` verify optional WAV files via `fs.Stat` before initializing Raylib's audio device; missing files warn on `stderr` and degrade silently (or disable via `--mute` / toggle in-game with `M`). `RaylibPlayer` alternates chomp pitch for waka-waka cadence, plays optional `*_firstloop.wav` intro clips before seamlessly cycling `siren0..4.wav` / `eyes.wav`, and pauses/resumes all active sounds cleanly with `Space`.
+`audio.MissingAssets` / `audio.HasAnyAssets` verify optional WAV files via `fs.Stat` before initializing the Ebitengine audio context; missing files warn on `stderr` and degrade silently (or disable via `--mute` / toggle in-game with `M`). `EbitenPlayer` alternates chomp pitch for waka-waka cadence, plays optional `*_firstloop.wav` intro clips before seamlessly cycling `siren0..4.wav` / `eyes.wav`, and pauses/resumes all active sounds cleanly with `Space`.
 
 ### Rendering (`internal/render/renderer.go`)
 
 `Renderer` implements `scene.Drawer` with three entry points:
 
-1. **`DrawWorld(w, opts)`** (five Raylib 2D camera passes):
+1. **`DrawWorld(w, opts)`** (five 2D camera passes):
    - **Maze & Banner Pass (`mazeCamera`)**: Empty maze background (with `Art.FlashShader` when flashing), dots and blinking power pellets (`EnergizerVisible`, solid in `READY!`/`GAME OVER`), and `"PLAYER ONE"`/`"PLAYER TWO"`, `"READY!"`, `"GAME OVER"`, and `"PAUSED"` overlays.
    - **HUD Labels & Scores Passes (`textCamera`)**: Blinking active `"1UP"` / `"2UP"` header, `"HIGH SCORE"`, and right-aligned scores.
    - **Bottom HUD Pass (`textCamera`)**: Remaining life icons (`Lives - 1`) on the left and up to 7 level bonus fruit icons right-to-left on the right.
-   - **Sprites Pass (`spriteCamera` + `assets/chroma_key.fs`)**: Bonus fruit (with vertical bounce offset in Ms. Pac-Man) or fruit score popup, player (mouth animation or `PlayerDeathSprite`), ghosts (normal, blue/white warning flashes via `FrightenedGhostFlashWhite`, or eyes), and ghost bonus score popups.
+   - **Sprites Pass (`spriteCamera`, chroma-keyed texture)**: Bonus fruit (with vertical bounce offset in Ms. Pac-Man) or fruit score popup, player (mouth animation or `PlayerDeathSprite`), ghosts (normal, blue/white warning flashes via `FrightenedGhostFlashWhite`, or eyes), and ghost bonus score popups.
 2. **`DrawIntermission(w, view)`**: Shared HUD, centered act title/subtitle, `"PAUSED"` overlay when paused, and scripted cutscene sprites.
 3. **`DrawAttract(w, view)`**: Dual `1UP`/`2UP` + `HIGH SCORE` HUD, staggered cast roll-call portraits & names, scoring legend, animated demo chase sprites, and highlighted 1P/2P prompt.

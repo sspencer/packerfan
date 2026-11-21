@@ -13,7 +13,6 @@ func TestArtPrefersRealArtwork(t *testing.T) {
 		"assets/text-real.png": {Data: []byte("real text")},
 		"assets/game.png":      {Data: []byte("example game")},
 		"assets/text.png":      {Data: []byte("example text")},
-		"assets/chroma_key.fs": {Data: []byte("shader")},
 	}
 	if got := render.GameAssetPath(base); got != "assets/game-real.png" {
 		t.Errorf("GameAssetPath = %q, want assets/game-real.png", got)
@@ -31,7 +30,6 @@ func TestArtFallsBackToExampleArtwork(t *testing.T) {
 		"assets/game.png":        {Data: []byte("example game")},
 		"assets/text.png":        {Data: []byte("example text")},
 		"assets/text-real.png/x": {Data: []byte("x")}, // directory, not a file
-		"assets/chroma_key.fs":   {Data: []byte("shader")},
 	}
 	if got := render.GameAssetPath(base); got != "assets/game.png" {
 		t.Errorf("GameAssetPath = %q, want assets/game.png", got)
@@ -48,7 +46,6 @@ func TestArtMixesRealAndExampleArtwork(t *testing.T) {
 	base := fstest.MapFS{
 		"assets/game-real.png": {Data: []byte("real game")},
 		"assets/text.png":      {Data: []byte("example text")},
-		"assets/chroma_key.fs": {Data: []byte("shader")},
 	}
 	if got := render.GameAssetPath(base); got != "assets/game-real.png" {
 		t.Errorf("GameAssetPath = %q, want assets/game-real.png", got)

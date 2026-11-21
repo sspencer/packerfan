@@ -17,14 +17,14 @@ This guide explains how the headless build of Packer Fan (`pacfan-headless`) wor
 
 ## 1. Overview
 
-The normal game (`pacfan`) runs at the arcade's 60.606 frames per second in a Raylib window, with audio and a scene state machine (attract screen, ready screen, intermissions, game over). That is the wrong shape for an AI agent, which needs to play thousands of games far faster than real time and get the same result every time it repeats a game.
+The normal game (`pacfan`) runs at the arcade's 60.606 frames per second in an Ebitengine window, with audio and a scene state machine (attract screen, ready screen, intermissions, game over). That is the wrong shape for an AI agent, which needs to play thousands of games far faster than real time and get the same result every time it repeats a game.
 
 `pacfan-headless` reuses the **same ECS gameplay systems** (`internal/system`) but leaves out everything that is not gameplay:
 
 | Piece | Normal game (`pacfan`) | Headless (`pacfan-headless`) |
 | --- | --- | --- |
 | Gameplay systems (movement, ghost AI, collisions, fruit, levels) | yes | yes, same code |
-| Raylib window / rendering | yes | no |
+| Ebitengine window / rendering | yes | no |
 | Audio | yes | no |
 | Scenes (attract, ready, intermissions, game over) | yes | no; play only |
 | Input | keyboard | one action per tick from the API |
@@ -41,7 +41,7 @@ The pieces involved are:
 | [`internal/game/replay_player.go`](../internal/game/replay_player.go), [`replay_viewer.go`](../internal/game/replay_viewer.go) | Plays `.pfr` files back in the normal game window (`pacfan --replay`). |
 | [`ml/`](../ml) | The Python Gymnasium environment, baseline agents, PPO training and evaluation scripts. |
 
-`make check` includes a `check-headless-deps` step that fails if `internal/sim`, `internal/api` or `cmd/pacfan-headless` ever import Raylib, audio, scenes or rendering, so the headless binary stays pure Go and builds without a C toolchain or GPU.
+`make check` includes a `check-headless-deps` step that fails if `internal/sim`, `internal/api` or `cmd/pacfan-headless` ever import Ebitengine, audio, scenes or rendering, so the headless binary runs without a display, GPU or sound device.
 
 ---
 

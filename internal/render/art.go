@@ -1,43 +1,44 @@
 package render
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io/fs"
 	"strings"
 
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/hajimehoshi/ebiten/v2"
 
 	"pacfan/assets"
+	"pacfan/internal/sheet"
 )
 
-// Art owns the loaded Raylib textures, spritesheet image, and shaders.
+// Art owns the loaded Ebitengine spritesheet images, CPU pixel bitmap, and shaders.
 type Art struct {
-	Font        rl.Texture2D
-	Texture     rl.Texture2D
-	Image       *rl.Image
-	Shader      rl.Shader
-	FlashShader rl.Shader
+	Font        *ebiten.Image
+	Texture     *ebiten.Image
+	Sheet       *sheet.Sheet
+	FlashShader *ebiten.Shader
 }
 
-const flashFragmentShader = `#version 330
-in vec2 fragTexCoord;
-in vec4 fragColor;
-out vec4 finalColor;
-uniform sampler2D texture0;
-void main()
-{
-    vec4 texColor = texture(texture0, fragTexCoord);
-    if (max(max(texColor.r, texColor.g), texColor.b) > 0.05)
-    {
-        finalColor = vec4(1.0, 1.0, 1.0, texColor.a);
-    }
-    else
-    {
-        finalColor = vec4(0.0, 0.0, 0.0, texColor.a);
-    }
+const flashFragmentShader = `//kage:unit pixels
+
+package main
+
+func Fragment(dstPos vec4, src0Pos vec2, color vec4) vec4 {
+	c := imageSrc0UnsafeAt(src0Pos)
+	if max(max(c.r, c.g), c.b) > 0.05 {
+		return vec4(1, 1, 1, c.a)
+	}
+	return vec4(0, 0, 0, c.a)
 }
 `
+
+// chromaKeyThreshold matches the 0.05 normalized RGB threshold (12/255 = 0.047).
+const chromaKeyThreshold = 12
 
 // Paths of the graphical assets NewArt loads from the embedded filesystem.
 // The original artwork (*-real.png, not tracked in the repository) is loaded
@@ -46,7 +47,6 @@ void main()
 const (
 	realFontAssetPath = "assets/text-real.png"
 	fontAssetPath     = "assets/text.png"
-	shaderAssetPath   = "assets/chroma_key.fs"
 )
 
 // FontAssetPath returns the font spritesheet NewArt loads from assetsFS:
@@ -71,7 +71,7 @@ func preferAsset(assetsFS fs.FS, preferred, fallback string) string {
 
 // RequiredAssets lists every file NewArt reads from assetsFS.
 func RequiredAssets(assetsFS fs.FS) []string {
-	return []string{FontAssetPath(assetsFS), GameAssetPath(assetsFS), shaderAssetPath}
+	return []string{FontAssetPath(assetsFS), GameAssetPath(assetsFS)}
 }
 
 // CheckAssets verifies that every file in RequiredAssets exists in assetsFS.
@@ -97,61 +97,83 @@ func NewArt(assetsFS fs.FS) *Art {
 	return NewArtWithGamePNG(assetsFS, gameData)
 }
 
-// NewArtWithGamePNG loads the font and shader from assetsFS and uses the
-// provided PNG bytes as the game spritesheet texture/image.
+// NewArtWithGamePNG loads the font from assetsFS and uses the provided PNG
+// bytes as the game spritesheet image and CPU pixel bitmap.
 func NewArtWithGamePNG(assetsFS fs.FS, gamePNG []byte) *Art {
-	fontTexture := loadTexture(assetsFS, FontAssetPath(assetsFS))
-	gameTexture := loadTextureBytes(gamePNG)
-	gameImage := rl.LoadImageFromTexture(gameTexture)
-	shader := loadShader(assetsFS, shaderAssetPath)
-	flashShader := rl.LoadShaderFromMemory("", flashFragmentShader)
+	fontData := mustReadAsset(assetsFS, FontAssetPath(assetsFS))
+	fontTexture := loadChromaKeyedImage(fontData)
+	// Decode the spritesheet once and derive both the GPU texture and the
+	// CPU lit-pixel bitmap from it.
+	gameImg, err := png.Decode(bytes.NewReader(gamePNG))
+	if err != nil {
+		panic(fmt.Sprintf("failed to decode game spritesheet: %v", err))
+	}
+	gameTexture := ebiten.NewImageFromImage(chromaKey(gameImg))
+	gameSheet := sheet.FromImage("game.png", gamePNG, gameImg)
+
+	flashShader, err := ebiten.NewShader([]byte(flashFragmentShader))
+	if err != nil {
+		panic(fmt.Sprintf("failed to compile flash shader: %v", err))
+	}
 
 	return &Art{
 		Font:        fontTexture,
 		Texture:     gameTexture,
-		Image:       gameImage,
-		Shader:      shader,
+		Sheet:       gameSheet,
 		FlashShader: flashShader,
 	}
 }
 
-// Unload frees all GPU/CPU resources managed by Art.
+// Unload releases all GPU resources managed by Art.
 func (a *Art) Unload() {
-	rl.UnloadTexture(a.Font)
-	rl.UnloadTexture(a.Texture)
-	rl.UnloadImage(a.Image)
-	rl.UnloadShader(a.Shader)
-	rl.UnloadShader(a.FlashShader)
+	if a.Font != nil {
+		a.Font.Deallocate()
+	}
+	if a.Texture != nil {
+		a.Texture.Deallocate()
+	}
+	if a.FlashShader != nil {
+		a.FlashShader.Deallocate()
+	}
 }
 
 // IsPixelLit reports whether the pixel at (x, y) on the spritesheet image is non-black.
 func (a *Art) IsPixelLit(x, y int) bool {
-	c := rl.GetImageColor(*a.Image, int32(x), int32(y))
-	return c.R > 0 || c.G > 0 || c.B > 0
+	return a.Sheet.IsPixelLit(x, y)
 }
 
-func loadTexture(assetsFS fs.FS, path string) rl.Texture2D {
-	return loadTextureBytes(mustReadAsset(assetsFS, path))
+// loadChromaKeyedImage decodes a PNG and converts near-black background pixels
+// to fully transparent alpha so sprites and bitmap font glyphs draw cleanly
+// without requiring a runtime chroma-key shader pass.
+func loadChromaKeyedImage(data []byte) *ebiten.Image {
+	return ebiten.NewImageFromImage(chromaKeyPNG(data))
 }
 
-func loadTextureBytes(data []byte) rl.Texture2D {
-	img := rl.LoadImageFromMemory(".png", data, int32(len(data)))
-	texture := rl.LoadTextureFromImage(img)
-	rl.UnloadImage(img)
-	return texture
+func chromaKeyPNG(data []byte) *image.NRGBA {
+	src, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		panic(fmt.Sprintf("failed to decode PNG asset: %v", err))
+	}
+	return chromaKey(src)
 }
 
-func loadShader(assetsFS fs.FS, path string) rl.Shader {
-	fragmentShaderCode := mustReadAsset(assetsFS, path)
-	shader := rl.LoadShaderFromMemory("", string(fragmentShaderCode))
-	keyColor := []float32{0.0, 0.0, 0.0}
-	threshold := []float32{0.05}
-
-	keyColorLoc := rl.GetShaderLocation(shader, "keyColor")
-	thresholdLoc := rl.GetShaderLocation(shader, "threshold")
-	rl.SetShaderValue(shader, keyColorLoc, keyColor, rl.ShaderUniformVec3)
-	rl.SetShaderValue(shader, thresholdLoc, threshold, rl.ShaderUniformFloat)
-	return shader
+// chromaKey copies src into a new NRGBA image with near-black pixels made
+// fully transparent.
+func chromaKey(src image.Image) *image.NRGBA {
+	bounds := src.Bounds()
+	w, h := bounds.Dx(), bounds.Dy()
+	nrgba := image.NewNRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			c := color.NRGBAModel.Convert(src.At(bounds.Min.X+x, bounds.Min.Y+y)).(color.NRGBA)
+			if max(c.R, max(c.G, c.B)) <= chromaKeyThreshold {
+				nrgba.SetNRGBA(x, y, color.NRGBA{})
+			} else {
+				nrgba.SetNRGBA(x, y, c)
+			}
+		}
+	}
+	return nrgba
 }
 
 func mustReadAsset(assetsFS fs.FS, path string) []byte {

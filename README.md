@@ -1,6 +1,6 @@
 # Packer Fan (`pacfan`)
 
-Arcade dot-eating maze game with ghosts built in Go using [Raylib](https://github.com/gen2brain/raylib-go) and the [Donburi](https://github.com/yohamta/donburi) Entity Component System (ECS). Supports both classic **Pac-Man** (default) and **Ms. Pac-Man** (`--ms`) mazes, sprites, death animations, and intermissions.
+Arcade dot-eating maze game with ghosts built in Go using [Ebitengine](https://github.com/hajimehoshi/ebiten) and the [Donburi](https://github.com/yohamta/donburi) Entity Component System (ECS). Supports both classic **Pac-Man** (default) and **Ms. Pac-Man** (`--ms`) mazes, sprites, death animations, and intermissions.
 
 ![Ms. Pac-Man gameplay using the placeholder example artwork](docs/example-screenshot.png)
 
@@ -14,7 +14,7 @@ See [Documentation](#documentation) for the architecture overview, asset format 
 - **Artwork**: The repository includes placeholder spritesheets `assets/game.png` and `assets/text.png`, so the game runs out of the box. They use simple shapes and original maze layouts, drawn at the same positions as the real artwork. Regenerate them with `go run ./tools/genexample assets/game.png assets/text.png`.
 - **Original artwork (optional)**: For copyright reasons, the original artwork is not included in this repository. To use it, place compatible `assets/game-real.png` and `assets/text-real.png` files locally (originally sourced from [The Spriters Resource](https://www.spriters-resource.com/); see [assets/README.md](assets/README.md) for expected dimensions and layout) and rebuild. Each `*-real.png` file that exists is loaded in place of its placeholder.
 
-> **Note**: `go test ./...` runs headlessly without Raylib. Spritesheet-backed validation checks use `assets/game-real.png` when present, otherwise `assets/game.png`.
+> **Note**: `go test ./...` runs headlessly without opening a window. Spritesheet-backed validation checks use `assets/game-real.png` when present, otherwise `assets/game.png`.
 
 ## Running the Game
 

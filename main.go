@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"runtime/debug"
 	"strings"
+	"time"
 
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	flag "github.com/spf13/pflag"
 
 	"pacfan/assets"
@@ -88,8 +91,7 @@ and rebuild to enable missing sounds, or pass --mute to silence this warning.
 		title = "Pac-Man"
 	}
 
-	initWindow(title, fullscreen, windowZoom)
-	defer rl.CloseWindow()
+	configureWindow(title, fullscreen, windowZoom)
 
 	canvas := render.NewCanvas(maxZoom)
 	defer canvas.Unload()
@@ -102,27 +104,78 @@ and rebuild to enable missing sounds, or pass --mute to silence this warning.
 	}, assets.FS)
 	defer engine.Unload()
 
-	clock := config.NewArcadeClock()
-
-	for !rl.WindowShouldClose() {
-		if fullscreenTogglePressed() {
-			rl.ToggleFullscreen()
-		}
-
-		steps := clock.Advance(float64(rl.GetFrameTime()))
-		for range steps {
-			engine.Update()
-		}
-
-		canvas.Begin()
-		engine.Draw()
-		canvas.End()
-
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.Black)
-		canvas.Present()
-		rl.EndDrawing()
+	app := &arcadeApp{
+		canvas: canvas,
+		engine: engine,
+		clock:  config.NewArcadeClock(),
 	}
+	if err := ebiten.RunGame(app); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// maxFrameDT caps the wall-clock time a single Update may account for, so a
+// stall (window drag, sleep, debugger break) doesn't trigger a burst of
+// catch-up work on the next frame.
+const maxFrameDT = 0.25
+
+// windowApp holds the window controls and frame timing shared by the arcade
+// and replay ebiten.Game implementations.
+type windowApp struct {
+	lastTick time.Time
+}
+
+// beginFrame handles quit and fullscreen keys and returns the seconds elapsed
+// since the previous frame (0 on the first frame, capped at maxFrameDT).
+// quit reports that the game should return ebiten.Termination.
+func (w *windowApp) beginFrame() (dt float64, quit bool) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		return 0, true
+	}
+	if fullscreenTogglePressed() {
+		ebiten.SetFullscreen(!ebiten.IsFullscreen())
+	}
+
+	now := time.Now()
+	if !w.lastTick.IsZero() {
+		dt = min(now.Sub(w.lastTick).Seconds(), maxFrameDT)
+	}
+	w.lastTick = now
+	return dt, false
+}
+
+func (w *windowApp) Layout(outsideWidth, outsideHeight int) (int, int) {
+	return max(1, outsideWidth), max(1, outsideHeight)
+}
+
+type arcadeApp struct {
+	windowApp
+	canvas *render.Canvas
+	engine *game.Engine
+	clock  *config.FixedStepClock
+}
+
+func (a *arcadeApp) Update() error {
+	dt, quit := a.beginFrame()
+	if quit {
+		return ebiten.Termination
+	}
+
+	a.engine.PollInput()
+	steps := a.clock.Advance(dt)
+	for range steps {
+		a.engine.Update()
+	}
+	return nil
+}
+
+func (a *arcadeApp) Draw(screen *ebiten.Image) {
+	a.canvas.Clear()
+	a.engine.Draw(a.canvas.Image())
+
+	screen.Fill(color.Black)
+	a.canvas.Present(screen)
 }
 
 func runReplay(replayPath, artFile string, fullscreen bool, windowZoom int, maxZoom float32, speed float64) {
@@ -142,8 +195,7 @@ func runReplay(replayPath, artFile string, fullscreen bool, windowZoom int, maxZ
 		title = "Pac-Man [Replay]"
 	}
 
-	initWindow(title, fullscreen, windowZoom)
-	defer rl.CloseWindow()
+	configureWindow(title, fullscreen, windowZoom)
 
 	canvas := render.NewCanvas(maxZoom)
 	defer canvas.Unload()
@@ -151,46 +203,53 @@ func runReplay(replayPath, artFile string, fullscreen bool, windowZoom int, maxZ
 	viewer := game.NewReplayViewer(assets.FS, player)
 	defer viewer.Unload()
 
-	for !rl.WindowShouldClose() {
-		if fullscreenTogglePressed() {
-			rl.ToggleFullscreen()
-		}
-
-		viewer.Update(float64(rl.GetFrameTime()))
-
-		canvas.Begin()
-		viewer.DrawWorld()
-		canvas.End()
-
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.Black)
-		vp := canvas.Present()
-		viewer.DrawOverlay(vp)
-		rl.EndDrawing()
+	app := &replayApp{
+		canvas: canvas,
+		viewer: viewer,
+	}
+	if err := ebiten.RunGame(app); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
 }
 
-func initWindow(title string, fullscreen bool, windowZoom int) {
-	rl.SetTraceLogLevel(rl.LogWarning)
+type replayApp struct {
+	windowApp
+	canvas *render.Canvas
+	viewer *game.ReplayViewer
+}
 
-	flags := uint32(rl.FlagWindowHighdpi | rl.FlagWindowResizable)
-	if fullscreen {
-		flags |= rl.FlagFullscreenMode
+func (r *replayApp) Update() error {
+	dt, quit := r.beginFrame()
+	if quit {
+		return ebiten.Termination
 	}
-	rl.SetConfigFlags(flags)
 
-	rl.InitWindow(
-		int32(render.NativeWidth*windowZoom),
-		int32(render.NativeHeight*windowZoom),
-		title,
-	)
-	rl.SetTargetFPS(config.TargetFPS) // arcade game was clocked to 60.606061
+	r.viewer.Update(dt)
+	return nil
+}
+
+func (r *replayApp) Draw(screen *ebiten.Image) {
+	r.canvas.Clear()
+	r.viewer.DrawWorld(r.canvas.Image())
+
+	screen.Fill(color.Black)
+	vp := r.canvas.Present(screen)
+	r.viewer.DrawOverlay(screen, vp)
+}
+
+func configureWindow(title string, fullscreen bool, windowZoom int) {
+	ebiten.SetWindowTitle(title)
+	ebiten.SetWindowSize(render.NativeWidth*windowZoom, render.NativeHeight*windowZoom)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
+	ebiten.SetFullscreen(fullscreen)
+	ebiten.SetTPS(ebiten.SyncWithFPS)
 }
 
 func fullscreenTogglePressed() bool {
-	if rl.IsKeyPressed(rl.KeyF11) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyF11) {
 		return true
 	}
-	altDown := rl.IsKeyDown(rl.KeyLeftAlt) || rl.IsKeyDown(rl.KeyRightAlt)
-	return altDown && rl.IsKeyPressed(rl.KeyEnter)
+	altDown := ebiten.IsKeyPressed(ebiten.KeyAltLeft) || ebiten.IsKeyPressed(ebiten.KeyAltRight)
+	return altDown && inpututil.IsKeyJustPressed(ebiten.KeyEnter)
 }

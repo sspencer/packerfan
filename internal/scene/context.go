@@ -58,7 +58,7 @@ type AttractView struct {
 	Sprites        []IntermissionSprite
 }
 
-// Drawer decouples scene presentation from Raylib so scenes can be tested headlessly.
+// Drawer decouples scene presentation from Ebitengine so scenes can be tested headlessly.
 type Drawer interface {
 	DrawWorld(w donburi.World, opts DrawOptions)
 	DrawIntermission(w donburi.World, view IntermissionView)

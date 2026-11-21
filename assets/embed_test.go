@@ -8,7 +8,7 @@ import (
 )
 
 func TestEmbeddedFS(t *testing.T) {
-	if err := fstest.TestFS(assets.FS, "assets/game.png", "assets/text.png", "assets/chroma_key.fs"); err != nil {
+	if err := fstest.TestFS(assets.FS, "assets/game.png", "assets/text.png"); err != nil {
 		t.Fatalf("fstest.TestFS failed: %v", err)
 	}
 }

@@ -23,8 +23,8 @@ os   = $(word 1,$(subst /, ,$@))
 arch = $(word 2,$(subst /, ,$@))
 ext  = $(if $(filter windows,$(os)),.exe,)
 
-# Cross-compiles with CGO disabled: raylib-go then loads its embedded, prebuilt
-# raylib shared library at runtime via purego, so no C cross-toolchain is needed.
+# Cross-compiles with CGO disabled: Ebitengine uses pure-Go bindings (purego,
+# Win32/DirectX, pure-Go X11/OpenGL/PulseAudio), so no C cross-toolchain is needed.
 $(PLATFORMS):
 	@mkdir -p $(BIN_DIR)
 	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) $(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(BINARY)-$(os)-$(arch)$(ext) .
@@ -55,8 +55,8 @@ vet: ## Run go vet static analysis
 fix: ## Run go fix modernizers
 	$(GO) fix ./...
 
-check-headless-deps: ## Verify headless packages do not import Raylib, audio, scene, or render
-	@if $(GO) list -deps ./internal/sim ./internal/api ./cmd/pacfan-headless | grep -E 'raylib|internal/audio|internal/scene|internal/render'; then \
+check-headless-deps: ## Verify headless packages do not import Ebitengine, Raylib, audio, scene, or render
+	@if $(GO) list -deps ./internal/sim ./internal/api ./cmd/pacfan-headless | grep -E 'ebiten|raylib|internal/audio|internal/scene|internal/render'; then \
 		echo "ERROR: forbidden dependency found in headless packages"; \
 		exit 1; \
 	fi

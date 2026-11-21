@@ -2,8 +2,10 @@ package render
 
 import (
 	"fmt"
+	"image"
+	"image/color"
 
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
@@ -12,10 +14,34 @@ import (
 	"pacfan/internal/scene"
 )
 
+var (
+	colorWhite   = color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	colorRed     = color.RGBA{R: 230, G: 41, B: 55, A: 255}
+	colorPink    = color.RGBA{R: 255, G: 109, B: 194, A: 255}
+	colorSkyBlue = color.RGBA{R: 102, G: 191, B: 255, A: 255}
+	colorOrange  = color.RGBA{R: 255, G: 161, B: 0, A: 255}
+	colorYellow  = color.RGBA{R: 253, G: 249, B: 0, A: 255}
+)
+
+type camera2D struct {
+	offsetX, offsetY float64
+	targetX, targetY float64
+	zoom             float64
+}
+
+func (c camera2D) geoM(x, y float64) ebiten.GeoM {
+	var g ebiten.GeoM
+	g.Translate(x-c.targetX, y-c.targetY)
+	g.Scale(c.zoom, c.zoom)
+	g.Translate(c.offsetX, c.offsetY)
+	return g
+}
+
 // Renderer is the ECS rendering system that draws the maze, HUD, lives,
-// player, and ghosts from the world state using Raylib 2D cameras and shaders.
+// player, and ghosts from the world state onto an Ebitengine target image.
 type Renderer struct {
 	art         *Art
+	target      *ebiten.Image
 	playerQuery *donburi.Query
 	ghostQuery  *donburi.Query
 }
@@ -32,67 +58,92 @@ func NewRenderer(art *Art) *Renderer {
 	}
 }
 
+// sceneCams holds the camera setups shared by every draw entry point.
+type sceneCams struct {
+	zoom   float64
+	text   camera2D // top HUD rows (labels at offset 2*zoom)
+	maze   camera2D // maze-aligned tiles and text
+	sprite camera2D // maze-aligned sprites, centered on their position
+}
+
+// sceneCameras derives the scene cameras from the game state's zoom,
+// treating a non-positive zoom as 1.
+func sceneCameras(gs *component.GameStateData) sceneCams {
+	zoom := float64(gs.Zoom)
+	if zoom <= 0 {
+		zoom = 1
+	}
+	top := config.TopOffset * config.Tile * zoom
+	return sceneCams{
+		zoom:   zoom,
+		text:   camera2D{offsetY: 2 * zoom, zoom: zoom},
+		maze:   camera2D{offsetY: top, zoom: zoom},
+		sprite: camera2D{offsetY: top, targetX: config.Half, targetY: config.Half, zoom: zoom},
+	}
+}
+
+// SetTarget binds the destination image for subsequent Draw* calls.
+func (r *Renderer) SetTarget(dst *ebiten.Image) {
+	r.target = dst
+}
+
 func (r *Renderer) Draw(w donburi.World) {
 	r.DrawWorld(w, scene.DrawOptions{})
 }
 
 // DrawWorld renders the maze, HUD, optional READY! overlay, and actors according to opts.
 func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
+	if r.target == nil {
+		return
+	}
 	gameState := component.MustFindGameState(w)
 	maze := component.MustFindMaze(w)
 
-	zeroV := rl.Vector2{}
-	halfV := rl.Vector2{X: config.Half, Y: config.Half}
-	zoom := gameState.Zoom
+	cams := sceneCameras(gameState)
 
 	// Maze + edible dots/power pellets
-	mazeCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, zeroV, 0, zoom)
-	rl.BeginMode2D(mazeCamera)
+	mazeCam := cams.maze
 	showPower := EnergizerVisible(gameState.FrameCount, opts.ShowReady || opts.ShowGameOver)
-	r.drawMaze(maze, opts.FlashMaze, showPower)
+	r.drawMaze(mazeCam, maze, opts.FlashMaze, showPower)
+
 	showPaused := gameState.Paused && !opts.ShowGameOver
 	if opts.ShowPlayerOne || opts.ShowReady || opts.ShowGameOver || showPaused {
-		rl.BeginShaderMode(r.art.Shader)
 		if opts.ShowPlayerOne {
-			DrawText(r.art.Font, gameState.ActivePlayerName(), 9, 11, rl.SkyBlue)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, gameState.ActivePlayerName(), 9, 11, colorSkyBlue)
 		}
 		if opts.ShowReady {
-			DrawText(r.art.Font, "READY!", 11, 17, rl.Yellow)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, "READY!", 11, 17, colorYellow)
 		} else if opts.ShowGameOver {
-			DrawText(r.art.Font, "GAME OVER", 9, 17, rl.Red)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, "GAME OVER", 9, 17, colorRed)
 		}
 		if showPaused {
 			pauseY := 17
 			if opts.ShowReady {
 				pauseY = 14
 			}
-			DrawText(r.art.Font, "PAUSED", 11, pauseY, rl.Yellow)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, "PAUSED", 11, pauseY, colorYellow)
 		}
-		rl.EndShaderMode()
 	}
-	rl.EndMode2D()
 
 	r.drawHUD(gameState)
 
-	// Animated sprites with chroma-key transparency shader
-	spriteCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, halfV, 0, zoom)
-	rl.BeginMode2D(spriteCamera)
-	rl.BeginShaderMode(r.art.Shader)
+	// Animated sprites
+	spriteCam := cams.sprite
 
 	showGhostScore := opts.ShowGhostScore || gameState.GhostEatenPause > 0
 	if !opts.HidePlayer && !opts.HideGhosts {
 		if gameState.FruitActive {
-			r.drawBonusFruit(gameState)
+			r.drawBonusFruit(spriteCam, gameState)
 		} else if gameState.FruitScoreTimer > 0 {
-			r.drawBonusScore(gameState)
+			r.drawBonusScore(spriteCam, gameState)
 		}
 	}
 	if !opts.HidePlayer && !showGhostScore {
 		for entry := range r.playerQuery.Iter(w) {
 			if opts.PlayerDying {
-				r.drawPlayerDeath(gameState, component.Transform.Get(entry), opts.PlayerDeathFrame)
+				r.drawPlayerDeath(spriteCam, gameState, component.Transform.Get(entry), opts.PlayerDeathFrame)
 			} else {
-				r.drawPlayer(gameState, component.Transform.Get(entry), component.Animation.Get(entry))
+				r.drawPlayer(spriteCam, gameState, component.Transform.Get(entry), component.Animation.Get(entry))
 			}
 		}
 	}
@@ -103,6 +154,7 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 				continue
 			}
 			r.drawGhost(
+				spriteCam,
 				gameState,
 				component.Transform.Get(entry),
 				component.Animation.Get(entry),
@@ -112,134 +164,114 @@ func (r *Renderer) DrawWorld(w donburi.World, opts scene.DrawOptions) {
 	}
 
 	if showGhostScore {
-		r.drawGhostScore(gameState)
+		r.drawGhostScore(spriteCam, gameState)
 	}
-
-	rl.EndShaderMode()
-	rl.EndMode2D()
 }
 
 // DrawIntermission renders the HUD and scripted intermission text and sprites.
 func (r *Renderer) DrawIntermission(w donburi.World, view scene.IntermissionView) {
+	if r.target == nil {
+		return
+	}
 	gameState := component.MustFindGameState(w)
 
-	zeroV := rl.Vector2{}
-	halfV := rl.Vector2{X: config.Half, Y: config.Half}
-	zoom := gameState.Zoom
+	cams := sceneCameras(gameState)
 
 	r.drawHUD(gameState)
 
 	if view.Title != "" || view.Subtitle != "" || gameState.Paused {
-		mazeCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, zeroV, 0, zoom)
-		rl.BeginMode2D(mazeCamera)
-		rl.BeginShaderMode(r.art.Shader)
+		mazeCam := cams.maze
 		if view.Title != "" {
 			tx := max(0, (config.GameWidth-len(view.Title))/2)
-			DrawText(r.art.Font, view.Title, tx, 9, rl.Yellow)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, view.Title, tx, 9, colorYellow)
 		}
 		if view.Subtitle != "" {
 			sx := max(0, (config.GameWidth-len(view.Subtitle))/2)
-			DrawText(r.art.Font, view.Subtitle, sx, 11, rl.White)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, view.Subtitle, sx, 11, colorWhite)
 		}
 		if gameState.Paused {
-			DrawText(r.art.Font, "PAUSED", 11, 17, rl.Yellow)
+			drawTextWithCamera(r.target, r.art.Font, mazeCam, "PAUSED", 11, 17, colorYellow)
 		}
-		rl.EndShaderMode()
-		rl.EndMode2D()
 	}
 
 	if len(view.Sprites) > 0 {
-		spriteCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, halfV, 0, zoom)
-		rl.BeginMode2D(spriteCamera)
-		rl.BeginShaderMode(r.art.Shader)
+		spriteCam := cams.sprite
 		for _, sp := range view.Sprites {
 			size := sp.Size
 			if size <= 0 {
 				size = config.Sprite
 			}
-			r.drawSizedSprite(sp.Pos, sp.Src, sp.Frame, size)
+			r.drawSizedSprite(spriteCam, sp.Pos, sp.Src, sp.Frame, size)
 		}
-		rl.EndShaderMode()
-		rl.EndMode2D()
 	}
 }
 
 // DrawAttract renders the arcade title / character roll-call, scoring legend,
 // animated chase demo, and 1P/2P selection prompt.
 func (r *Renderer) DrawAttract(w donburi.World, view scene.AttractView) {
+	if r.target == nil {
+		return
+	}
 	gameState := component.MustFindGameState(w)
 
-	zeroV := rl.Vector2{}
-	halfV := rl.Vector2{X: config.Half, Y: config.Half}
-	zoom := gameState.Zoom
+	cams := sceneCameras(gameState)
 
 	// Top HUD (shows both 1UP and 2UP on the attract screen).
-	textCamera := rl.NewCamera2D(rl.Vector2{X: 0, Y: 2 * zoom}, zeroV, 0, zoom)
-	rl.BeginMode2D(textCamera)
-	DrawText(r.art.Font, "1UP", 3, 0, rl.White)
-	DrawText(r.art.Font, "HIGH SCORE", 9, 0, rl.White)
-	DrawText(r.art.Font, "2UP", 22, 0, rl.White)
-	rl.EndMode2D()
+	textCam := cams.text
+	drawTextWithCamera(r.target, r.art.Font, textCam, "1UP", 3, 0, colorWhite)
+	drawTextWithCamera(r.target, r.art.Font, textCam, "HIGH SCORE", 9, 0, colorWhite)
+	drawTextWithCamera(r.target, r.art.Font, textCam, "2UP", 22, 0, colorWhite)
 
-	textCamera.Offset.Y = 3 * zoom
-	rl.BeginMode2D(textCamera)
-	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.PlayerScores[0]), 0, 1, rl.White)
-	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, rl.White)
-	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.PlayerScores[1]), 20, 1, rl.White)
-	rl.EndMode2D()
+	textCam.offsetY = 3 * cams.zoom
+	drawTextWithCamera(r.target, r.art.Font, textCam, fmt.Sprintf("%7d", gameState.PlayerScores[0]), 0, 1, colorWhite)
+	drawTextWithCamera(r.target, r.art.Font, textCam, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, colorWhite)
+	drawTextWithCamera(r.target, r.art.Font, textCam, fmt.Sprintf("%7d", gameState.PlayerScores[1]), 20, 1, colorWhite)
 
 	// Text overlay pass
-	mazeCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, zeroV, 0, zoom)
-	rl.BeginMode2D(mazeCamera)
-	rl.BeginShaderMode(r.art.Shader)
+	mazeCam := cams.maze
 
-	DrawText(r.art.Font, "CHARACTER / NICKNAME", 7, 2, rl.White)
-	castColors := [4]rl.Color{rl.Red, rl.Pink, rl.SkyBlue, rl.Orange}
+	drawTextWithCamera(r.target, r.art.Font, mazeCam, "CHARACTER / NICKNAME", 7, 2, colorWhite)
+	castColors := [4]color.RGBA{colorRed, colorPink, colorSkyBlue, colorOrange}
 	for i, row := range view.Cast {
 		yTile := 5 + i*3
 		c := castColors[row.ColorID%len(castColors)]
-		DrawText(r.art.Font, row.Label, 7, yTile, c)
-		DrawText(r.art.Font, row.Nickname, 18, yTile, c)
+		drawTextWithCamera(r.target, r.art.Font, mazeCam, row.Label, 7, yTile, c)
+		drawTextWithCamera(r.target, r.art.Font, mazeCam, row.Nickname, 18, yTile, c)
 	}
 
 	if view.ShowLegend {
-		DrawText(r.art.Font, "10 PTS", 12, 22, rl.White)
-		DrawText(r.art.Font, "50 PTS", 12, 24, rl.White)
+		drawTextWithCamera(r.target, r.art.Font, mazeCam, "10 PTS", 12, 22, colorWhite)
+		drawTextWithCamera(r.target, r.art.Font, mazeCam, "50 PTS", 12, 24, colorWhite)
 	}
 
-	p1Color := rl.White
-	p2Color := rl.White
+	p1Color := colorWhite
+	p2Color := colorWhite
 	if view.SelectedPlayer == 2 {
-		p2Color = rl.Yellow
+		p2Color = colorYellow
 	} else {
-		p1Color = rl.Yellow
+		p1Color = colorYellow
 	}
-	DrawText(r.art.Font, "PRESS 1 - 1 PLAYER", 5, 27, p1Color)
-	DrawText(r.art.Font, "PRESS 2 - 2 PLAYERS", 5, 29, p2Color)
-
-	rl.EndShaderMode()
-	rl.EndMode2D()
+	drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 1 - 1 PLAYER", 5, 27, p1Color)
+	drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 2 - 2 PLAYERS", 5, 29, p2Color)
 
 	// Sprites pass (cast portraits, legend pellets, demo chase sprites)
-	spriteCamera := rl.NewCamera2D(rl.Vector2{Y: config.TopOffset * config.Tile * zoom}, halfV, 0, zoom)
-	rl.BeginMode2D(spriteCamera)
-	rl.BeginShaderMode(r.art.Shader)
+	spriteCam := cams.sprite
 
 	for i, row := range view.Cast {
 		pos := config.Vector{X: 4 * config.Tile, Y: (5 + i*3) * config.Tile}
-		r.drawSprite(pos, config.Vector{X: 456, Y: row.SpriteRow}, 0)
+		r.drawSprite(spriteCam, pos, config.Vector{X: 456, Y: row.SpriteRow}, 0)
 	}
 
 	if view.ShowLegend {
-		dotSrc := rl.Rectangle{X: config.Tile, Y: 125 * config.Tile, Width: config.Tile, Height: config.Tile}
-		powSrc := rl.Rectangle{X: config.Tile, Y: 127 * config.Tile, Width: config.Tile, Height: config.Tile}
-		rl.DrawTexturePro(r.art.Texture, dotSrc, rl.Rectangle{X: 10*config.Tile + config.Half, Y: 22*config.Tile + config.Half, Width: config.Tile, Height: config.Tile}, rl.Vector2{}, 0, rl.White)
-		rl.DrawTexturePro(r.art.Texture, powSrc, rl.Rectangle{X: 10*config.Tile + config.Half, Y: 24*config.Tile + config.Half, Width: config.Tile, Height: config.Tile}, rl.Vector2{}, 0, rl.White)
+		dotSub := r.subTexture(config.Tile, 125*config.Tile, config.Tile, config.Tile)
+		powSub := r.subTexture(config.Tile, 127*config.Tile, config.Tile, config.Tile)
+		r.drawSubImage(spriteCam, dotSub, 10*config.Tile+config.Half, 22*config.Tile+config.Half)
+		r.drawSubImage(spriteCam, powSub, 10*config.Tile+config.Half, 24*config.Tile+config.Half)
 	}
 
 	if view.ShowPellet && view.PelletBlink {
-		powSrc := rl.Rectangle{X: config.Tile, Y: 127 * config.Tile, Width: config.Tile, Height: config.Tile}
-		rl.DrawTexturePro(r.art.Texture, powSrc, rl.Rectangle{X: float32(view.PelletPos.X), Y: float32(view.PelletPos.Y), Width: config.Tile, Height: config.Tile}, rl.Vector2{}, 0, rl.White)
+		powSub := r.subTexture(config.Tile, 127*config.Tile, config.Tile, config.Tile)
+		r.drawSubImage(spriteCam, powSub, float64(view.PelletPos.X), float64(view.PelletPos.Y))
 	}
 
 	for _, sp := range view.Sprites {
@@ -247,97 +279,81 @@ func (r *Renderer) DrawAttract(w donburi.World, view scene.AttractView) {
 		if size <= 0 {
 			size = config.Sprite
 		}
-		r.drawSizedSprite(sp.Pos, sp.Src, sp.Frame, size)
+		r.drawSizedSprite(spriteCam, sp.Pos, sp.Src, sp.Frame, size)
 	}
-
-	rl.EndShaderMode()
-	rl.EndMode2D()
 }
 
 func (r *Renderer) drawHUD(gameState *component.GameStateData) {
-	zeroV := rl.Vector2{}
-	zoom := gameState.Zoom
+	cams := sceneCameras(gameState)
 
 	// Top HUD labels
-	textCamera := rl.NewCamera2D(rl.Vector2{X: 0, Y: 2 * zoom}, zeroV, 0, zoom)
-	rl.BeginMode2D(textCamera)
+	textCam := cams.text
 	if OneUpVisible(gameState.FrameCount, gameState.GameOver || gameState.ActivePlayer != 0) {
-		DrawText(r.art.Font, "1UP", 3, 0, rl.White)
+		drawTextWithCamera(r.target, r.art.Font, textCam, "1UP", 3, 0, colorWhite)
 	}
-	DrawText(r.art.Font, "HIGH SCORE", 9, 0, rl.White)
+	drawTextWithCamera(r.target, r.art.Font, textCam, "HIGH SCORE", 9, 0, colorWhite)
 	if gameState.PlayerCount == 2 {
 		if OneUpVisible(gameState.FrameCount, gameState.GameOver || gameState.ActivePlayer != 1) {
-			DrawText(r.art.Font, "2UP", 22, 0, rl.White)
+			drawTextWithCamera(r.target, r.art.Font, textCam, "2UP", 22, 0, colorWhite)
 		}
 	}
-	rl.EndMode2D()
 
 	// Top HUD scores
-	textCamera.Offset.Y = 3 * zoom
-	rl.BeginMode2D(textCamera)
+	textCam.offsetY = 3 * cams.zoom
 	p1Score := gameState.PlayerScores[0]
 	if gameState.ActivePlayer == 0 {
 		p1Score = gameState.Score
 	}
-	DrawText(r.art.Font, fmt.Sprintf("%7d", p1Score), 0, 1, rl.White)
-	DrawText(r.art.Font, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, rl.White)
+	drawTextWithCamera(r.target, r.art.Font, textCam, fmt.Sprintf("%7d", p1Score), 0, 1, colorWhite)
+	drawTextWithCamera(r.target, r.art.Font, textCam, fmt.Sprintf("%7d", gameState.HighScore), 9, 1, colorWhite)
 	if gameState.PlayerCount == 2 {
 		p2Score := gameState.PlayerScores[1]
 		if gameState.ActivePlayer == 1 {
 			p2Score = gameState.Score
 		}
-		DrawText(r.art.Font, fmt.Sprintf("%7d", p2Score), 20, 1, rl.White)
+		drawTextWithCamera(r.target, r.art.Font, textCam, fmt.Sprintf("%7d", p2Score), 20, 1, colorWhite)
 	}
-	rl.EndMode2D()
 
 	// Bottom HUD remaining lives and level bonus symbols
-	textCamera.Offset.Y = float32((config.GameHeight+3)*config.Tile) * zoom
-	rl.BeginMode2D(textCamera)
-	r.drawLives(gameState)
-	rl.BeginShaderMode(r.art.Shader)
-	r.drawLevelSymbols(gameState)
-	rl.EndShaderMode()
-	rl.EndMode2D()
+	textCam.offsetY = float64((config.GameHeight+3)*config.Tile) * cams.zoom
+	r.drawLives(textCam, gameState)
+	r.drawLevelSymbols(textCam, gameState)
 }
 
-func (r *Renderer) drawMaze(maze *component.MazeData, flashWhite, showPower bool) {
-	const mazeW = float32(config.GameWidth) * config.Tile
-	const mazeH = float32(config.GameHeight) * config.Tile
+func (r *Renderer) drawMaze(cam camera2D, maze *component.MazeData, flashWhite, showPower bool) {
+	const mazeW = config.GameWidth * config.Tile
+	const mazeH = config.GameHeight * config.Tile
 	index := maze.GetIndex()
-	src := rl.Rectangle{
-		X:      config.GameWidth*config.Tile + config.Half,
-		Y:      float32(index) * config.GameHeight * config.Tile,
-		Width:  mazeW,
-		Height: mazeH,
-	}
-	dst := rl.NewRectangle(0, 0, mazeW, mazeH)
+	srcX := config.GameWidth*config.Tile + config.Half
+	srcY := index * config.GameHeight * config.Tile
+	mazeSub := r.subTexture(srcX, srcY, mazeW, mazeH)
+
 	if flashWhite {
-		rl.BeginShaderMode(r.art.FlashShader)
-		rl.DrawTexturePro(r.art.Texture, src, dst, rl.Vector2{}, 0, rl.White)
-		rl.EndShaderMode()
+		var op ebiten.DrawRectShaderOptions
+		op.GeoM = cam.geoM(0, 0)
+		op.Images[0] = mazeSub
+		r.target.DrawRectShader(mazeW, mazeH, r.art.FlashShader, &op)
 	} else {
-		rl.DrawTexturePro(r.art.Texture, src, dst, rl.Vector2{}, 0, rl.White)
+		r.drawSubImage(cam, mazeSub, 0, 0)
 	}
 
-	dots := []float32{1, 36, 63, 94, 125}
-	powerUps := []float32{2, 35, 65, 96, 127}
+	dots := []int{1, 36, 63, 94, 125}
+	powerUps := []int{2, 35, 65, 96, 127}
 
-	dotSrc := rl.Rectangle{X: config.Tile, Y: dots[index] * config.Tile, Width: config.Tile, Height: config.Tile}
-	powerSrc := rl.Rectangle{X: config.Tile, Y: powerUps[index] * config.Tile, Width: config.Tile, Height: config.Tile}
+	dotSub := r.subTexture(config.Tile, dots[index]*config.Tile, config.Tile, config.Tile)
+	powerSub := r.subTexture(config.Tile, powerUps[index]*config.Tile, config.Tile, config.Tile)
 
 	for y := range config.GameHeight {
 		for x := range config.GameWidth {
 			tile := maze.Grid[y][x]
 			switch tile {
 			case component.Dot:
-				rec := rl.Rectangle{X: float32(x) * config.Tile, Y: float32(y) * config.Tile, Width: config.Tile, Height: config.Tile}
-				rl.DrawTexturePro(r.art.Texture, dotSrc, rec, rl.Vector2{}, 0, rl.White)
+				r.drawSubImage(cam, dotSub, float64(x*config.Tile), float64(y*config.Tile))
 			case component.Power:
 				if !showPower {
 					continue
 				}
-				rec := rl.Rectangle{X: float32(x) * config.Tile, Y: float32(y) * config.Tile, Width: config.Tile, Height: config.Tile}
-				rl.DrawTexturePro(r.art.Texture, powerSrc, rec, rl.Vector2{}, 0, rl.White)
+				r.drawSubImage(cam, powerSub, float64(x*config.Tile), float64(y*config.Tile))
 			}
 		}
 	}
@@ -360,7 +376,7 @@ func OneUpVisible(frameCount int, gameOver bool) bool {
 	return (frameCount/16)%2 == 0
 }
 
-func (r *Renderer) drawLives(gameState *component.GameStateData) {
+func (r *Renderer) drawLives(cam camera2D, gameState *component.GameStateData) {
 	if gameState.Lives <= 1 {
 		return
 	}
@@ -372,7 +388,7 @@ func (r *Renderer) drawLives(gameState *component.GameStateData) {
 	}
 
 	for range gameState.Lives - 1 {
-		r.drawSprite(pos, sprite, 1)
+		r.drawSprite(cam, pos, sprite, 1)
 		pos.X += config.Sprite
 	}
 }
@@ -394,12 +410,12 @@ func LevelBonusSymbols(level int) []config.BonusSymbol {
 	return symbols
 }
 
-func (r *Renderer) drawLevelSymbols(gameState *component.GameStateData) {
+func (r *Renderer) drawLevelSymbols(cam camera2D, gameState *component.GameStateData) {
 	pos := config.Vector{X: (config.GameWidth - 4) * config.Tile, Y: 0}
 	if gameState.PacmanMode {
 		for _, sym := range LevelBonusSymbols(gameState.Level) {
 			if sprite, ok := BonusFruitSprite(true, sym); ok {
-				r.drawSprite(pos, sprite, 0)
+				r.drawSprite(cam, pos, sprite, 0)
 			}
 			pos.X -= config.Sprite
 		}
@@ -410,13 +426,14 @@ func (r *Renderer) drawLevelSymbols(gameState *component.GameStateData) {
 	for i := range count {
 		sym, _ := config.MsPacmanBonus(i+1, 0)
 		if sprite, ok := BonusFruitSprite(false, sym); ok {
-			r.drawSprite(pos, sprite, 0)
+			r.drawSprite(cam, pos, sprite, 0)
 		}
 		pos.X -= config.Sprite
 	}
 }
 
 func (r *Renderer) drawPlayer(
+	cam camera2D,
 	gameState *component.GameStateData,
 	transform *component.TransformData,
 	anim *component.AnimationData,
@@ -428,7 +445,7 @@ func (r *Renderer) drawPlayer(
 		sprite.Y = []int{0, 16, 32, 48}[transform.Dir]
 	}
 
-	r.drawSprite(transform.Pos, sprite, anim.FrameIndex)
+	r.drawSprite(cam, transform.Pos, sprite, anim.FrameIndex)
 }
 
 // PlayerDeathSprite returns the top-left spritesheet pixel coordinates in
@@ -447,6 +464,7 @@ func PlayerDeathSprite(pacmanMode bool, frame int) (config.Vector, bool) {
 }
 
 func (r *Renderer) drawPlayerDeath(
+	cam camera2D,
 	gameState *component.GameStateData,
 	transform *component.TransformData,
 	frame int,
@@ -455,10 +473,11 @@ func (r *Renderer) drawPlayerDeath(
 	if !ok {
 		return
 	}
-	r.drawSprite(transform.Pos, sprite, 0)
+	r.drawSprite(cam, transform.Pos, sprite, 0)
 }
 
 func (r *Renderer) drawGhost(
+	cam camera2D,
 	gameState *component.GameStateData,
 	transform *component.TransformData,
 	anim *component.AnimationData,
@@ -489,7 +508,7 @@ func (r *Renderer) drawGhost(
 		sprite.X = []int{456, 488, 520, 552}[transform.Dir]
 	}
 
-	r.drawSprite(transform.Pos, sprite, frameIndex)
+	r.drawSprite(cam, transform.Pos, sprite, frameIndex)
 }
 
 // FrightenedGhostFlashWhite reports whether a frightened ghost should render
@@ -526,13 +545,13 @@ func GhostScoreSprite(score int) (config.Vector, bool) {
 	}
 }
 
-func (r *Renderer) drawGhostScore(gameState *component.GameStateData) {
+func (r *Renderer) drawGhostScore(cam camera2D, gameState *component.GameStateData) {
 	sprite, ok := GhostScoreSprite(gameState.GhostEatenScore)
 	if !ok {
 		return
 	}
 	pos := config.Vector{X: gameState.GhostEatenX, Y: gameState.GhostEatenY}
-	r.drawSprite(pos, sprite, 0)
+	r.drawSprite(cam, pos, sprite, 0)
 }
 
 // BonusFruitSprite returns the top-left spritesheet pixel coordinates in
@@ -605,7 +624,7 @@ func FruitBounceOffset(frame int) int {
 	return curve[frame%len(curve)]
 }
 
-func (r *Renderer) drawBonusFruit(gameState *component.GameStateData) {
+func (r *Renderer) drawBonusFruit(cam camera2D, gameState *component.GameStateData) {
 	sym := gameState.FruitSymbol
 	if !gameState.FruitMoving && gameState.PacmanMode {
 		sym = gameState.Spec.BonusSymbol
@@ -618,49 +637,34 @@ func (r *Renderer) drawBonusFruit(gameState *component.GameStateData) {
 	if gameState.FruitMoving {
 		pos.Y += FruitBounceOffset(gameState.FruitBounceFrame)
 	}
-	r.drawSprite(pos, sprite, 0)
+	r.drawSprite(cam, pos, sprite, 0)
 }
 
-func (r *Renderer) drawBonusScore(gameState *component.GameStateData) {
+func (r *Renderer) drawBonusScore(cam camera2D, gameState *component.GameStateData) {
 	origin, width, ok := BonusScoreSprite(gameState.PacmanMode, gameState.FruitScoreValue)
 	if !ok {
 		return
 	}
 	offsetX := (width - config.Sprite) / 2
-	src := rl.Rectangle{
-		X:      float32(origin.X),
-		Y:      float32(origin.Y),
-		Width:  float32(width),
-		Height: config.Sprite,
-	}
-	dst := rl.Rectangle{
-		X:      float32(gameState.FruitPos.X - offsetX),
-		Y:      float32(gameState.FruitPos.Y),
-		Width:  float32(width),
-		Height: config.Sprite,
-	}
-	rl.DrawTexturePro(r.art.Texture, src, dst, rl.Vector2{}, 0, rl.White)
+	sub := r.subTexture(origin.X, origin.Y, width, config.Sprite)
+	r.drawSubImage(cam, sub, float64(gameState.FruitPos.X-offsetX), float64(gameState.FruitPos.Y))
 }
 
-func (r *Renderer) drawSprite(pos, sprite config.Vector, frameIndex int) {
-	r.drawSizedSprite(pos, sprite, frameIndex, config.Sprite)
+func (r *Renderer) drawSprite(cam camera2D, pos, sprite config.Vector, frameIndex int) {
+	r.drawSizedSprite(cam, pos, sprite, frameIndex, config.Sprite)
 }
 
-func (r *Renderer) drawSizedSprite(pos, sprite config.Vector, frameIndex, size int) {
-	s := float32(size)
-	src := rl.Rectangle{
-		X:      float32(sprite.X) + float32(frameIndex)*s,
-		Y:      float32(sprite.Y),
-		Width:  s,
-		Height: s,
-	}
+func (r *Renderer) drawSizedSprite(cam camera2D, pos, sprite config.Vector, frameIndex, size int) {
+	sub := r.subTexture(sprite.X+frameIndex*size, sprite.Y, size, size)
+	r.drawSubImage(cam, sub, float64(pos.X), float64(pos.Y))
+}
 
-	dst := rl.Rectangle{
-		X:      float32(pos.X),
-		Y:      float32(pos.Y),
-		Width:  s,
-		Height: s,
-	}
+func (r *Renderer) subTexture(x, y, w, h int) *ebiten.Image {
+	return r.art.Texture.SubImage(image.Rect(x, y, x+w, y+h)).(*ebiten.Image)
+}
 
-	rl.DrawTexturePro(r.art.Texture, src, dst, rl.Vector2{}, 0, rl.White)
+func (r *Renderer) drawSubImage(cam camera2D, sub *ebiten.Image, x, y float64) {
+	var op ebiten.DrawImageOptions
+	op.GeoM = cam.geoM(x, y)
+	r.target.DrawImage(sub, &op)
 }

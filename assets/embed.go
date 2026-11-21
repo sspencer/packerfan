@@ -12,7 +12,7 @@ import (
 var rawFS embed.FS
 
 // FS exposes the embedded assets directory under the "assets/" path prefix
-// (e.g. "assets/game.png", "assets/text.png", "assets/chroma_key.fs").
+// (e.g. "assets/game.png", "assets/text.png").
 var FS fs.FS = prefixFS{inner: rawFS}
 
 const (
