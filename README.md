@@ -83,6 +83,7 @@ See [docs/headless.md](docs/headless.md#7-watching-and-verifying-replays) for th
 
 ```sh
 make build      # Build the ./pacfan binary
+make all        # Cross-compile all binaries into bin/ (plus bin/Pacfan.app on macOS)
 make app        # Build the macOS app bundle bin/Pacfan.app
 make install-app # Build the macOS app and copy it to /Applications
 make run        # Build and launch ./pacfan (pass flags via ARGS="--ms --zoom 4")

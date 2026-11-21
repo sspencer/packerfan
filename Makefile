@@ -14,8 +14,9 @@ BUNDLE_ID       ?= com.sspencer.pacfan
 APP_BUNDLE      := $(BIN_DIR)/$(APP_NAME).app
 APP_BUILD        = $(shell git rev-list --count HEAD 2>/dev/null || echo 1)
 INSTALL_DIR     ?= /Applications
+UNAME_S         := $(shell uname -s)
 
-.PHONY: build build-headless build-all $(PLATFORMS) app install-app icon run test test-race bench cover fmt vet fix check check-headless-deps generate deps clean help
+.PHONY: all build build-headless build-all $(PLATFORMS) app install-app icon run test test-race bench cover fmt vet fix check check-headless-deps generate deps clean help
 
 build: ## Build the binary
 	$(GO) build $(GOFLAGS) -o $(BINARY) .
@@ -24,6 +25,8 @@ build-headless: ## Build the headless NDJSON simulation server
 	$(GO) build $(GOFLAGS) -o $(HEADLESS_BINARY) ./cmd/pacfan-headless
 
 build-all: $(PLATFORMS) ## Cross-compile game and headless binaries for mac, linux, and windows into $(BIN_DIR)/
+
+all: build-all $(if $(filter Darwin,$(UNAME_S)),app) ## Cross-compile all binaries, plus the macOS app when run on macOS
 
 os   = $(word 1,$(subst /, ,$@))
 arch = $(word 2,$(subst /, ,$@))
