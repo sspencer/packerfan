@@ -43,6 +43,7 @@ tasks/
 notes/
 /pacfan
 /pacfan-headless
+/bin/
 
 # Python ML workspace & training outputs
 ml/.venv/

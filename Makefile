@@ -6,14 +6,29 @@ GOFLAGS         ?=
 COVER_FILE      ?= coverage.out
 BENCH           ?= .
 COUNT           ?= 1
+BIN_DIR         ?= bin
+PLATFORMS       ?= darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64
 
-.PHONY: build build-headless run test test-race bench cover fmt vet fix check check-headless-deps generate deps clean help
+.PHONY: build build-headless build-all $(PLATFORMS) run test test-race bench cover fmt vet fix check check-headless-deps generate deps clean help
 
 build: ## Build the binary
 	$(GO) build $(GOFLAGS) -o $(BINARY) .
 
 build-headless: ## Build the headless NDJSON simulation server
 	$(GO) build $(GOFLAGS) -o $(HEADLESS_BINARY) ./cmd/pacfan-headless
+
+build-all: $(PLATFORMS) ## Cross-compile game and headless binaries for mac, linux, and windows into $(BIN_DIR)/
+
+os   = $(word 1,$(subst /, ,$@))
+arch = $(word 2,$(subst /, ,$@))
+ext  = $(if $(filter windows,$(os)),.exe,)
+
+# Cross-compiles with CGO disabled: raylib-go then loads its embedded, prebuilt
+# raylib shared library at runtime via purego, so no C cross-toolchain is needed.
+$(PLATFORMS):
+	@mkdir -p $(BIN_DIR)
+	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) $(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(BINARY)-$(os)-$(arch)$(ext) .
+	CGO_ENABLED=0 GOOS=$(os) GOARCH=$(arch) $(GO) build $(GOFLAGS) -o $(BIN_DIR)/$(HEADLESS_BINARY)-$(os)-$(arch)$(ext) ./cmd/pacfan-headless
 
 run: build ## Build and run the binary (e.g. make run ARGS="--ms --zoom 4")
 	./$(BINARY) $(ARGS)
@@ -58,6 +73,7 @@ deps: ## Download and tidy module dependencies
 clean: ## Remove build and coverage artifacts
 	$(GO) clean
 	rm -f $(BINARY) $(HEADLESS_BINARY) $(COVER_FILE)
+	rm -rf $(BIN_DIR)
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "; printf "Available targets:\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
