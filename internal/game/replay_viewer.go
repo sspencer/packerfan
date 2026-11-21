@@ -8,7 +8,6 @@ import (
 	rl "github.com/gen2brain/raylib-go/raylib"
 
 	"pacfan/internal/component"
-	"pacfan/internal/config"
 	"pacfan/internal/render"
 	"pacfan/internal/scene"
 )
@@ -21,16 +20,14 @@ type ReplayViewer struct {
 	art      *render.Art
 	artSHA   string
 	renderer *render.Renderer
-	zoom     float32
 	status   string
 }
 
 // NewReplayViewer constructs a GPU-backed viewer around an already-validated ReplayPlayer.
-func NewReplayViewer(assetsFS fs.FS, player *ReplayPlayer, zoom float32) *ReplayViewer {
+func NewReplayViewer(assetsFS fs.FS, player *ReplayPlayer) *ReplayViewer {
 	v := &ReplayViewer{
 		assetsFS: assetsFS,
 		player:   player,
-		zoom:     zoom,
 	}
 	v.syncArt()
 	return v
@@ -89,18 +86,20 @@ func (v *ReplayViewer) Update(dt float64) {
 	v.player.Advance(dt)
 }
 
-// Draw renders the sim.Env world and the replay HUD overlay line.
-func (v *ReplayViewer) Draw() {
+// DrawWorld renders the sim.Env world into the active 224x288 native canvas.
+func (v *ReplayViewer) DrawWorld() {
 	w := v.player.Env().World()
 	gs := component.MustFindGameState(w)
 	v.renderer.DrawWorld(w, scene.DrawOptions{
 		ShowGameOver: v.player.Finished() && gs.GameOver,
 	})
+}
 
-	// Draw replay status line along the very bottom margin.
-	winW := int32(config.ScreenWidth * config.Tile * int(v.zoom))
-	winH := int32(config.ScreenHeight * config.Tile * int(v.zoom))
-	fontSize := max(int32(10), int32(4*v.zoom))
+// DrawOverlay renders the replay status line along the bottom of the screen.
+func (v *ReplayViewer) DrawOverlay(vp render.Viewport) {
+	winW := int32(rl.GetScreenWidth())
+	winH := int32(rl.GetScreenHeight())
+	fontSize := max(int32(10), int32(4*vp.Scale))
 	barH := fontSize + 6
 	rl.DrawRectangle(0, winH-barH, winW, barH, rl.Color{R: 0, G: 0, B: 0, A: 200})
 

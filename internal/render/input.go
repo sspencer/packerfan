@@ -15,14 +15,15 @@ func NewRaylibInput() *RaylibInput {
 }
 
 func (r *RaylibInput) Sample() system.InputState {
+	altDown := rl.IsKeyDown(rl.KeyLeftAlt) || rl.IsKeyDown(rl.KeyRightAlt)
 	pausePressed := rl.IsKeyPressed(rl.KeySpace)
 	mutePressed := rl.IsKeyPressed(rl.KeyM)
-	confirmPressed := rl.IsKeyPressed(rl.KeyEnter) || rl.IsKeyPressed(rl.KeyKpEnter)
+	confirmPressed := (!altDown && rl.IsKeyPressed(rl.KeyEnter)) || rl.IsKeyPressed(rl.KeyKpEnter)
 	start1P := rl.IsKeyPressed(rl.KeyOne) || rl.IsKeyPressed(rl.KeyKp1)
 	start2P := rl.IsKeyPressed(rl.KeyTwo) || rl.IsKeyPressed(rl.KeyKp2)
 	anyKeyPressed := pausePressed || confirmPressed || start1P || start2P
 	for key := rl.GetKeyPressed(); key != 0; key = rl.GetKeyPressed() {
-		if key != rl.KeyM {
+		if key != rl.KeyM && key != rl.KeyF11 && !(altDown && key == rl.KeyEnter) {
 			anyKeyPressed = true
 		}
 	}

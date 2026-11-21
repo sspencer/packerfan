@@ -32,7 +32,8 @@ go run . -pacman -zoom 4
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `-zoom` | `3` | Integer display scale factor (clamped to `1..10`) |
+| `-fullscreen` | `true` | Run in fullscreen mode with a black background, zoomed to the maximum fit and centered (`-fullscreen=false` for windowed mode) |
+| `-zoom` | `0` | Integer display scale factor (`1..10`; `0` auto-fits to maximum scale in fullscreen or `3x` in windowed mode) |
 | `-pacman` | `false` | Use classic Pac-Man maze, sprites, death animation, and intermissions instead of Ms. Pac-Man |
 | `-players` | `1` | Default player count on the attract screen (`1` or `2`) |
 | `-mute` | `false` | Disable arcade audio playback |
@@ -47,6 +48,7 @@ go run . -pacman -zoom 4
 - **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume gameplay
 - **M**: Mute / unmute audio
+- **F11** or **Alt+Enter**: Toggle fullscreen / windowed mode
 - **Any Key** (on the Game Over screen, after a 1-second delay): Return to the Attract screen to pick 1P or 2P (or returns automatically after 3 seconds)
 
 ### Replay Controls

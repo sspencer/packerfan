@@ -16,18 +16,22 @@ import (
 	"pacfan/internal/render"
 )
 
+const defaultWindowedZoom = 3
+
 func main() {
 	// Reduce GC frequency during the 61 FPS arcade loop.
 	debug.SetGCPercent(200)
 
 	var zoom int
+	var fullscreen bool
 	var pacman bool
 	var players int
 	var mute bool
 	var replayPath string
 	var replaySpeed float64
 	var artFile string
-	flag.IntVar(&zoom, "zoom", 3, "zoom level")
+	flag.IntVar(&zoom, "zoom", 0, "zoom level (1..10; 0 = auto-fit fullscreen or 3x windowed)")
+	flag.BoolVar(&fullscreen, "fullscreen", true, "run in fullscreen mode")
 	flag.BoolVar(&pacman, "pacman", false, "pacman mode")
 	flag.IntVar(&players, "players", 1, "default number of players (1 or 2)")
 	flag.BoolVar(&mute, "mute", false, "disable audio playback")
@@ -36,11 +40,18 @@ func main() {
 	flag.StringVar(&artFile, "art", "", "override game spritesheet PNG path for -replay mode")
 	flag.Parse()
 
-	zoom = max(1, min(zoom, 10))
+	var maxZoom float32
+	windowZoom := defaultWindowedZoom
+	if zoom > 0 {
+		windowZoom = max(1, min(zoom, 10))
+		if fullscreen {
+			maxZoom = float32(windowZoom)
+		}
+	}
 	players = max(1, min(players, 2))
 
 	if replayPath != "" {
-		runReplay(replayPath, artFile, zoom, replaySpeed)
+		runReplay(replayPath, artFile, fullscreen, windowZoom, maxZoom, replaySpeed)
 		return
 	}
 
@@ -76,19 +87,15 @@ and rebuild to enable missing sounds, or pass -mute to silence this warning.
 		title = "Pac-Man"
 	}
 
-	rl.SetTraceLogLevel(rl.LogWarning)
-	rl.InitWindow(
-		config.ScreenWidth*config.Tile*int32(zoom),
-		config.ScreenHeight*config.Tile*int32(zoom),
-		title,
-	)
+	initWindow(title, fullscreen, windowZoom)
 	defer rl.CloseWindow()
 
-	rl.SetTargetFPS(config.TargetFPS) // arcade game was clocked to 60.606061
+	canvas := render.NewCanvas(maxZoom)
+	defer canvas.Unload()
 
 	engine := game.NewEngine(game.Options{
 		PacmanMode: pacman,
-		Zoom:       float32(zoom),
+		Zoom:       1, // Renderer draws into the native 224x288 canvas; Canvas scales to fit screen.
 		Players:    players,
 		Mute:       mute,
 	}, assets.FS)
@@ -97,24 +104,33 @@ and rebuild to enable missing sounds, or pass -mute to silence this warning.
 	clock := config.NewArcadeClock()
 
 	for !rl.WindowShouldClose() {
+		if fullscreenTogglePressed() {
+			rl.ToggleFullscreen()
+		}
+
 		steps := clock.Advance(float64(rl.GetFrameTime()))
 		for range steps {
 			engine.Update()
 		}
+
+		canvas.Begin()
+		engine.Draw()
+		canvas.End()
+
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
-		engine.Draw()
+		canvas.Present()
 		rl.EndDrawing()
 	}
 }
 
-func runReplay(replayPath, artFile string, zoom int, speed float64) {
+func runReplay(replayPath, artFile string, fullscreen bool, windowZoom int, maxZoom float32, speed float64) {
 	if err := render.CheckAssets(assets.FS); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 
-	player, err := game.NewReplayPlayer(assets.FS, replayPath, artFile, float32(zoom), speed)
+	player, err := game.NewReplayPlayer(assets.FS, replayPath, artFile, 1, speed)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -125,24 +141,55 @@ func runReplay(replayPath, artFile string, zoom int, speed float64) {
 		title = "Pac-Man [Replay]"
 	}
 
-	rl.SetTraceLogLevel(rl.LogWarning)
-	rl.InitWindow(
-		config.ScreenWidth*config.Tile*int32(zoom),
-		config.ScreenHeight*config.Tile*int32(zoom),
-		title,
-	)
+	initWindow(title, fullscreen, windowZoom)
 	defer rl.CloseWindow()
 
-	rl.SetTargetFPS(config.TargetFPS)
+	canvas := render.NewCanvas(maxZoom)
+	defer canvas.Unload()
 
-	viewer := game.NewReplayViewer(assets.FS, player, float32(zoom))
+	viewer := game.NewReplayViewer(assets.FS, player)
 	defer viewer.Unload()
 
 	for !rl.WindowShouldClose() {
+		if fullscreenTogglePressed() {
+			rl.ToggleFullscreen()
+		}
+
 		viewer.Update(float64(rl.GetFrameTime()))
+
+		canvas.Begin()
+		viewer.DrawWorld()
+		canvas.End()
+
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
-		viewer.Draw()
+		vp := canvas.Present()
+		viewer.DrawOverlay(vp)
 		rl.EndDrawing()
 	}
+}
+
+func initWindow(title string, fullscreen bool, windowZoom int) {
+	rl.SetTraceLogLevel(rl.LogWarning)
+
+	flags := uint32(rl.FlagWindowHighdpi | rl.FlagWindowResizable)
+	if fullscreen {
+		flags |= rl.FlagFullscreenMode
+	}
+	rl.SetConfigFlags(flags)
+
+	rl.InitWindow(
+		int32(render.NativeWidth*windowZoom),
+		int32(render.NativeHeight*windowZoom),
+		title,
+	)
+	rl.SetTargetFPS(config.TargetFPS) // arcade game was clocked to 60.606061
+}
+
+func fullscreenTogglePressed() bool {
+	if rl.IsKeyPressed(rl.KeyF11) {
+		return true
+	}
+	altDown := rl.IsKeyDown(rl.KeyLeftAlt) || rl.IsKeyDown(rl.KeyRightAlt)
+	return altDown && rl.IsKeyPressed(rl.KeyEnter)
 }

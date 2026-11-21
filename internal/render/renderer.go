@@ -291,7 +291,7 @@ func (r *Renderer) drawHUD(gameState *component.GameStateData) {
 	rl.EndMode2D()
 
 	// Bottom HUD remaining lives and level bonus symbols
-	textCamera.Offset.Y = ((config.GameHeight+3)*config.Tile)*zoom + 2
+	textCamera.Offset.Y = float32((config.GameHeight+3)*config.Tile) * zoom
 	rl.BeginMode2D(textCamera)
 	r.drawLives(gameState)
 	rl.BeginShaderMode(r.art.Shader)
