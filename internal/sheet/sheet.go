@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"image"
 	"image/png"
 	"io/fs"
 	"os"
@@ -51,7 +52,12 @@ func Decode(name string, data []byte) (*Sheet, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sheet: decode %q: %w", name, err)
 	}
+	return FromImage(name, data, img), nil
+}
 
+// FromImage builds a Sheet from an already-decoded image. data must be the
+// PNG bytes img was decoded from; they are hashed for the sheet's SHA-256.
+func FromImage(name string, data []byte, img image.Image) *Sheet {
 	sum := sha256.Sum256(data)
 	bounds := img.Bounds()
 	w := bounds.Dx()
@@ -78,7 +84,7 @@ func Decode(name string, data []byte) (*Sheet, error) {
 		width:     w,
 		height:    h,
 		lit:       lit,
-	}, nil
+	}
 }
 
 // IsPixelLit reports whether pixel (x, y) has any non-zero R, G, or B channel.

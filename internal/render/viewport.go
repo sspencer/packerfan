@@ -1,7 +1,9 @@
 package render
 
 import (
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"image/color"
+
+	"github.com/hajimehoshi/ebiten/v2"
 
 	"pacfan/internal/config"
 )
@@ -58,58 +60,50 @@ func FitViewport(screenW, screenH int, maxZoom float32) Viewport {
 	}
 }
 
-// Canvas renders the native 224x288 arcade frame into an offscreen texture with
+// Canvas renders the native 224x288 arcade frame into an offscreen image with
 // nearest-neighbor filtering and presents it scaled and centered on screen.
 type Canvas struct {
-	target  rl.RenderTexture2D
+	target  *ebiten.Image
 	maxZoom float32
 }
 
-// NewCanvas allocates a 224x288 render target. When maxZoom <= 0, Present
+// NewCanvas allocates a 224x288 offscreen image. When maxZoom <= 0, Present
 // scales the canvas to the maximum size that fits the display; when maxZoom > 0,
 // Present caps the scale at maxZoom.
 func NewCanvas(maxZoom float32) *Canvas {
-	target := rl.LoadRenderTexture(NativeWidth, NativeHeight)
-	rl.SetTextureFilter(target.Texture, rl.FilterPoint)
 	return &Canvas{
-		target:  target,
+		target:  ebiten.NewImage(NativeWidth, NativeHeight),
 		maxZoom: maxZoom,
 	}
 }
 
-// Begin redirects subsequent 2D drawing into the 224x288 native canvas cleared to black.
-func (c *Canvas) Begin() {
-	rl.BeginTextureMode(c.target)
-	rl.ClearBackground(rl.Black)
+// Image returns the underlying 224x288 offscreen render target.
+func (c *Canvas) Image() *ebiten.Image {
+	return c.target
 }
 
-// End finishes drawing into the native canvas.
-func (c *Canvas) End() {
-	rl.EndTextureMode()
+// Clear fills the native 224x288 canvas with solid black.
+func (c *Canvas) Clear() {
+	c.target.Fill(color.Black)
 }
 
-// Present draws the native canvas onto the current screen, zoomed to fit and
-// centered, returning the screen-space Viewport used.
-func (c *Canvas) Present() Viewport {
-	vp := FitViewport(rl.GetScreenWidth(), rl.GetScreenHeight(), c.maxZoom)
-	// RenderTexture2D is stored upside down in OpenGL, so flip source height.
-	src := rl.Rectangle{
-		X:      0,
-		Y:      0,
-		Width:  float32(c.target.Texture.Width),
-		Height: -float32(c.target.Texture.Height),
-	}
-	dst := rl.Rectangle{
-		X:      vp.X,
-		Y:      vp.Y,
-		Width:  vp.Width,
-		Height: vp.Height,
-	}
-	rl.DrawTexturePro(c.target.Texture, src, dst, rl.Vector2{}, 0, rl.White)
+// Present draws the native canvas onto screen, zoomed to fit and centered with
+// nearest-neighbor scaling, returning the screen-space Viewport used.
+func (c *Canvas) Present(screen *ebiten.Image) Viewport {
+	bounds := screen.Bounds()
+	vp := FitViewport(bounds.Dx(), bounds.Dy(), c.maxZoom)
+
+	var op ebiten.DrawImageOptions
+	op.GeoM.Scale(float64(vp.Scale), float64(vp.Scale))
+	op.GeoM.Translate(float64(vp.X), float64(vp.Y))
+	op.Filter = ebiten.FilterNearest
+	screen.DrawImage(c.target, &op)
 	return vp
 }
 
-// Unload releases the offscreen GPU render texture.
+// Unload releases the offscreen GPU image.
 func (c *Canvas) Unload() {
-	rl.UnloadRenderTexture(c.target)
+	if c.target != nil {
+		c.target.Deallocate()
+	}
 }

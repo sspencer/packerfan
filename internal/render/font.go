@@ -1,17 +1,26 @@
 package render
 
 import (
+	"image"
+	"image/color"
 	"strings"
 
-	rl "github.com/gen2brain/raylib-go/raylib"
+	"github.com/hajimehoshi/ebiten/v2"
 
 	"pacfan/internal/config"
 )
 
 // DrawText renders uppercase arcade bitmap font text at tile coordinates (x, y).
-func DrawText(font rl.Texture2D, text string, x, y int, color rl.Color) {
+func DrawText(dst, font *ebiten.Image, text string, x, y int, clr color.Color) {
+	drawTextWithCamera(dst, font, camera2D{zoom: 1}, text, x, y, clr)
+}
+
+func drawTextWithCamera(dst, font *ebiten.Image, cam camera2D, text string, x, y int, clr color.Color) {
 	str := []byte(strings.ToUpper(text))
 	var fx, fy int
+
+	var op ebiten.DrawImageOptions
+	op.ColorScale.ScaleWithColor(clr)
 
 	for i, c := range str {
 		ch := int(c)
@@ -48,8 +57,10 @@ func DrawText(font rl.Texture2D, text string, x, y int, color rl.Color) {
 			continue
 		}
 
-		src := rl.NewRectangle(float32(fx*config.Tile), float32(fy*config.Tile), config.Tile, config.Tile)
-		dst := rl.NewRectangle(float32((x+i)*config.Tile), float32(y*config.Tile), config.Tile, config.Tile)
-		rl.DrawTexturePro(font, src, dst, rl.Vector2{}, 0, color)
+		sx := fx * config.Tile
+		sy := fy * config.Tile
+		sub := font.SubImage(image.Rect(sx, sy, sx+config.Tile, sy+config.Tile)).(*ebiten.Image)
+		op.GeoM = cam.geoM(float64((x+i)*config.Tile), float64(y*config.Tile))
+		dst.DrawImage(sub, &op)
 	}
 }

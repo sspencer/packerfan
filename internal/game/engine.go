@@ -3,6 +3,7 @@ package game
 import (
 	"io/fs"
 
+	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/yohamta/donburi"
 
 	"pacfan/internal/archetype"
@@ -23,11 +24,12 @@ type Options struct {
 }
 
 // Engine ties together the Donburi ECS World, simulation system pipeline,
-// scene manager, loaded Raylib art/audio assets, and renderer without any package-level globals.
+// scene manager, loaded Ebitengine art/audio assets, and renderer without any package-level globals.
 type Engine struct {
 	World              donburi.World
 	art                *render.Art
 	audio              audio.Player
+	input              *render.EbitenInput
 	renderer           *render.Renderer
 	pipeline           *system.Pipeline
 	scenes             *scene.Manager
@@ -73,14 +75,15 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 
 	var audioPlayer audio.Player = audio.NoopPlayer{}
 	if !opts.Mute {
-		audioPlayer = audio.NewRaylibPlayer(assetsFS, opts.PacmanMode)
+		audioPlayer = audio.NewEbitenPlayer(assetsFS, opts.PacmanMode)
 	}
 
 	system.RegisterEventHandlers(world)
 	audio.RegisterAudioEventHandlers(world, audioPlayer)
 
 	renderer := render.NewRenderer(art)
-	pipeline := system.NewPipeline(render.NewRaylibInput())
+	input := render.NewEbitenInput()
+	pipeline := system.NewPipeline(input)
 
 	sceneCtx := &scene.Context{
 		World:          world,
@@ -99,6 +102,7 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 		World:              world,
 		art:                art,
 		audio:              audioPlayer,
+		input:              input,
 		renderer:           renderer,
 		pipeline:           pipeline,
 		scenes:             manager,
@@ -107,18 +111,25 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	}
 }
 
+// PollInput latches edge-triggered hardware key presses for the current frame.
+// Call once per Ebitengine Update before stepping the fixed-timestep clock.
+func (e *Engine) PollInput() {
+	e.input.Poll()
+}
+
 // Update advances the active scene by one frame and persists HighScore changes.
 func (e *Engine) Update() {
 	e.scenes.Update()
 	e.persistHighScoreIfNeeded()
 }
 
-// Draw renders the active scene.
-func (e *Engine) Draw() {
+// Draw renders the active scene into dst.
+func (e *Engine) Draw(dst *ebiten.Image) {
+	e.renderer.SetTarget(dst)
 	e.scenes.Draw()
 }
 
-// Unload persists any new high score and releases audio, GPU textures, images, and shaders.
+// Unload persists any new high score and releases audio, GPU images, and shaders.
 func (e *Engine) Unload() {
 	e.persistHighScoreIfNeeded()
 	e.audio.Unload()

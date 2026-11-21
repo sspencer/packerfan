@@ -43,7 +43,7 @@ const (
 )
 
 // Player abstracts audio playback so the ECS simulation and scenes remain
-// completely decoupled from Raylib and run headlessly in tests.
+// completely decoupled from the audio backend and run headlessly in tests.
 type Player interface {
 	Play(id SoundID)
 	SetLoop(loop LoopID)
@@ -162,7 +162,7 @@ func LoopFirstPaths(loop LoopID) []string {
 	return nil
 }
 
-// AllSounds lists every SoundID loaded by NewRaylibPlayer.
+// AllSounds lists every SoundID loaded by NewEbitenPlayer.
 var AllSounds = []SoundID{
 	SoundStart,
 	SoundCredit,
@@ -178,7 +178,7 @@ var AllSounds = []SoundID{
 	SoundIntermission3,
 }
 
-// AllLoops lists every continuous LoopID loaded by NewRaylibPlayer.
+// AllLoops lists every continuous LoopID loaded by NewEbitenPlayer.
 var AllLoops = []LoopID{
 	LoopSiren0,
 	LoopSiren1,

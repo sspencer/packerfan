@@ -2,7 +2,7 @@
 
 For copyright reasons, the original sprite artwork, bitmap fonts, and sound effects are not included in this repository (they are excluded via `.gitignore`). Placeholder example artwork is included instead (see [Tracked Assets](#tracked-assets)).
 
-At build time, `main.go` embeds the `assets/` directory with `//go:embed assets`, and `internal/render/art.go` loads the spritesheets and `assets/chroma_key.fs` on startup. For each spritesheet it loads the original artwork if present, otherwise the tracked placeholder:
+At build time, `main.go` embeds the `assets/` directory with `//go:embed assets`, and `internal/render/art.go` loads the spritesheets on startup, converting near-black pixels to transparent on the CPU (`chromaKeyThreshold` in `art.go`). For each spritesheet it loads the original artwork if present, otherwise the tracked placeholder:
 
 - Game atlas: `assets/game-real.png`, falling back to `assets/game.png`.
 - Font: `assets/text-real.png`, falling back to `assets/text.png`.
@@ -13,7 +13,6 @@ At build time, `main.go` embeds the `assets/` directory with `//go:embed assets`
 
 ## Tracked Assets
 
-- **`chroma_key.fs`**: GLSL 330 fragment shader used by `internal/render` to discard near-black pixels (`keyColor = (0, 0, 0)`, `threshold = 0.05`) when drawing sprites and bitmap-font overlays.
 - **`game.png`** and **`text.png`**: Placeholder stand-ins for the original artwork, loaded when `game-real.png` or `text-real.png` is absent. Every sprite and glyph is a simple shape drawn at the coordinates listed below. The five mazes are original layouts that keep the arcade ghost house, Pac-Man start position, tunnel rows, and exact dot and power-pellet pixel masks. Regenerate them with `go run ./tools/genexample assets/game.png assets/text.png`.
 
 ---
