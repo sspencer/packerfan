@@ -107,7 +107,7 @@ deps: ## Download and tidy module dependencies
 
 clean: ## Remove build and coverage artifacts
 	$(GO) clean
-	rm -f $(BINARY) $(HEADLESS_BINARY) $(COVER_FILE)
+	rm -f $(BINARY) $(HEADLESS_BINARY) $(COVER_FILE) *.test
 	rm -rf $(BIN_DIR)
 
 help: ## Show available targets
