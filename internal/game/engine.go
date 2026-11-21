@@ -19,7 +19,7 @@ type Options struct {
 	Zoom          float32
 	Players       int    // Default player count selected on the attract screen (1 or 2)
 	Mute          bool   // Disable audio playback when true
-	HighScorePath string // Optional override for high-score persistence file
+	HighScorePath string // Optional override for high-score persistence file (used as-is for either mode)
 }
 
 // Engine ties together the Donburi ECS World, simulation system pipeline,
@@ -52,10 +52,13 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	archetype.CreatePRNG(world)
 
 	hsPath := opts.HighScorePath
+	var savedHS int
 	if hsPath == "" {
-		hsPath = DefaultHighScorePath()
+		hsPath = DefaultHighScorePath(opts.PacmanMode)
+		savedHS = loadModeHighScore(hsPath, opts.PacmanMode)
+	} else {
+		savedHS = LoadHighScore(hsPath)
 	}
-	savedHS := LoadHighScore(hsPath)
 
 	gameState := component.GameState.Get(gameEntry)
 	maze := component.Maze.Get(mazeEntry)

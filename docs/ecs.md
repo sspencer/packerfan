@@ -79,7 +79,7 @@ pacfan/
     │   └── renderer_test.go         # Sprite coordinate, flash count, blinking, fruit & spritesheet pixel validation tests
     └── game/                        # Composition root tying World, Pipeline, Scene Manager, Art, Audio, HighScore, and Renderer together
         ├── engine.go                # Engine lifecycle (NewEngine, Update, Draw, Unload)
-        ├── highscore.go             # HighScore load/save persistence under os.UserConfigDir()
+        ├── highscore.go             # Per-mode HighScore load/save (highscore-pacman / highscore-mspacman) under os.UserConfigDir()
         └── highscore_test.go        # High-score persistence round-trip & graceful fallback tests
 ```
 
