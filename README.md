@@ -30,6 +30,14 @@ go run . --ms --zoom 4     # or: go run . -m -z 4
 
 Long flags use a double dash (`--zoom 4` or `--zoom=4`); short flags use a single dash and can be combined (`-mz 4`).
 
+### macOS App
+
+```sh
+make install-app   # build bin/Pacfan.app and copy it to /Applications
+```
+
+This builds a universal (Apple silicon + Intel), ad-hoc signed `Pacfan.app` you can launch from Finder, Launchpad, Spotlight, or the Dock. It starts with the default flags (classic Pac-Man, fullscreen). Assets are embedded at build time, so place any local artwork or audio before building. `make app` builds the bundle without installing it, and `make icon` regenerates the icon source `packaging/macos/icon.png` from `tools/genicon`.
+
 ### CLI Flags
 
 | Flag | Default | Description |
@@ -74,6 +82,8 @@ See [docs/headless.md](docs/headless.md#7-watching-and-verifying-replays) for th
 
 ```sh
 make build      # Build the ./pacfan binary
+make app        # Build the macOS app bundle bin/Pacfan.app
+make install-app # Build the macOS app and copy it to /Applications
 make run        # Build and launch ./pacfan (pass flags via ARGS="--ms --zoom 4")
 make test       # Run all unit, ECS simulation, and scene tests
 make test-race  # Run all tests with the race detector enabled
