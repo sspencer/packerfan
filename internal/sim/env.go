@@ -88,7 +88,7 @@ type TickInfo struct {
 }
 
 // Env owns a Donburi ECS World and drives play-only arcade simulation
-// deterministically without scenes, audio, or Raylib.
+// deterministically without scenes, audio, or Ebitengine.
 type Env struct {
 	cfg       Config
 	world     donburi.World

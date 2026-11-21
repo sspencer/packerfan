@@ -133,7 +133,7 @@ type ReplayMeta struct {
 	Episode    *int   `json:"episode"`
 }
 
-// ReplayPlayer drives one or more .pfr replays through sim.Env without Raylib dependencies.
+// ReplayPlayer drives one or more .pfr replays through sim.Env without Ebitengine dependencies.
 type ReplayPlayer struct {
 	assetsFS    fs.FS
 	artOverride string
