@@ -86,12 +86,7 @@ and rebuild to enable missing sounds, or pass --mute to silence this warning.
 		}
 	}
 
-	title := "Ms. Pac-Man"
-	if pacman {
-		title = "Pac-Man"
-	}
-
-	configureWindow(title, fullscreen, windowZoom)
+	configureWindow(game.WindowTitle(pacman), fullscreen, windowZoom)
 
 	canvas := render.NewCanvas(maxZoom)
 	defer canvas.Unload()

@@ -36,7 +36,7 @@ Long flags use a double dash (`--zoom 4` or `--zoom=4`); short flags use a singl
 make install-app   # build bin/Pacfan.app and copy it to /Applications
 ```
 
-This builds a universal (Apple silicon + Intel), ad-hoc signed `Pacfan.app` you can launch from Finder, Launchpad, Spotlight, or the Dock. It starts with the default flags (classic Pac-Man, fullscreen). Assets are embedded at build time, so place any local artwork or audio before building. `make app` builds the bundle without installing it, and `make icon` regenerates the icon source `packaging/macos/icon.png` from `tools/genicon`.
+This builds a universal (Apple silicon + Intel), ad-hoc signed `Pacfan.app` you can launch from Finder, Launchpad, Spotlight, or the Dock. It starts with the default flags (classic Pac-Man, fullscreen); press **3** on the attract screen to switch to Ms. Pac-Man. Assets are embedded at build time, so place any local artwork or audio before building. `make app` builds the bundle without installing it, and `make icon` regenerates the icon source `packaging/macos/icon.png` from `tools/genicon`.
 
 ### CLI Flags
 
@@ -55,6 +55,7 @@ This builds a universal (Apple silicon + Intel), ad-hoc signed `Pacfan.app` you 
 
 - **1 / 2** (on Attract screen): Start a 1-player or 2-player game
 - **Enter / Space** (on Attract screen): Start with the selected player count
+- **3** (on Attract screen): Switch between Pac-Man and Ms. Pac-Man (each keeps its own high score)
 - **Arrow Keys** (`Up`, `Down`, `Left`, `Right`) or **WASD** (`W`, `A`, `S`, `D`): Steer Pac-Man / Ms. Pac-Man
 - **Space**: Pause / resume gameplay
 - **M**: Mute / unmute audio

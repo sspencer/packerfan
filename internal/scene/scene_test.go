@@ -1084,3 +1084,41 @@ func TestAuthenticIntermissionSpritesAndAct1BumpSound(t *testing.T) {
 		t.Fatalf("Pac-Man Act 3 missing sprites: patched=%v bare=%v", sawPatched, sawBare)
 	}
 }
+
+func TestAttractSceneSwitchMode(t *testing.T) {
+	ctx, input, drawer, _, _ := newSceneHarness(t, true)
+	ctx.Manager.Start(scene.NewAttractScene(ctx))
+
+	// Without a SwitchMode callback the option is hidden and "3" does nothing.
+	ctx.Manager.Draw()
+	if got := drawer.attractCalls[len(drawer.attractCalls)-1].SwitchModeLabel; got != "" {
+		t.Fatalf("expected no switch option without SwitchMode, got %q", got)
+	}
+	input.state = system.InputState{SwitchModePressed: true}
+	ctx.Manager.Update()
+	if _, ok := ctx.Manager.Current().(*scene.AttractScene); !ok {
+		t.Fatalf("expected to stay on AttractScene, got %T", ctx.Manager.Current())
+	}
+
+	switches := 0
+	ctx.SwitchMode = func() { switches++ }
+	ctx.Manager.Draw()
+	if got := drawer.attractCalls[len(drawer.attractCalls)-1].SwitchModeLabel; got != "MS PAC-MAN" {
+		t.Fatalf("expected Pac-Man attract screen to offer MS PAC-MAN, got %q", got)
+	}
+
+	input.state = system.InputState{SwitchModePressed: true}
+	ctx.Manager.Update()
+	if switches != 1 {
+		t.Fatalf("expected SwitchMode to be called once, got %d", switches)
+	}
+	if _, ok := ctx.Manager.Current().(*scene.AttractScene); !ok {
+		t.Fatalf("expected to stay on AttractScene after switching, got %T", ctx.Manager.Current())
+	}
+
+	component.MustFindGameState(ctx.World).PacmanMode = false
+	ctx.Manager.Draw()
+	if got := drawer.attractCalls[len(drawer.attractCalls)-1].SwitchModeLabel; got != "PAC-MAN" {
+		t.Fatalf("expected Ms. Pac-Man attract screen to offer PAC-MAN, got %q", got)
+	}
+}

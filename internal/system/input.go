@@ -15,9 +15,11 @@ type InputState struct {
 	ConfirmPressed bool
 	Start1PPressed bool
 	Start2PPressed bool
-	AnyKeyPressed  bool
-	Direction      config.Direction
-	HasDirection   bool
+	// SwitchModePressed is the "3" key: toggle Pac-Man / Ms. Pac-Man on the attract screen.
+	SwitchModePressed bool
+	AnyKeyPressed     bool
+	Direction         config.Direction
+	HasDirection      bool
 }
 
 // InputProvider samples hardware or simulated controls for the current frame.
@@ -78,6 +80,12 @@ func (s *InputSystem) Start1PPressed() bool {
 // Start2PPressed reports whether the "2" key was pressed on the most recently sampled frame.
 func (s *InputSystem) Start2PPressed() bool {
 	return s.current.Start2PPressed
+}
+
+// SwitchModePressed reports whether the "3" key (switch Pac-Man / Ms. Pac-Man)
+// was pressed on the most recently sampled frame.
+func (s *InputSystem) SwitchModePressed() bool {
+	return s.current.SwitchModePressed
 }
 
 // ApplyPause toggles the world's pause flag when pause was pressed.

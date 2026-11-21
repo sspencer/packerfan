@@ -35,13 +35,38 @@ type Engine struct {
 	scenes             *scene.Manager
 	highScorePath      string
 	lastSavedHighScore int
+
+	assetsFS     fs.FS
+	opts         Options
+	audioByMode  map[bool]audio.Player // loaded per mode so switching back is instant
+	switchToggle bool                  // set by the attract screen; applied after the frame
+}
+
+// WindowTitle returns the window title for the given game mode.
+func WindowTitle(pacmanMode bool) string {
+	if pacmanMode {
+		return "Pac-Man"
+	}
+	return "Ms. Pac-Man"
 }
 
 // NewEngine constructs a fully initialized game world, loads level 1, spawns
 // entities, registers event subscribers, loads persisted high score, and wires
 // up rendering, input, and scenes starting at AttractScene.
 func NewEngine(opts Options, assetsFS fs.FS) *Engine {
-	art := render.NewArt(assetsFS)
+	e := &Engine{
+		art:         render.NewArt(assetsFS),
+		input:       render.NewEbitenInput(),
+		assetsFS:    assetsFS,
+		audioByMode: make(map[bool]audio.Player),
+	}
+	e.start(opts)
+	return e
+}
+
+// start builds a fresh session (world, scenes, high score, audio) for opts,
+// reusing the engine's art and input.
+func (e *Engine) start(opts Options) {
 	world := donburi.NewWorld()
 
 	players := max(1, min(opts.Players, 2))
@@ -68,22 +93,18 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 	gameState.HighScore = savedHS
 	gameState.SetLevel(1)
 	gameState.DotsEaten = 0
-	gameState.DotsRemaining = maze.LoadLevel(1, art.IsPixelLit)
+	gameState.DotsRemaining = maze.LoadLevel(1, e.art.IsPixelLit)
 
 	archetype.SpawnPlayer(world)
 	archetype.SpawnAllGhosts(world)
 
-	var audioPlayer audio.Player = audio.NoopPlayer{}
-	if !opts.Mute {
-		audioPlayer = audio.NewEbitenPlayer(assetsFS, opts.PacmanMode)
-	}
+	audioPlayer := e.audioFor(opts)
 
 	system.RegisterEventHandlers(world)
 	audio.RegisterAudioEventHandlers(world, audioPlayer)
 
-	renderer := render.NewRenderer(art)
-	input := render.NewEbitenInput()
-	pipeline := system.NewPipeline(input)
+	renderer := render.NewRenderer(e.art)
+	pipeline := system.NewPipeline(e.input)
 
 	sceneCtx := &scene.Context{
 		World:          world,
@@ -91,24 +112,54 @@ func NewEngine(opts Options, assetsFS fs.FS) *Engine {
 		Pipeline:       pipeline,
 		Drawer:         renderer,
 		Audio:          audioPlayer,
-		IsPixelLit:     art.IsPixelLit,
+		IsPixelLit:     e.art.IsPixelLit,
 		DefaultPlayers: players,
+		SwitchMode:     func() { e.switchToggle = true },
 	}
 	manager := scene.NewManager(nil)
 	sceneCtx.Manager = manager
 	manager.Start(scene.NewAttractScene(sceneCtx))
 
-	return &Engine{
-		World:              world,
-		art:                art,
-		audio:              audioPlayer,
-		input:              input,
-		renderer:           renderer,
-		pipeline:           pipeline,
-		scenes:             manager,
-		highScorePath:      hsPath,
-		lastSavedHighScore: savedHS,
+	e.World = world
+	e.audio = audioPlayer
+	e.renderer = renderer
+	e.pipeline = pipeline
+	e.scenes = manager
+	e.highScorePath = hsPath
+	e.lastSavedHighScore = savedHS
+	e.opts = opts
+}
+
+// audioFor returns the audio player for opts' mode, loading it on first use.
+func (e *Engine) audioFor(opts Options) audio.Player {
+	if opts.Mute {
+		return audio.NoopPlayer{}
 	}
+	if p, ok := e.audioByMode[opts.PacmanMode]; ok {
+		return p
+	}
+	p := audio.NewEbitenPlayer(e.assetsFS, opts.PacmanMode)
+	e.audioByMode[opts.PacmanMode] = p
+	return p
+}
+
+// PacmanMode reports whether the engine is currently running classic Pac-Man.
+func (e *Engine) PacmanMode() bool {
+	return e.opts.PacmanMode
+}
+
+// switchMode saves the current high score and restarts at the attract screen
+// in the other game mode, carrying over the mute setting.
+func (e *Engine) switchMode() {
+	e.persistHighScoreIfNeeded()
+	muted := e.audio.Muted()
+	e.audio.StopAll()
+
+	opts := e.opts
+	opts.PacmanMode = !opts.PacmanMode
+	e.start(opts)
+	e.audio.SetMuted(muted)
+	ebiten.SetWindowTitle(WindowTitle(opts.PacmanMode))
 }
 
 // PollInput latches edge-triggered hardware key presses for the current frame.
@@ -121,6 +172,10 @@ func (e *Engine) PollInput() {
 func (e *Engine) Update() {
 	e.scenes.Update()
 	e.persistHighScoreIfNeeded()
+	if e.switchToggle {
+		e.switchToggle = false
+		e.switchMode()
+	}
 }
 
 // Draw renders the active scene into dst.
@@ -132,7 +187,9 @@ func (e *Engine) Draw(dst *ebiten.Image) {
 // Unload persists any new high score and releases audio, GPU images, and shaders.
 func (e *Engine) Unload() {
 	e.persistHighScoreIfNeeded()
-	e.audio.Unload()
+	for _, p := range e.audioByMode {
+		p.Unload()
+	}
 	e.art.Unload()
 }
 

@@ -251,8 +251,15 @@ func (r *Renderer) DrawAttract(w donburi.World, view scene.AttractView) {
 	} else {
 		p1Color = colorYellow
 	}
-	drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 1 - 1 PLAYER", 5, 27, p1Color)
-	drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 2 - 2 PLAYERS", 5, 29, p2Color)
+	promptY := 27
+	if view.SwitchModeLabel != "" {
+		promptY = 26
+	}
+	drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 1 - 1 PLAYER", 5, promptY, p1Color)
+	drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 2 - 2 PLAYERS", 5, promptY+2, p2Color)
+	if view.SwitchModeLabel != "" {
+		drawTextWithCamera(r.target, r.art.Font, mazeCam, "PRESS 3 - "+view.SwitchModeLabel, 5, promptY+4, colorPink)
+	}
 
 	// Sprites pass (cast portraits, legend pellets, demo chase sprites)
 	spriteCam := cams.sprite
