@@ -1,4 +1,4 @@
-"""Gymnasium environment and wrappers for the headless pacfan simulator."""
+"""Gymnasium environment and wrappers for the headless cheddarhead simulator."""
 
 from __future__ import annotations
 
@@ -35,11 +35,11 @@ DIR_DELTAS = (
 
 
 def default_binary_path() -> str:
-    """Locate the pacfan-headless binary relative to the repo root or on PATH."""
-    repo_candidate = Path(__file__).resolve().parent.parent / "pacfan-headless"
+    """Locate the cheddarhead-headless binary relative to the repo root or on PATH."""
+    repo_candidate = Path(__file__).resolve().parent.parent / "cheddarhead-headless"
     if repo_candidate.is_file() and os.access(repo_candidate, os.X_OK):
         return str(repo_candidate)
-    found = shutil.which("pacfan-headless")
+    found = shutil.which("cheddarhead-headless")
     if found:
         return found
     return str(repo_candidate)
@@ -78,8 +78,8 @@ class _MazeCache:
         self.passable = self.walls == 0.0
 
 
-class PacFanEnv(gym.Env[Any, int]):
-    """Gymnasium environment driving `pacfan-headless` over piped NDJSON."""
+class CheddarHeadEnv(gym.Env[Any, int]):
+    """Gymnasium environment driving `cheddarhead-headless` over piped NDJSON."""
 
     metadata = {"render_modes": ["ansi"]}
 
@@ -194,7 +194,7 @@ class PacFanEnv(gym.Env[Any, int]):
 
     def _rpc(self, payload: dict[str, Any]) -> dict[str, Any]:
         if self._proc is None or self._proc.stdin is None or self._proc.stdout is None:
-            raise RuntimeError("pacfan-headless process is not running")
+            raise RuntimeError("cheddarhead-headless process is not running")
 
         try:
             self._proc.stdin.write(json.dumps(payload, separators=(",", ":")) + "\n")
@@ -208,7 +208,7 @@ class PacFanEnv(gym.Env[Any, int]):
 
         resp = json.loads(line)
         if not resp.get("ok", False):
-            raise RuntimeError(f"pacfan-headless error: {resp.get('error', 'unknown error')}")
+            raise RuntimeError(f"cheddarhead-headless error: {resp.get('error', 'unknown error')}")
         return resp
 
     def _format_crash(self, reason: str) -> str:
@@ -226,7 +226,7 @@ class PacFanEnv(gym.Env[Any, int]):
                     stderr_text = self._proc.stderr.read().strip()
                 except Exception:
                     stderr_text = ""
-        msg = f"pacfan-headless died ({reason}, exit_code={rc})"
+        msg = f"cheddarhead-headless died ({reason}, exit_code={rc})"
         if stderr_text:
             msg += f": {stderr_text}"
         return msg
@@ -545,7 +545,7 @@ class PacFanEnv(gym.Env[Any, int]):
             proc.kill()
             proc.wait(timeout=2.0)
 
-    def __enter__(self) -> PacFanEnv:
+    def __enter__(self) -> CheddarHeadEnv:
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, tb: Any) -> None:

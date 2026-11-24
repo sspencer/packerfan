@@ -4,9 +4,9 @@ import (
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/event"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/event"
 )
 
 // RegisterEventHandlers subscribes all gameplay event handlers to the given ECS World.

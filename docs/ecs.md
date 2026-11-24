@@ -14,7 +14,7 @@ Core design principles:
 ## Project Layout
 
 ```text
-pacfan/
+cheddarhead/
 ├── main.go                          # Entry point: CLI flags, asset checks, Ebitengine window, fixed-timestep arcade loop
 ├── assets/                          # Chroma-key shader (tracked) + local spritesheet, bitmap font & WAVs (embedded at build time)
 └── internal/

@@ -1,4 +1,4 @@
-# Packer Fan (`pacfan`)
+# CheddarHead (`cheddarhead`)
 
 Arcade dot-eating maze game with ghosts built in Go using [Ebitengine](https://github.com/hajimehoshi/ebiten) and the [Donburi](https://github.com/yohamta/donburi) Entity Component System (ECS). Supports both classic **Pac-Man** (default) and **Ms. Pac-Man** (`--ms`) mazes, sprites, death animations, and intermissions.
 
@@ -33,10 +33,10 @@ Long flags use a double dash (`--zoom 4` or `--zoom=4`); short flags use a singl
 ### macOS App
 
 ```sh
-make install-app   # build bin/Pacfan.app and copy it to /Applications
+make install-app   # build bin/CheddarHead.app and copy it to /Applications
 ```
 
-This builds a universal (Apple silicon + Intel), ad-hoc signed `Pacfan.app` you can launch from Finder, Launchpad, Spotlight, or the Dock. It starts with the default flags (classic Pac-Man, fullscreen); press **3** on the attract screen to switch to Ms. Pac-Man. Assets are embedded at build time, so place any local artwork or audio before building. `make app` builds the bundle without installing it, and `make icon` regenerates the icon source `packaging/macos/icon.png` from `tools/genicon`.
+This builds a universal (Apple silicon + Intel), ad-hoc signed `CheddarHead.app` you can launch from Finder, Launchpad, Spotlight, or the Dock. It starts with the default flags (classic Pac-Man, fullscreen); press **3** on the attract screen to switch to Ms. Pac-Man. Assets are embedded at build time, so place any local artwork or audio before building. `make app` builds the bundle without installing it, and `make icon` regenerates the icon source `packaging/macos/icon.png` from `tools/genicon`.
 
 ### CLI Flags
 
@@ -82,11 +82,11 @@ See [docs/headless.md](docs/headless.md#7-watching-and-verifying-replays) for th
 ### Useful Make Targets
 
 ```sh
-make build      # Build the ./pacfan binary
-make all        # Cross-compile all binaries into bin/ (plus bin/Pacfan.app on macOS)
-make app        # Build the macOS app bundle bin/Pacfan.app
+make build      # Build the ./cheddarhead binary
+make all        # Cross-compile all binaries into bin/ (plus bin/CheddarHead.app on macOS)
+make app        # Build the macOS app bundle bin/CheddarHead.app
 make install-app # Build the macOS app and copy it to /Applications
-make run        # Build and launch ./pacfan (pass flags via ARGS="--ms --zoom 4")
+make run        # Build and launch ./cheddarhead (pass flags via ARGS="--ms --zoom 4")
 make test       # Run all unit, ECS simulation, and scene tests
 make test-race  # Run all tests with the race detector enabled
 make cover      # Run tests and print statement coverage
@@ -105,7 +105,7 @@ make help       # List all available targets
 | --- | --- |
 | [docs/ecs.md](docs/ecs.md) | Architecture overview: project layout, Donburi entities and components, the world-scoped event bus, the scene state machine, the game loop and simulation pipeline, and the audio and rendering pipeline. |
 | [assets/README.md](assets/README.md) | Asset reference: the files the game embeds, the `game.png` maze and sprite atlas layout, the `text.png` font layout, the placeholder example artwork, and the optional WAV audio files. |
-| [docs/headless.md](docs/headless.md) | Headless simulator guide: how `pacfan-headless` works, the NDJSON API with a client example, recording, verifying and watching `.pfr` replays, and running the Python Gymnasium environment, baselines and PPO training. |
+| [docs/headless.md](docs/headless.md) | Headless simulator guide: how `cheddarhead-headless` works, the NDJSON API with a client example, recording, verifying and watching `.pfr` replays, and running the Python Gymnasium environment, baselines and PPO training. |
 | [ml/README.md](ml/README.md) | Python AI quick start: building the headless server, setting up the virtual environment, running the tests and zero-ML baselines, and training and evaluating MaskablePPO agents. |
 | [docs/machine.md](docs/machine.md) | Plan for running the game headlessly so a machine-learning agent can play far faster than real time, with deterministic input-log replays (`.pfr` files) for watching the agent improve in the normal game window. |
 | [docs/scriptable.md](docs/scriptable.md) | Design proposal (not yet implemented) for a scripting and machine-learning API: operating modes, a wire protocol for observing state and sending controls, observation and reward design, an implementation plan, and an example Python Gymnasium client. |

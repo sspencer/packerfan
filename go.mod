@@ -1,4 +1,4 @@
-module pacfan
+module cheddarhead
 
 go 1.27
 

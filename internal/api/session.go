@@ -3,10 +3,10 @@ package api
 import (
 	"fmt"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/sheet"
-	"pacfan/internal/sim"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/sheet"
+	"cheddarhead/internal/sim"
 )
 
 // SessionConfig configures an API Session.

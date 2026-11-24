@@ -1,9 +1,9 @@
 package scene
 
 import (
-	"pacfan/internal/audio"
-	"pacfan/internal/config"
-	"pacfan/internal/system"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/system"
 )
 
 // PacmanDyingScene freezes normal gameplay after a ghost catches the player,

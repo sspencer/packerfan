@@ -3,8 +3,8 @@ package sim
 import (
 	"fmt"
 
-	"pacfan/internal/config"
-	"pacfan/internal/system"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/system"
 )
 
 // Action represents a discrete directional control matching config.Direction

@@ -3,7 +3,7 @@ package audio
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/event"
+	"cheddarhead/internal/event"
 )
 
 // RegisterAudioEventHandlers subscribes gameplay events to sound effects on player.

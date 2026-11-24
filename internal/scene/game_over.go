@@ -1,6 +1,6 @@
 package scene
 
-import "pacfan/internal/audio"
+import "cheddarhead/internal/audio"
 
 // GameOverScene freezes gameplay, displays the GAME OVER banner over the maze,
 // and returns to AttractScene (where the player can choose 1 or 2 player mode)

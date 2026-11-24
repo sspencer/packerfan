@@ -3,8 +3,8 @@ package scene
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
 )
 
 // GhostEatenFreezeScene briefly freezes simulation after Pac-Man eats a

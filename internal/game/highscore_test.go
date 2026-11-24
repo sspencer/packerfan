@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"pacfan/internal/game"
+	"cheddarhead/internal/game"
 )
 
 func TestHighScorePersistence(t *testing.T) {

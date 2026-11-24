@@ -3,7 +3,7 @@ package component
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 //go:generate stringer -type=ActorID

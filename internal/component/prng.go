@@ -5,7 +5,7 @@ import (
 
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 const (

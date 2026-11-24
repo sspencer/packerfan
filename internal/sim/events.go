@@ -3,7 +3,7 @@ package sim
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/event"
+	"cheddarhead/internal/event"
 )
 
 // EventMask is a bitmask of notable gameplay events that occurred during a Step.

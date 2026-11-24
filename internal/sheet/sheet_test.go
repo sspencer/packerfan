@@ -12,8 +12,8 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"pacfan/assets"
-	"pacfan/internal/sheet"
+	"cheddarhead/assets"
+	"cheddarhead/internal/sheet"
 )
 
 func TestDecodeLitPixelsAndMetadata(t *testing.T) {

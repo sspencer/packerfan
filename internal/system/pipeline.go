@@ -3,7 +3,7 @@ package system
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/event"
+	"cheddarhead/internal/event"
 )
 
 // Pipeline orchestrates the ordered execution of ECS systems and event flushes

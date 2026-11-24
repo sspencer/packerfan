@@ -4,7 +4,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"pacfan/assets"
+	"cheddarhead/assets"
 )
 
 func TestEmbeddedFS(t *testing.T) {

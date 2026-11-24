@@ -1,10 +1,10 @@
 package scene
 
 import (
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/system"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/system"
 )
 
 // RoundClearedScene freezes the cleared maze, flashes the maze walls, advances

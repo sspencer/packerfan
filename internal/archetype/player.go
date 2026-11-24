@@ -3,8 +3,8 @@ package archetype
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 // SpawnPlayer creates the Pac-Man / Ms. Pac-Man player entity with all required components.

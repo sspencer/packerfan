@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"pacfan/internal/config"
-	"pacfan/internal/sim"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/sim"
 )
 
 // ProtocolVersion is the wire protocol schema version reported in hello.

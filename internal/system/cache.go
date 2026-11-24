@@ -4,8 +4,8 @@ import (
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
-	"pacfan/internal/component"
-	"pacfan/internal/event"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/event"
 )
 
 type cachedPlayer struct {

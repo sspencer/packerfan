@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"pacfan/assets"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/sheet"
+	"cheddarhead/assets"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/sheet"
 )
 
 func TestCellAndMazeStringRepresentations(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 
-	"pacfan/internal/component"
-	"pacfan/internal/render"
-	"pacfan/internal/scene"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/render"
+	"cheddarhead/internal/scene"
 )
 
 var (

@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-// The benchmark builds the real pacfan-headless binary once and drives it over
+// The benchmark builds the real cheddarhead-headless binary once and drives it over
 // stdin/stdout pipes, measuring the full cost a client such as the Python
 // environment pays per step (process I/O, JSON, simulation).
 
@@ -34,11 +34,11 @@ func TestMain(m *testing.M) {
 func headlessBinary(b *testing.B) string {
 	b.Helper()
 	buildOnce.Do(func() {
-		buildDir, buildErr = os.MkdirTemp("", "pacfan-headless-bench-*")
+		buildDir, buildErr = os.MkdirTemp("", "cheddarhead-headless-bench-*")
 		if buildErr != nil {
 			return
 		}
-		buildBin = filepath.Join(buildDir, "pacfan-headless")
+		buildBin = filepath.Join(buildDir, "cheddarhead-headless")
 		out, err := exec.Command("go", "build", "-o", buildBin, ".").CombinedOutput()
 		if err != nil {
 			buildErr = fmt.Errorf("go build: %v\n%s", err, out)
@@ -64,7 +64,7 @@ type benchStepResponse struct {
 }
 
 // BenchmarkHeadlessProcess measures one step request/response round trip
-// against a pacfan-headless subprocess in each step mode, using the same
+// against a cheddarhead-headless subprocess in each step mode, using the same
 // legal-move policy as sim.BenchmarkEnvStep.
 func BenchmarkHeadlessProcess(b *testing.B) {
 	bin := headlessBinary(b)

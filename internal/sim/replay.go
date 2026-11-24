@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"pacfan/internal/component"
+	"cheddarhead/internal/component"
 )
 
 const (

@@ -6,11 +6,11 @@ import (
 
 	flag "github.com/spf13/pflag"
 
-	"pacfan/assets"
-	"pacfan/internal/api"
-	"pacfan/internal/component"
-	"pacfan/internal/sheet"
-	"pacfan/internal/sim"
+	"cheddarhead/assets"
+	"cheddarhead/internal/api"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/sheet"
+	"cheddarhead/internal/sim"
 )
 
 func main() {

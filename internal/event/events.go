@@ -3,8 +3,8 @@ package event
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 type DotEatenEvent struct {

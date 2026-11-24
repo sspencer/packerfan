@@ -3,10 +3,10 @@ package scene
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/system"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/system"
 )
 
 // DrawOptions controls presentation overlays and visibility flags passed from

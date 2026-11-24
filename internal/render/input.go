@@ -4,8 +4,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
-	"pacfan/internal/config"
-	"pacfan/internal/system"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/system"
 )
 
 // EbitenInput implements system.InputProvider using Ebitengine keyboard polling.

@@ -10,11 +10,11 @@ from typing import Any
 from gymnasium.vector import AsyncVectorEnv
 import numpy as np
 
-from pacfan_env import (
+from cheddarhead_env import (
     DIR_DELTAS,
     MAZE_HEIGHT,
     MAZE_WIDTH,
-    PacFanEnv,
+    CheddarHeadEnv,
     _pixel_to_center_tile,
     default_binary_path,
 )
@@ -26,7 +26,7 @@ class RandomLegalAgent:
     def __init__(self, seed: int = 0) -> None:
         self.rng = np.random.default_rng(seed)
 
-    def act(self, env: PacFanEnv, info: dict[str, Any]) -> int:
+    def act(self, env: CheddarHeadEnv, info: dict[str, Any]) -> int:
         mask = env.action_masks()
         legal = np.flatnonzero(mask[:4])
         if len(legal) == 0:
@@ -40,7 +40,7 @@ class GreedyBFSAgent:
     def __init__(self, avoid_dist: int = 3) -> None:
         self.avoid_dist = avoid_dist
 
-    def act(self, env: PacFanEnv, info: dict[str, Any]) -> int:
+    def act(self, env: CheddarHeadEnv, info: dict[str, Any]) -> int:
         state = info["state"]
         tmpl = env._mazes[env._maze_index]
         passable = tmpl.passable
@@ -127,7 +127,7 @@ def evaluate_agent(
     total_steps = 0
 
     t0 = time.perf_counter()
-    with PacFanEnv(
+    with CheddarHeadEnv(
         binary=binary,
         art=art,
         ms_pacman=ms_pacman,
@@ -182,7 +182,7 @@ def benchmark_workers(
     for n in worker_counts:
         if n == 1:
             t0 = time.perf_counter()
-            with PacFanEnv(binary=binary, art=art, ms_pacman=ms_pacman, step_mode=step_mode, obs_mode=obs_mode) as env:
+            with CheddarHeadEnv(binary=binary, art=art, ms_pacman=ms_pacman, step_mode=step_mode, obs_mode=obs_mode) as env:
                 env.reset(seed=7)
                 for s in range(steps_per_worker):
                     _, _, term, trunc, _ = env.step(s % 4)
@@ -193,7 +193,7 @@ def benchmark_workers(
             continue
 
         def make_thunk():
-            return PacFanEnv(binary=binary, art=art, ms_pacman=ms_pacman, step_mode=step_mode, obs_mode=obs_mode)
+            return CheddarHeadEnv(binary=binary, art=art, ms_pacman=ms_pacman, step_mode=step_mode, obs_mode=obs_mode)
 
         vec = AsyncVectorEnv([make_thunk for _ in range(n)])
         try:
@@ -210,7 +210,7 @@ def benchmark_workers(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run zero-ML pacfan baselines and throughput benchmarks.")
+    parser = argparse.ArgumentParser(description="Run zero-ML cheddarhead baselines and throughput benchmarks.")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=None)
     parser.add_argument("--ms", action="store_true", help="Ms. Pac-Man instead of classic Pac-Man")

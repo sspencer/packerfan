@@ -3,7 +3,7 @@ package component
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 // PlayerSession stores per-player round state for 1-player or 2-player alternating play.

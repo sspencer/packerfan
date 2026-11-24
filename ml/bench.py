@@ -1,10 +1,10 @@
-"""Benchmark where time goes in a PacFanEnv step: server round trip vs observation encoding.
+"""Benchmark where time goes in a CheddarHeadEnv step: server round trip vs observation encoding.
 
 For each step mode it measures, with a single environment and a legal-move policy:
 
-* rpc     -- send a step request to pacfan-headless and parse the JSON reply (no encoding)
+* rpc     -- send a step request to cheddarhead-headless and parse the JSON reply (no encoding)
 * encode  -- build the observation from a captured state, per obs mode (no server)
-* env     -- the full PacFanEnv.step() for each obs mode
+* env     -- the full CheddarHeadEnv.step() for each obs mode
 
 Run from the ml/ directory after `make build-headless`:
 
@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from pacfan_env import PacFanEnv, default_binary_path
+from cheddarhead_env import CheddarHeadEnv, default_binary_path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 # Use the placeholder art so results are comparable across machines.
@@ -38,8 +38,8 @@ def _policy(legal: list[bool], i: int) -> int:
     return 0
 
 
-def _make_env(args: argparse.Namespace, step_mode: str, obs_mode: str) -> PacFanEnv:
-    return PacFanEnv(
+def _make_env(args: argparse.Namespace, step_mode: str, obs_mode: str) -> CheddarHeadEnv:
+    return CheddarHeadEnv(
         binary=args.binary,
         art=args.art,
         step_mode=step_mode,
@@ -86,7 +86,7 @@ def bench_encode(args: argparse.Namespace, obs_mode: str, states: list[dict[str,
 
 
 def bench_env(args: argparse.Namespace, step_mode: str, obs_mode: str) -> float:
-    """Return seconds per full PacFanEnv.step()."""
+    """Return seconds per full CheddarHeadEnv.step()."""
     with _make_env(args, step_mode, obs_mode) as env:
         _, info = env.reset(seed=42)
         t0 = 0.0
@@ -100,7 +100,7 @@ def bench_env(args: argparse.Namespace, step_mode: str, obs_mode: str) -> float:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark PacFanEnv: server round trip vs observation encoding.")
+    parser = argparse.ArgumentParser(description="Benchmark CheddarHeadEnv: server round trip vs observation encoding.")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=DEFAULT_ART)
     parser.add_argument("--steps", type=int, default=5000, help="steps per measurement")

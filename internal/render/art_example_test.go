@@ -4,7 +4,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"pacfan/internal/render"
+	"cheddarhead/internal/render"
 )
 
 func TestArtPrefersRealArtwork(t *testing.T) {

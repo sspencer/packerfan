@@ -4,9 +4,9 @@ import (
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/event"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/event"
 )
 
 // CollisionSystem checks AABB overlaps between the player and ghosts and emits

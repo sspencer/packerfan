@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"pacfan/assets"
-	"pacfan/internal/component"
-	"pacfan/internal/game"
-	"pacfan/internal/sim"
+	"cheddarhead/assets"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/game"
+	"cheddarhead/internal/sim"
 )
 
 func TestReplayPlayerVerifiesFixturesAndControls(t *testing.T) {

@@ -3,7 +3,7 @@ package component
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 // PlayerInputData buffers the player's desired movement direction.

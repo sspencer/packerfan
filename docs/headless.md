@@ -1,6 +1,6 @@
-# Headless Pacfan: Simulation Server, API, Replays, and the Python AI
+# Headless CheddarHead: Simulation Server, API, Replays, and the Python AI
 
-This guide explains how the headless build of Packer Fan (`pacfan-headless`) works, how to drive it from your own code over its JSON API, how to record and replay `.pfr` replay files, and how to run the Python AI (a Gymnasium environment, two simple non-learning baseline agents, and a MaskablePPO trainer) that is built on the API.
+This guide explains how the headless build of CheddarHead (`cheddarhead-headless`) works, how to drive it from your own code over its JSON API, how to record and replay `.pfr` replay files, and how to run the Python AI (a Gymnasium environment, two simple non-learning baseline agents, and a MaskablePPO trainer) that is built on the API.
 
 - [1. Overview](#1-overview)
 - [2. Building and running](#2-building-and-running)
@@ -17,11 +17,11 @@ This guide explains how the headless build of Packer Fan (`pacfan-headless`) wor
 
 ## 1. Overview
 
-The normal game (`pacfan`) runs at the arcade's 60.606 frames per second in an Ebitengine window, with audio and a scene state machine (attract screen, ready screen, intermissions, game over). That is the wrong shape for an AI agent, which needs to play thousands of games far faster than real time and get the same result every time it repeats a game.
+The normal game (`cheddarhead`) runs at the arcade's 60.606 frames per second in an Ebitengine window, with audio and a scene state machine (attract screen, ready screen, intermissions, game over). That is the wrong shape for an AI agent, which needs to play thousands of games far faster than real time and get the same result every time it repeats a game.
 
-`pacfan-headless` reuses the **same ECS gameplay systems** (`internal/system`) but leaves out everything that is not gameplay:
+`cheddarhead-headless` reuses the **same ECS gameplay systems** (`internal/system`) but leaves out everything that is not gameplay:
 
-| Piece | Normal game (`pacfan`) | Headless (`pacfan-headless`) |
+| Piece | Normal game (`cheddarhead`) | Headless (`cheddarhead-headless`) |
 | --- | --- | --- |
 | Gameplay systems (movement, ghost AI, collisions, fruit, levels) | yes | yes, same code |
 | Ebitengine window / rendering | yes | no |
@@ -35,22 +35,22 @@ The pieces involved are:
 
 | Path | Role |
 | --- | --- |
-| [`cmd/pacfan-headless/main.go`](../cmd/pacfan-headless/main.go) | Command-line entry point: flags, `--verify`, `--dump-mazes`, and the NDJSON server. |
+| [`cmd/cheddarhead-headless/main.go`](../cmd/cheddarhead-headless/main.go) | Command-line entry point: flags, `--verify`, `--dump-mazes`, and the NDJSON server. |
 | [`internal/sim`](../internal/sim) | `sim.Env`: a deterministic, play-only simulation (`Reset`, `Step`, `TickOne`), the world hash, and `.pfr` recording, parsing and verification. |
 | [`internal/api`](../internal/api) | The NDJSON protocol: request/response types, the `Session` that maps commands to `sim.Env` calls, and the read/dispatch/write loop. |
-| [`internal/game/replay_player.go`](../internal/game/replay_player.go), [`replay_viewer.go`](../internal/game/replay_viewer.go) | Plays `.pfr` files back in the normal game window (`pacfan --replay`). |
+| [`internal/game/replay_player.go`](../internal/game/replay_player.go), [`replay_viewer.go`](../internal/game/replay_viewer.go) | Plays `.pfr` files back in the normal game window (`cheddarhead --replay`). |
 | [`ml/`](../ml) | The Python Gymnasium environment, baseline agents, PPO training and evaluation scripts. |
 
-`make check` includes a `check-headless-deps` step that fails if `internal/sim`, `internal/api` or `cmd/pacfan-headless` ever import Ebitengine, audio, scenes or rendering, so the headless binary runs without a display, GPU or sound device.
+`make check` includes a `check-headless-deps` step that fails if `internal/sim`, `internal/api` or `cmd/cheddarhead-headless` ever import Ebitengine, audio, scenes or rendering, so the headless binary runs without a display, GPU or sound device.
 
 ---
 
 ## 2. Building and running
 
 ```sh
-make build-headless          # builds ./pacfan-headless
+make build-headless          # builds ./cheddarhead-headless
 # or
-go build -o pacfan-headless ./cmd/pacfan-headless
+go build -o cheddarhead-headless ./cmd/cheddarhead-headless
 ```
 
 With no flags it starts the API server: it reads one JSON request per line on **stdin** and writes one JSON response per line on **stdout**. It is meant to be started as a subprocess by a client program, but you can also type requests into it (or pipe them in) by hand:
@@ -59,7 +59,7 @@ With no flags it starts the API server: it reads one JSON request per line on **
 printf '%s\n' \
   '{"cmd":"reset","seed":7}' \
   '{"cmd":"step","action":"left","mode":"tile"}' \
-  '{"cmd":"close"}' | ./pacfan-headless
+  '{"cmd":"close"}' | ./cheddarhead-headless
 ```
 
 ### Flags
@@ -144,7 +144,7 @@ So the server reports two identities:
 - `art.sha256`: the SHA-256 of the PNG file.
 - `maze_hash`: a hash of the five parsed maze layouts. **This is what matters for gameplay.** Two PNGs with different pictures but identical mazes have the same `maze_hash`.
 
-Replays store both. A replay can only be played back with art whose `maze_hash` matches; an `art.sha256` difference alone just prints a warning. Use `./pacfan-headless --dump-mazes` (optionally with `--art FILE`) to see which mazes and hashes a PNG gives.
+Replays store both. A replay can only be played back with art whose `maze_hash` matches; an `art.sha256` difference alone just prints a warning. Use `./cheddarhead-headless --dump-mazes` (optionally with `--art FILE`) to see which mazes and hashes a PNG gives.
 
 There are five mazes (indexes `0..4`):
 
@@ -351,7 +351,7 @@ Responds `{"ok":true}`, finishes any replay being recorded, and exits.
 
 Any language that can start a subprocess and read and write lines can drive the server. The loop is always:
 
-1. Start `pacfan-headless` with pipes for stdin and stdout.
+1. Start `cheddarhead-headless` with pipes for stdin and stdout.
 2. Optionally send `hello` and keep the maze layouts.
 3. Send `reset`.
 4. Repeatedly choose an action from `state` and send `step`, until `terminated` or `truncated`.
@@ -368,7 +368,7 @@ import json
 import subprocess
 
 proc = subprocess.Popen(
-    ["./pacfan-headless"],
+    ["./cheddarhead-headless"],
     stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1,
 )
 
@@ -415,7 +415,7 @@ go run . --replay runs/demo/first-game.pfr
 - **Track dots locally.** Start from `hello.mazes[maze_index].rows` after `reset`, clear each `[x, y]` in `eaten` after every step, and reload the starting layout when `maze_index` appears in a step response. `observe` with `"maze": true` is there to check your tracking.
 - **Use seeds.** Give each evaluation episode a fixed seed so different agents (or checkpoints) are compared on the same games.
 - **Parallelism.** One process is one game. Run several processes for throughput.
-- **Go clients.** In Go you can skip the protocol and use `sim.Env` directly (`sim.NewEnv`, `Reset`, `Step`, `sim.NewFileRecorder`), or call `api.ServeNDJSON` on any reader and writer (a socket, for example). See [`cmd/pacfan-headless/main.go`](../cmd/pacfan-headless/main.go) and [`internal/api/api_test.go`](../internal/api/api_test.go).
+- **Go clients.** In Go you can skip the protocol and use `sim.Env` directly (`sim.NewEnv`, `Reset`, `Step`, `sim.NewFileRecorder`), or call `api.ServeNDJSON` on any reader and writer (a socket, for example). See [`cmd/cheddarhead-headless/main.go`](../cmd/cheddarhead-headless/main.go) and [`internal/api/api_test.go`](../internal/api/api_test.go).
 
 ---
 
@@ -426,7 +426,7 @@ A `.pfr` (**P**ac**F**an **R**eplay) file records one episode as its starting op
 ### Recording
 
 - **From the API**: put `"record": "path/to/file.pfr"` in a `reset`. The file is finished when the episode ends (game over, truncation, or a life lost / level cleared that ends it), when another `reset` starts a new game, or on `close` / end of input. With `episodic_life`, continuing resets keep writing to the same file, so one file holds the whole game across lives.
-- **From Python**: pass `record_dir=` to `PacFanEnv`, or `options={"record": path, "meta": {...}}` to `env.reset()`. `eval.py --record-dir` and the evaluations in `train_ppo.py` record automatically. See [section 8](#8-running-the-python-ai).
+- **From Python**: pass `record_dir=` to `CheddarHeadEnv`, or `options={"record": path, "meta": {...}}` to `env.reset()`. `eval.py --record-dir` and the evaluations in `train_ppo.py` record automatically. See [section 8](#8-running-the-python-ai).
 
 ### Format
 
@@ -468,7 +468,7 @@ go run . --replay game.pfr --art assets/game.png  # use a specific spritesheet
 go run . --replay game.pfr --zoom 4
 ```
 
-(or `make build` and run `./pacfan --replay ...`.)
+(or `make build` and run `./cheddarhead --replay ...`.)
 
 | Flag | Default | Description |
 | --- | --- | --- |
@@ -495,7 +495,7 @@ The bar at the bottom of the window shows the replay's `run_id`, `checkpoint` an
 ### Verifying without a window
 
 ```sh
-./pacfan-headless --verify path/to/game.pfr
+./cheddarhead-headless --verify path/to/game.pfr
 # OK ticks=3949 score=3480 level=1 checkpoints=7 hash=488ab9e1e13872fa
 ```
 
@@ -504,7 +504,7 @@ The bar at the bottom of the window shows the replay's `run_id`, `checkpoint` an
 `--verify` always uses the art given by `--art`, or the default embedded art; it does **not** pick art from the header. For example, if you have `assets/game-real.png` locally, the bundled test replays (recorded with the placeholder art) need:
 
 ```sh
-./pacfan-headless --art assets/game.png --verify internal/sim/testdata/mspacman_play.pfr
+./cheddarhead-headless --art assets/game.png --verify internal/sim/testdata/mspacman_play.pfr
 ```
 
 ---
@@ -515,7 +515,7 @@ The [`ml/`](../ml) directory contains a Python package that wraps the API in a [
 
 | File | Contents |
 | --- | --- |
-| [`ml/pacfan_env.py`](../ml/pacfan_env.py) | `PacFanEnv` (Gymnasium environment that runs one `pacfan-headless` subprocess) and `RewardShapingWrapper`. |
+| [`ml/cheddarhead_env.py`](../ml/cheddarhead_env.py) | `CheddarHeadEnv` (Gymnasium environment that runs one `cheddarhead-headless` subprocess) and `RewardShapingWrapper`. |
 | [`ml/baselines.py`](../ml/baselines.py) | Two non-learning agents (random, and a BFS-based greedy agent) and a throughput benchmark. |
 | [`ml/train_ppo.py`](../ml/train_ppo.py) | Trains a MaskablePPO agent (Stable-Baselines3 + sb3-contrib) with periodic checkpoints and recorded evaluations. |
 | [`ml/eval.py`](../ml/eval.py) | Evaluates a saved checkpoint on fixed seeds, optionally recording `.pfr` replays. |
@@ -526,7 +526,7 @@ The [`ml/`](../ml) directory contains a Python package that wraps the API in a [
 From the repository root:
 
 ```sh
-make build-headless              # the Python code finds ./pacfan-headless automatically
+make build-headless              # the Python code finds ./cheddarhead-headless automatically
 
 cd ml
 python3 -m venv .venv
@@ -535,7 +535,7 @@ pip install -e ".[dev]"          # gymnasium, numpy, pytest
 pip install -e ".[dev,train]"    # add torch, stable-baselines3, sb3-contrib, tensorboard for training
 ```
 
-Python 3.10 or newer is required. The binary is looked for at `<repo>/pacfan-headless`, then on `PATH`; every script also takes `--binary PATH`.
+Python 3.10 or newer is required. The binary is looked for at `<repo>/cheddarhead-headless`, then on `PATH`; every script also takes `--binary PATH`.
 
 Remember to run `make build-headless` again after changing Go code; the Python side runs whatever binary is there.
 
@@ -581,7 +581,7 @@ python train_ppo.py \
   --run-dir ../runs/ppo-demo
 ```
 
-`train_ppo.py` runs `--n-envs` environments (each its own `pacfan-headless` process), wraps them with reward shaping and action masking, and trains a `MaskablePPO` policy. Every `--eval-freq` timesteps it saves a checkpoint, plays `--eval-episodes` games on fixed seeds starting at `--eval-seed-start`, records each as a `.pfr`, and keeps the best checkpoint by mean score.
+`train_ppo.py` runs `--n-envs` environments (each its own `cheddarhead-headless` process), wraps them with reward shaping and action masking, and trains a `MaskablePPO` policy. Every `--eval-freq` timesteps it saves a checkpoint, plays `--eval-episodes` games on fixed seeds starting at `--eval-seed-start`, records each as a `.pfr`, and keeps the best checkpoint by mean score.
 
 Main options:
 
@@ -633,18 +633,18 @@ go run . --replay runs/ppo-demo/eval --replay-speed 2
 
 ```sh
 python eval.py ../runs/ppo-demo/best/model.zip --episodes 10 --record-dir ../runs/ppo-demo/eval-manual
-../pacfan-headless --verify ../runs/ppo-demo/eval-manual/seed-1000.pfr
+../cheddarhead-headless --verify ../runs/ppo-demo/eval-manual/seed-1000.pfr
 cd .. && go run . --replay runs/ppo-demo/eval-manual
 ```
 
 `eval.py` plays `--episodes` games on seeds from `--seed-start` (default `1000`) and prints a summary. With `--record-dir` it writes `seed-<N>.pfr` for each game plus `metrics.json`. Use the same `--step-mode`, `--obs-mode` and `--frames-per-step` as the model was trained with. Other options: `--max-ticks` (default `20000`), `--start-level`, `--ms`, `--art`, `--binary`.
 
-### 8.6 Using `PacFanEnv` directly
+### 8.6 Using `CheddarHeadEnv` directly
 
 ```python
-from pacfan_env import PacFanEnv
+from cheddarhead_env import CheddarHeadEnv
 
-with PacFanEnv(step_mode="intersection", obs_mode="bfs", record_dir="../runs/my-agent") as env:
+with CheddarHeadEnv(step_mode="intersection", obs_mode="bfs", record_dir="../runs/my-agent") as env:
     obs, info = env.reset(seed=1000)
     done = False
     while not done:
@@ -659,7 +659,7 @@ Constructor options:
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `binary` | found automatically | Path to `pacfan-headless`. |
+| `binary` | found automatically | Path to `cheddarhead-headless`. |
 | `art` | | Spritesheet PNG passed as `--art`. |
 | `ms_pacman` | `False` | Ms. Pac-Man instead of classic Pac-Man (passes `--ms` to the server). |
 | `start_level` | `1` | Starting level. |
@@ -692,8 +692,8 @@ Benchmarks measure each layer separately, so you can see where time goes before 
 | `BenchmarkEnvTick` | [`internal/sim/env_test.go`](../internal/sim/env_test.go) | One raw simulation tick (`Env.TickOne`). |
 | `BenchmarkEnvStep/{frames4,tile,intersection}` | [`internal/sim/env_test.go`](../internal/sim/env_test.go) | One `Env.Step` in each step mode, with a legal-move policy. Reports `ticks/step` and `ns/tick`. |
 | `BenchmarkNDJSONStep` | [`internal/api/api_test.go`](../internal/api/api_test.go) | A 4-frame step through the NDJSON server in-process (JSON decode, step, JSON encode), over in-memory pipes. |
-| `BenchmarkHeadlessProcess/{frames4,tile,intersection}` | [`cmd/pacfan-headless/main_test.go`](../cmd/pacfan-headless/main_test.go) | A step round trip against the real `pacfan-headless` binary over OS pipes, the way a client sees it. The binary is built into a temporary directory on first use. Reports `steps/s` and `ticks/step`. |
-| `bench.py` | [`ml/bench.py`](../ml/bench.py) | From Python: the raw request round trip (`rpc`), observation building alone (`encode/<obs_mode>`), and the full `PacFanEnv.step()` (`env/<obs_mode>`), for each step mode. |
+| `BenchmarkHeadlessProcess/{frames4,tile,intersection}` | [`cmd/cheddarhead-headless/main_test.go`](../cmd/cheddarhead-headless/main_test.go) | A step round trip against the real `cheddarhead-headless` binary over OS pipes, the way a client sees it. The binary is built into a temporary directory on first use. Reports `steps/s` and `ticks/step`. |
+| `bench.py` | [`ml/bench.py`](../ml/bench.py) | From Python: the raw request round trip (`rpc`), observation building alone (`encode/<obs_mode>`), and the full `CheddarHeadEnv.step()` (`env/<obs_mode>`), for each step mode. |
 | `baselines.py --benchmark-workers` | [`ml/baselines.py`](../ml/baselines.py) | Total steps/s with several environments in parallel (`AsyncVectorEnv`). |
 
 All of them play Ms. Pac-Man level 1 with the placeholder `assets/game.png` mazes and a fixed seed, so results are comparable between machines and over time. The Go step benchmarks and `bench.py` use the same deterministic legal-move policy, so their `ticks/step` match.
@@ -703,7 +703,7 @@ All of them play Ms. Pac-Man level 1 with the placeholder `assets/game.png` maze
 ```sh
 make bench                                 # all Go benchmarks once
 make bench BENCH=EnvStep COUNT=6           # one benchmark, 6 runs
-go test -run '^$' -bench . -benchmem ./internal/sim ./internal/api ./cmd/pacfan-headless
+go test -run '^$' -bench . -benchmem ./internal/sim ./internal/api ./cmd/cheddarhead-headless
 
 cd ml
 python bench.py                            # all step modes, grid and bfs observations
@@ -739,7 +739,7 @@ Whatever you change, `go test ./...` (in particular the replay tests and `--veri
 | Layer | frames (4 ticks) | tile (about 8 ticks) | intersection (about 35 ticks) |
 | --- | --- | --- | --- |
 | `Env.Step` (simulation only) | 15 µs | 31 µs | 159 µs |
-| `pacfan-headless` over pipes, from Go | 33 µs | 51 µs | 165 µs |
+| `cheddarhead-headless` over pipes, from Go | 33 µs | 51 µs | 165 µs |
 | Python `rpc` (round trip only) | 37 µs | 51 µs | 145 µs |
 | Python `encode/grid` | 6 µs | 6 µs | 6 µs |
 | Python `encode/bfs` | 320 µs | 320 µs | 320 µs |
@@ -762,6 +762,6 @@ A single tick costs about 3.5-4.5 µs. What these numbers say:
 | `replay hash mismatch at tick N` | The game played out differently from the recording, usually because gameplay code changed after the replay was recorded. Re-record, or find the change with `--verify` and `git bisect`. |
 | `must call reset before step` | Send `reset` first. |
 | `unknown step mode "..."` / `unknown action "..."` | Use `frames`/`tile`/`intersection` and `0..4` or `right`/`left`/`up`/`down`/`noop`. |
-| Python: `pacfan-headless died (...)` | The server exited; the message includes its exit code and stderr. Check the binary is built (`make build-headless`) and that any `--art` path exists. |
+| Python: `cheddarhead-headless died (...)` | The server exited; the message includes its exit code and stderr. Check the binary is built (`make build-headless`) and that any `--art` path exists. |
 | Client hangs waiting for a response | The request was not followed by a newline, or stdin was not flushed. |
 | The Python AI ignores your Go changes | Rebuild with `make build-headless`. |

@@ -3,8 +3,8 @@ package archetype
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 type ghostSpec struct {

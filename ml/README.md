@@ -1,6 +1,6 @@
-# pacfan-ml
+# cheddarhead-ml
 
-Python Gymnasium environment, zero-ML baselines, and `MaskablePPO` training scripts for the headless `pacfan-headless` Pac-Man / Ms. Pac-Man simulator.
+Python Gymnasium environment, zero-ML baselines, and `MaskablePPO` training scripts for the headless `cheddarhead-headless` Pac-Man / Ms. Pac-Man simulator.
 
 For how the headless server works, the full NDJSON API, `.pfr` replays, and every option of the scripts below, see [docs/headless.md](../docs/headless.md).
 
@@ -12,7 +12,7 @@ From the repository root:
 make build-headless
 ```
 
-This builds `./pacfan-headless` (pure Go, zero Raylib/audio/scene dependencies).
+This builds `./cheddarhead-headless` (pure Go, zero Raylib/audio/scene dependencies).
 
 ## 2. Create a virtual environment
 
@@ -72,5 +72,5 @@ See [docs/headless.md](../docs/headless.md#9-benchmarks) for all benchmarks and 
 Verify any recorded `.pfr` replay headlessly:
 
 ```bash
-../pacfan-headless --verify ../runs/ppo-demo/eval/ckpt-00025000/seed-1000.pfr
+../cheddarhead-headless --verify ../runs/ppo-demo/eval/ckpt-00025000/seed-1000.pfr
 ```

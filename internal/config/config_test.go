@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 func TestGetLevelSpecRanges(t *testing.T) {

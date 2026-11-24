@@ -6,12 +6,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/archetype"
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-	"pacfan/internal/render"
-	"pacfan/internal/scene"
-	"pacfan/internal/system"
+	"cheddarhead/internal/archetype"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/render"
+	"cheddarhead/internal/scene"
+	"cheddarhead/internal/system"
 )
 
 // Options configures how a new game session is initialized.

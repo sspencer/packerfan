@@ -6,8 +6,8 @@ import (
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 // SoundID identifies a one-shot arcade sound effect or cutscene jingle.

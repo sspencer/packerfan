@@ -1,6 +1,6 @@
 # Headless Play for Machine Learning (`machine.md`)
 
-This plan describes how I would let a machine-learning agent play `pacfan` without graphics, at many times the arcade's 60.6 ticks per second, while capturing every game so it can be replayed later in the normal Raylib window to watch the agent improve.
+This plan describes how I would let a machine-learning agent play `cheddarhead` without graphics, at many times the arcade's 60.6 ticks per second, while capturing every game so it can be replayed later in the normal Raylib window to watch the agent improve.
 
 ---
 
@@ -48,7 +48,7 @@ The rest of this plan is about protecting that determinism, making the headless 
        └───────────────▲───────────────────┘        └─────────────▲──────────────────────┘
                        │                                          │
        ┌───────────────┴───────────────────┐                      │
-       │ cmd/pacfan-train (NEW)            │   runs/<run>/…/*.pfr │
+       │ cmd/cheddarhead-train (NEW)            │   runs/<run>/…/*.pfr │
        │  Go agents, or c-shared library   │ ─────────────────────┘
        │  for Python (vectorized envs)     │
        └───────────────────────────────────┘
@@ -80,7 +80,7 @@ The ECS and scene packages already have no Raylib imports, and scenes already ta
 | `isPixelLit` | `render.Art.IsPixelLit` | `sheet` package (Part 1.1) |
 | High score file | read and written under `os.UserConfigDir()` | not used: no file I/O per episode |
 
-The training binary (`cmd/pacfan-train`) imports `internal/sim` but never `internal/render` or `internal/audio/raylib.go`, so it builds as a plain Go program that can run on headless Linux servers and in containers. A CI check (`go list -deps ./cmd/pacfan-train | grep raylib` must find nothing) keeps it that way.
+The training binary (`cmd/cheddarhead-train`) imports `internal/sim` but never `internal/render` or `internal/audio/raylib.go`, so it builds as a plain Go program that can run on headless Linux servers and in containers. A CI check (`go list -deps ./cmd/cheddarhead-train | grep raylib` must find nothing) keeps it that way.
 
 ### 1.3 Remove waiting from the loop
 
@@ -204,7 +204,7 @@ runs/<run-id>/
 
 ### 4.3 Watching replays in the real game
 
-New flags on the normal `pacfan` binary:
+New flags on the normal `cheddarhead` binary:
 
 | Flag | Meaning |
 | --- | --- |
@@ -249,7 +249,7 @@ Replays are only trustworthy if the same inputs always produce the same game. I 
 | 2 | `internal/sim` `Env` with fast timing profile, `ScriptedInput`, events, rewards | A random agent plays complete games headlessly; benchmark shows ticks per second |
 | 3 | `RecordingInput`, `.pfr` writer and reader, state hashes, determinism tests | Round-trip and corpus tests pass |
 | 4 | `--replay` and `--record` in the windowed game, viewer controls, cosmetic holds | A headless game plays back in the window with no hash mismatch |
-| 5 | `VecEnv`, observation encoders, `cmd/pacfan-train` with a simple Go baseline agent (greedy dot-chaser that avoids ghosts) and run-directory layout | A training run produces checkpoints, evaluation replays, and `episodes.jsonl` |
+| 5 | `VecEnv`, observation encoders, `cmd/cheddarhead-train` with a simple Go baseline agent (greedy dot-chaser that avoids ghosts) and run-directory layout | A training run produces checkpoints, evaluation replays, and `episodes.jsonl` |
 | 6 | c-shared library and Python Gymnasium wrapper; a PPO example | A Python agent trains and its evaluation replays visibly improve |
 | 7 (optional) | Video export, side-by-side and heat-map views, intersection stepping | Learning progress can be shared as clips |
 

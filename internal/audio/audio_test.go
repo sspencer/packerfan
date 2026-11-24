@@ -9,10 +9,10 @@ import (
 
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/archetype"
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/archetype"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 func TestSirenLoopEscalatesAsDotsDecrease(t *testing.T) {

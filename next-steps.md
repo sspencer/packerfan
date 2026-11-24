@@ -1,6 +1,6 @@
 # Next Steps: Play-Only Headless Pac-Man / Ms. Pac-Man for ML
 
-A step-by-step plan for a headless `pacfan` that machine-learning tools can drive to learn to play, grounded in the current codebase.
+A step-by-step plan for a headless `cheddarhead` that machine-learning tools can drive to learn to play, grounded in the current codebase.
 
 [`docs/scriptable.md`](docs/scriptable.md) and [`docs/machine.md`](docs/machine.md) remain useful background (observation encodings, reward shaping, replay ideas). **Where they disagree with this document, this document wins.**
 
@@ -18,7 +18,7 @@ The earlier plan drove the real `scene.Manager` with a "fast timing" profile and
 | Maze on the wire | `rows` on reset, `compact_maze` dot lists per step | All mazes sent **once as text** in `hello`; steps carry only the tiles eaten |
 | Artwork | `real_art` bool in the replay header | PNG **filename + SHA-256 + maze-layout hash** in `hello` and in every replay |
 | Replay playback | Replay through `game.Engine` scenes, hash-compare headless vs windowed | Viewer runs the **same** `sim.Env` and draws its world with `render.Renderer` |
-| Binaries | `pacfan -headless` and `cmd/pacfan-headless` | Only `cmd/pacfan-headless` serves the API; `pacfan` gains `-replay` later |
+| Binaries | `cheddarhead -headless` and `cmd/cheddarhead-headless` | Only `cmd/cheddarhead-headless` serves the API; `cheddarhead` gains `-replay` later |
 | Players / high score | Inherited from the game | Always 1 player; no high-score file I/O |
 
 ---
@@ -101,7 +101,7 @@ The windowed replay viewer is **`sim.Env` + `render.Renderer.DrawWorld`**: no `s
 assets/
   embed.go                 # package assets: //go:embed, GameAssetPath (pure Go)
 cmd/
-  pacfan-headless/main.go  # NDJSON server; zero Raylib, audio, or scene imports
+  cheddarhead-headless/main.go  # NDJSON server; zero Raylib, audio, or scene imports
 internal/
   audio/                   # + RegisterAudioEventHandlers (moved from system); windowed game only
   component/
@@ -111,7 +111,7 @@ internal/
   sim/                     # Env, Action, events, HashWorld, replay record/read
   api/                     # NDJSON protocol, Session, stdio server
 ml/                        # Python Gymnasium env, baselines, trainer
-main.go                    # Windowed pacfan; later: -replay
+main.go                    # Windowed cheddarhead; later: -replay
 ```
 
 ---
@@ -202,7 +202,7 @@ Values below are illustrative.
 
 ## Phase 2: Wire Protocol, Headless Binary, and Replay Recording
 
-**Goal:** `pacfan-headless` plays full episodes over piped NDJSON and can write a replay file for any episode.
+**Goal:** `cheddarhead-headless` plays full episodes over piped NDJSON and can write a replay file for any episode.
 
 ### Step 2.1 — `internal/api`
 - [x] `protocol.go`: request/response structs for `hello`, `reset`, `step`, `observe`, `close` per the sketch above. `action` accepts `0..4` or `"right"|"left"|"up"|"down"|"noop"`.
@@ -224,9 +224,9 @@ a ...
 - [x] `ReadReplay` + `Env.Replay(r)`: rejects a `maze_hash` mismatch outright, warns on an `art.sha256`-only mismatch, and reports the first tick whose hash differs.
 - [x] `reset` accepts `record` (path) and `meta` (opaque object copied into the header).
 
-### Step 2.3 — `cmd/pacfan-headless`
+### Step 2.3 — `cmd/cheddarhead-headless`
 - [x] Flags: `-art FILE` (default: embedded `game-real.png` else `game.png`), `-pacman`, `-level`, `-seed` (defaults for `reset`), `-verify FILE.pfr` (replay a file headlessly and exit non-zero on a hash mismatch), `-dump-mazes` (print the five text mazes and hashes, then exit).
-- [x] Makefile: `build-headless`; extend `check-headless-deps` to `./cmd/pacfan-headless ./internal/api`.
+- [x] Makefile: `build-headless`; extend `check-headless-deps` to `./cmd/cheddarhead-headless ./internal/api`.
 
 ### Step 2.4 — Tests and benchmark
 - [x] Round-trip `hello → reset → step… → close` through `ServeNDJSON`; malformed JSON; unknown command; step before reset.
@@ -234,19 +234,19 @@ a ...
 - [x] Record → replay in a fresh `Env` → identical `HashWorld` on every tick, both modes. Check in 2–3 tiny `.pfr` fixtures recorded on the tracked `game.png` (dots, ghost eaten, fruit, death, level clear) so rule regressions fail `go test ./...`.
 - [x] `BenchmarkNDJSONStep`: end-to-end steps/sec and bytes per step response.
 
-**Done when:** `go list -deps ./cmd/pacfan-headless | grep -E 'raylib|audio|scene'` is empty, a shell pipe can play a game to game over, and `pacfan-headless -verify` passes on the checked-in fixtures.
+**Done when:** `go list -deps ./cmd/cheddarhead-headless | grep -E 'raylib|audio|scene'` is empty, a shell pipe can play a game to game over, and `cheddarhead-headless -verify` passes on the checked-in fixtures.
 
 ---
 
 ## Phase 3: Python Gymnasium Environment and Baselines
 
-**Goal:** standard RL libraries train against `pacfan-headless`, and a first policy visibly learns.
+**Goal:** standard RL libraries train against `cheddarhead-headless`, and a first policy visibly learns.
 
 ### Step 3.1 — `ml/` scaffold
 - [x] `ml/pyproject.toml`: `gymnasium`, `numpy`; `[train]` extra with `torch`, `stable-baselines3`, `sb3-contrib`, `tensorboard`. `ml/README.md` with build, venv, sanity-check, and training commands.
 
-### Step 3.2 — `ml/pacfan_env.py`
-- [x] `PacFanEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.
+### Step 3.2 — `ml/cheddarhead_env.py`
+- [x] `CheddarHeadEnv(gym.Env)` over `subprocess.Popen`: sends `hello` once, caches the five mazes as NumPy arrays, selects by `maze_index`, and applies `eaten` each step. Options: `binary`, `art`, `pacman`, `start_level`, `step_mode`, `frames_per_step`, `episodic_life`, `end_on_level_clear`, `max_ticks`, `obs_mode`, `record_dir`.
 - [x] `reset(seed=...)` forwards the Gymnasium seed as the game seed; with no seed given, draw one from the env's RNG so episodes differ (Decision 6).
 - [x] `action_masks()` from `state.player.legal` (for `MaskablePPO`); context-manager cleanup; surface child stderr if the process dies.
 - [x] Observation encoders: spatial grid `(C, 31, 28)` float32 (walls/door, dots, power, tunnels, player, per-ghost dangerous / frightened / eyes, fruit, plus a small scalar vector) and a BFS feature vector (path distance and first step to nearest dot, power pellet, fruit, each ghost). See `docs/scriptable.md` §5.1.
@@ -274,7 +274,7 @@ a ...
 
 ## Phase 4: Watching Recorded Games in the Real Window
 
-**Goal:** `pacfan -replay FILE_OR_DIR` shows any `.pfr` with the real graphics.
+**Goal:** `cheddarhead -replay FILE_OR_DIR` shows any `.pfr` with the real graphics.
 
 - [x] `internal/game`: a `ReplayViewer` that builds a `sim.Env` from the replay header, feeds it the recorded actions at the arcade clock rate, and draws `env.World()` with the existing `render.Renderer.DrawWorld`. Set `GameState.Zoom` from `-zoom` (it is excluded from `HashWorld`).
 - [x] Art selection: load the embedded PNG whose base name equals `art.file` (or `-art FILE`); parse its `MazeSet` and refuse to play if `maze_hash` differs from the header, naming the file the replay needs.
@@ -282,7 +282,7 @@ a ...
 - [x] Controls read straight from Raylib: `Space` pause, `→` single tick while paused, `+`/`-` speed, `N`/`P` next/previous file. HUD line with run id, checkpoint, episode, tick, speed. Hash checkpoints verified as playback passes them.
 - [ ] Optional polish: cosmetic holds on death and level clear (draw with `DrawOptions{PlayerDying…}` / `FlashMaze` for a moment without ticking the sim).
 - [ ] Optional: `-sim` human play mode — the same viewer loop with `render.RaylibInput` instead of a replay and `-record FILE`, giving human demonstrations in exactly the format and timeline the agents use (for imitation learning).
-- [ ] Optional: live spectating. `pacfan -api tcp://127.0.0.1:PORT` runs the same viewer loop with actions arriving from an `api.Session` on a loopback socket; the main thread keeps rendering and ticks only when a `step` arrives.
+- [ ] Optional: live spectating. `cheddarhead -api tcp://127.0.0.1:PORT` runs the same viewer loop with actions arriving from an `api.Session` on a loopback socket; the main thread keeps rendering and ticks only when a `step` arrives.
 
 **Done when:** evaluation replays from Phase 3 play in the window with no hash mismatches, and a replay recorded on different maze layouts is refused with a clear message.
 
@@ -306,10 +306,10 @@ Run this phase only if Phase 3 profiling shows the environment, not the neural n
 | --- | --- | --- |
 | **1A** (1.1–1.3) | Audio-free `system`, `assets.FS`, seedable PRNG, `internal/sheet`, text `MazeSet` | No `raylib`/`audio` under `internal/system`; template/pixel parity test; `make check` |
 | **1B** (1.4–1.5) | `sim.Env`, events, `HashWorld`, benchmark | Per-tick determinism + rule tests; dependency check |
-| **2** (2.1–2.4) | `internal/api`, `.pfr` record/verify, `cmd/pacfan-headless` | Piped game to game over; fixtures verify; client maze reconstruction test |
-| **3A** (3.1–3.3) | `PacFanEnv`, encoders, random + greedy baselines | `check_env` and vector-env tests; baseline scores logged |
+| **2** (2.1–2.4) | `internal/api`, `.pfr` record/verify, `cmd/cheddarhead-headless` | Piped game to game over; fixtures verify; client maze reconstruction test |
+| **3A** (3.1–3.3) | `CheddarHeadEnv`, encoders, random + greedy baselines | `check_env` and vector-env tests; baseline scores logged |
 | **3B** (3.4) | PPO trainer, run directory, fixed-seed eval with replays | Beats random baseline on fixed seeds |
-| **4** | `pacfan -replay` viewer (+ optional human record, live spectate) | Eval replays play back with zero hash mismatches |
+| **4** | `cheddarhead -replay` viewer (+ optional human record, live spectate) | Eval replays play back with zero hash mismatches |
 | **5** | Profile-guided batching / native bridge | Measured steps/sec gain; Phase 1–4 tests still pass |
 
 Milestones 1A through 2 are the critical path: after them any language that can write a line of JSON to a pipe can train on the game, and every episode it plays can be saved and later watched.

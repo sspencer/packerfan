@@ -41,8 +41,8 @@ assets/text-real.png
 pacman
 tasks/
 notes/
-/pacfan
-/pacfan-headless
+/cheddarhead
+/cheddarhead-headless
 /bin/
 
 # Python ML workspace & training outputs

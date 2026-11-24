@@ -5,10 +5,10 @@ import (
 
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/archetype"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/system"
+	"cheddarhead/internal/archetype"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/system"
 )
 
 func TestStartGameAtLevel(t *testing.T) {

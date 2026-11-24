@@ -5,12 +5,12 @@ import (
 	"sync"
 	"testing"
 
-	"pacfan/assets"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/sheet"
-	"pacfan/internal/sim"
-	"pacfan/internal/system"
+	"cheddarhead/assets"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/sheet"
+	"cheddarhead/internal/sim"
+	"cheddarhead/internal/system"
 )
 
 var (

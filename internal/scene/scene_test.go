@@ -7,14 +7,14 @@ import (
 
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/archetype"
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/event"
-	"pacfan/internal/scene"
-	"pacfan/internal/sheet"
-	"pacfan/internal/system"
+	"cheddarhead/internal/archetype"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/event"
+	"cheddarhead/internal/scene"
+	"cheddarhead/internal/sheet"
+	"cheddarhead/internal/system"
 )
 
 // spritesheetPath returns assets/game-real.png if it exists, otherwise the

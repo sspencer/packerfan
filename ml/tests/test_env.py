@@ -1,4 +1,4 @@
-"""Validation tests for PacFanEnv (Gymnasium check_env, determinism, AsyncVectorEnv)."""
+"""Validation tests for CheddarHeadEnv (Gymnasium check_env, determinism, AsyncVectorEnv)."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from gymnasium.vector import AsyncVectorEnv
 import numpy as np
 import pytest
 
-from pacfan_env import PacFanEnv, RewardShapingWrapper, default_binary_path
+from cheddarhead_env import CheddarHeadEnv, RewardShapingWrapper, default_binary_path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 FALLBACK_ART = str(REPO_ROOT / "assets" / "game.png")
@@ -18,14 +18,14 @@ FALLBACK_ART = str(REPO_ROOT / "assets" / "game.png")
 def _require_binary() -> str:
     binary = default_binary_path()
     if not Path(binary).is_file():
-        pytest.skip(f"pacfan-headless binary not found at {binary}; run `make build-headless`")
+        pytest.skip(f"cheddarhead-headless binary not found at {binary}; run `make build-headless`")
     return binary
 
 
 @pytest.mark.parametrize("obs_mode", ["grid", "grid_only", "bfs"])
 def test_gymnasium_check_env(obs_mode: str) -> None:
     binary = _require_binary()
-    with PacFanEnv(
+    with CheddarHeadEnv(
         binary=binary,
         art=FALLBACK_ART,
         obs_mode=obs_mode,
@@ -41,7 +41,7 @@ def test_seeded_trajectory_determinism() -> None:
 
     def run_once(seed: int) -> list[tuple[int, float, bool, int, int]]:
         traj: list[tuple[int, float, bool, int, int]] = []
-        with PacFanEnv(binary=binary, art=FALLBACK_ART, obs_mode="grid", step_mode="tile") as env:
+        with CheddarHeadEnv(binary=binary, art=FALLBACK_ART, obs_mode="grid", step_mode="tile") as env:
             obs, info = env.reset(seed=seed)
             assert info["tick"] == 0
             for a in actions:
@@ -60,7 +60,7 @@ def test_seeded_trajectory_determinism() -> None:
 
 def test_reward_wrapper_and_action_masks(tmp_path: Path) -> None:
     binary = _require_binary()
-    with PacFanEnv(
+    with CheddarHeadEnv(
         binary=binary,
         art=FALLBACK_ART,
         obs_mode="grid",
@@ -98,7 +98,7 @@ def test_async_vector_env() -> None:
 
     def make_env(idx: int):
         def _thunk():
-            return PacFanEnv(
+            return CheddarHeadEnv(
                 binary=binary,
                 art=FALLBACK_ART,
                 obs_mode="bfs",

@@ -7,7 +7,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 // DrawText renders uppercase arcade bitmap font text at tile coordinates (x, y).

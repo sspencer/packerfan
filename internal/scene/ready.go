@@ -1,6 +1,6 @@
 package scene
 
-import "pacfan/internal/audio"
+import "cheddarhead/internal/audio"
 
 // ReadyScene displays the maze and "READY!" prompt while holding gameplay until
 // the pre-round delay elapses.

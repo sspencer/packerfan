@@ -12,11 +12,11 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	flag "github.com/spf13/pflag"
 
-	"pacfan/assets"
-	"pacfan/internal/audio"
-	"pacfan/internal/config"
-	"pacfan/internal/game"
-	"pacfan/internal/render"
+	"cheddarhead/assets"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/game"
+	"cheddarhead/internal/render"
 )
 
 const defaultWindowedZoom = 3

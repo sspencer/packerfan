@@ -9,9 +9,9 @@ import (
 	"github.com/yohamta/donburi"
 	"github.com/yohamta/donburi/filter"
 
-	"pacfan/internal/component"
-	"pacfan/internal/config"
-	"pacfan/internal/scene"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/scene"
 )
 
 var (

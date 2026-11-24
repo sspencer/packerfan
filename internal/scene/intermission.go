@@ -3,9 +3,9 @@ package scene
 import (
 	"fmt"
 
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 const (

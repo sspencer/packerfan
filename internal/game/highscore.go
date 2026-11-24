@@ -15,7 +15,7 @@ func DefaultHighScorePath(pacmanMode bool) string {
 	if err != nil || dir == "" {
 		return ""
 	}
-	return filepath.Join(dir, "pacfan", highScoreFileName(pacmanMode))
+	return filepath.Join(dir, "cheddarhead", highScoreFileName(pacmanMode))
 }
 
 func highScoreFileName(pacmanMode bool) string {

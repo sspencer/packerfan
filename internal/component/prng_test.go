@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"pacfan/internal/component"
+	"cheddarhead/internal/component"
 )
 
 func TestPRNGSeedDeterminismAndDivergence(t *testing.T) {

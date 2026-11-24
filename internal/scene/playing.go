@@ -1,8 +1,8 @@
 package scene
 
 import (
-	"pacfan/internal/audio"
-	"pacfan/internal/component"
+	"cheddarhead/internal/audio"
+	"cheddarhead/internal/component"
 )
 
 // PlayingScene runs the normal per-frame ECS simulation pipeline and routes

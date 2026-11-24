@@ -1,8 +1,8 @@
 package system
 
 import (
-	"pacfan/internal/component"
-	"pacfan/internal/config"
+	"cheddarhead/internal/component"
+	"cheddarhead/internal/config"
 )
 
 const speedMaskSize = 16

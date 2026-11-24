@@ -1,6 +1,6 @@
 # Ideas
 
-Candidate features for pacfan, roughly grouped by theme. Each entry says what it is, why it's worth doing, and how it fits the current architecture. Effort is a rough guess: **S** (a day or two), **M** (about a week), **L** (multi-week).
+Candidate features for cheddarhead, roughly grouped by theme. Each entry says what it is, why it's worth doing, and how it fits the current architecture. Effort is a rough guess: **S** (a day or two), **M** (about a week), **L** (multi-week).
 
 ## Top picks
 
@@ -93,7 +93,7 @@ A human controls one ghost (keyboard or second gamepad) while the AI, or a train
 
 ### 3.1 Record human games (S)
 
-`docs/machine.md` already plans `--record FILE`. Recording what a person plays, in the same `.pfr` format, means human games can be watched, verified with `pacfan-headless --verify`, and used as imitation-learning data.
+`docs/machine.md` already plans `--record FILE`. Recording what a person plays, in the same `.pfr` format, means human games can be watched, verified with `cheddarhead-headless --verify`, and used as imitation-learning data.
 
 ### 3.2 Ghost racing against a replay (M)
 

@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from sb3_contrib import MaskablePPO
 
-from pacfan_env import PacFanEnv, default_binary_path
+from cheddarhead_env import CheddarHeadEnv, default_binary_path
 
 
 def evaluate_checkpoint(
@@ -33,7 +33,7 @@ def evaluate_checkpoint(
         record_dir.mkdir(parents=True, exist_ok=True)
 
     episodes: list[dict[str, Any]] = []
-    with PacFanEnv(
+    with CheddarHeadEnv(
         binary=binary,
         art=art,
         ms_pacman=ms_pacman,
@@ -100,7 +100,7 @@ def evaluate_checkpoint(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate a MaskablePPO checkpoint on pacfan-headless.")
+    parser = argparse.ArgumentParser(description="Evaluate a MaskablePPO checkpoint on cheddarhead-headless.")
     parser.add_argument("checkpoint", type=Path, help="Path to saved .zip checkpoint")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=None)

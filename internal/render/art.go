@@ -12,8 +12,8 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"pacfan/assets"
-	"pacfan/internal/sheet"
+	"cheddarhead/assets"
+	"cheddarhead/internal/sheet"
 )
 
 // Art owns the loaded Ebitengine spritesheet images, CPU pixel bitmap, and shaders.

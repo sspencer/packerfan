@@ -4,7 +4,7 @@ import (
 	"math"
 	"testing"
 
-	"pacfan/internal/render"
+	"cheddarhead/internal/render"
 )
 
 func almostEqual(a, b float32) bool {

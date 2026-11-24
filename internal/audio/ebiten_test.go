@@ -5,7 +5,7 @@ import (
 	"math"
 	"testing"
 
-	"pacfan/assets"
+	"cheddarhead/assets"
 )
 
 func buildTestWAV(sampleRate, bitsPerSample, numSamples int) []byte {

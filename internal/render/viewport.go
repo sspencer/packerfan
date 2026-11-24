@@ -5,7 +5,7 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 const (

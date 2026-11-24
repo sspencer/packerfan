@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"pacfan/internal/config"
-	"pacfan/internal/render"
-	"pacfan/internal/sheet"
+	"cheddarhead/internal/config"
+	"cheddarhead/internal/render"
+	"cheddarhead/internal/sheet"
 )
 
 // spritesheetPath returns assets/game-real.png if it exists, otherwise the

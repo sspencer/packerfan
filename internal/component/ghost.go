@@ -3,7 +3,7 @@ package component
 import (
 	"github.com/yohamta/donburi"
 
-	"pacfan/internal/config"
+	"cheddarhead/internal/config"
 )
 
 // GhostAIKind selects which classic arcade targeting & house-exit rule a ghost uses.

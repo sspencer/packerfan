@@ -1,4 +1,4 @@
-"""Train a MaskablePPO agent on pacfan-headless with a small 31x28 spatial CNN."""
+"""Train a MaskablePPO agent on cheddarhead-headless with a small 31x28 spatial CNN."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ import torch
 from torch import nn
 
 from eval import evaluate_checkpoint
-from pacfan_env import PacFanEnv, RewardShapingWrapper, default_binary_path
+from cheddarhead_env import CheddarHeadEnv, RewardShapingWrapper, default_binary_path
 
 
 def _git_commit() -> str:
@@ -35,7 +35,7 @@ def _git_commit() -> str:
         return "unknown"
 
 
-class PacFanCNNExtractor(BaseFeaturesExtractor):
+class CheddarHeadCNNExtractor(BaseFeaturesExtractor):
     """Compact CNN + scalar fusion extractor tailored to (C, 31, 28) Pac-Man grids."""
 
     def __init__(self, observation_space: spaces.Dict, features_dim: int = 256) -> None:
@@ -90,7 +90,7 @@ def make_train_env(
     step_penalty: float,
 ):
     def _init():
-        base = PacFanEnv(
+        base = CheddarHeadEnv(
             binary=binary,
             art=art,
             ms_pacman=ms_pacman,
@@ -216,7 +216,7 @@ class RunLoggingAndEvalCallback(BaseCallback):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train MaskablePPO on headless pacfan.")
+    parser = argparse.ArgumentParser(description="Train MaskablePPO on headless cheddarhead.")
     parser.add_argument("--binary", default=default_binary_path())
     parser.add_argument("--art", default=None)
     parser.add_argument("--ms", action="store_true", help="Ms. Pac-Man instead of classic Pac-Man")
@@ -255,7 +255,7 @@ def main() -> None:
     commit = _git_commit()
 
     # Probe hello metadata once for run.json.
-    with PacFanEnv(binary=args.binary, art=args.art, ms_pacman=args.ms, obs_mode=args.obs_mode) as probe:
+    with CheddarHeadEnv(binary=args.binary, art=args.art, ms_pacman=args.ms, obs_mode=args.obs_mode) as probe:
         hello = probe.hello_info
 
     run_meta = {
@@ -317,7 +317,7 @@ def main() -> None:
     if args.obs_mode == "grid":
         policy = "MultiInputPolicy"
         policy_kwargs: dict[str, Any] = {
-            "features_extractor_class": PacFanCNNExtractor,
+            "features_extractor_class": CheddarHeadCNNExtractor,
             "features_extractor_kwargs": {"features_dim": 256},
         }
     else:
